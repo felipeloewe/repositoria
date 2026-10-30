@@ -10,13 +10,13 @@ export function SidebarNav({ groups }: { groups: NavGroup[] }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-4">
+    <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-2">
       {groups.map((group) => (
         <div key={group.title}>
-          <p className="mb-1.5 px-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--muted)]">
+          <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
             {group.title}
           </p>
-          <ul className="space-y-0.5">
+          <ul className="space-y-1">
             {group.items.map((item) => {
               const active =
                 pathname === item.href ||
@@ -25,10 +25,10 @@ export function SidebarNav({ groups }: { groups: NavGroup[] }) {
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className={`block rounded-lg px-2.5 py-2 text-sm transition-colors ${
+                    className={`block rounded-2xl px-3 py-2.5 text-sm transition-all ${
                       active
-                        ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
-                        : "text-[var(--ink)] hover:bg-[var(--surface-muted)]"
+                        ? "bg-[var(--accent-soft)] font-semibold text-[var(--accent-strong)] shadow-[inset_0_0_0_1px_rgba(26,92,255,0.18)]"
+                        : "font-medium text-[var(--ink)] hover:bg-[var(--surface-muted)]"
                     }`}
                   >
                     {item.label}

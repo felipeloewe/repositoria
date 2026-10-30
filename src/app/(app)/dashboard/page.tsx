@@ -74,13 +74,13 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       {profileNotice ? <ProfileNotice notice={profileNotice} /> : null}
 
-      <section className="overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#14352c_0%,#0f6e56_55%,#1a5c4a_100%)] px-6 py-7 text-white shadow-sm sm:px-8">
-        <p className="text-xs uppercase tracking-[0.14em] text-white/70">
+      <section className="overflow-hidden rounded-[1.5rem] bg-[linear-gradient(135deg,var(--banner)_0%,var(--banner-end)_58%,var(--accent-glow)_100%)] px-6 py-7 text-white shadow-[0_16px_36px_rgba(18,54,181,0.28)] sm:px-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/75">
           {greetingLabel(now)} · {formatDateEs(now)}
         </p>
         <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="font-[family-name:var(--font-questia)] text-3xl tracking-tight sm:text-4xl">
+            <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
               Hola, {firstName}
             </h1>
             <p className="mt-2 max-w-xl text-sm text-white/80">
@@ -94,33 +94,33 @@ export default async function DashboardPage() {
             {canBrowseOrganization(session) ? (
               <Link
                 href="/organizacion"
-                className="rounded-lg bg-white/15 px-3 py-2 text-sm backdrop-blur transition-colors hover:bg-white/25"
+                className="rounded-full bg-white/15 px-3.5 py-2 text-sm font-medium backdrop-blur transition-colors hover:bg-white/25"
               >
                 Organización
               </Link>
             ) : null}
             <Link
-              href="/expedientes"
-              className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-[var(--accent)]"
+              href="/correo"
+              className="rounded-full bg-white px-3.5 py-2 text-sm font-semibold text-[var(--accent-strong)]"
             >
-              Expedientes
+              Correo
             </Link>
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
-          <span className="rounded-full bg-black/20 px-3 py-1 text-xs text-white/90">
+          <span className="rounded-full bg-black/15 px-3 py-1 text-xs font-medium text-white/95">
             {roleLabel(session.rol)}
           </span>
           {canBrowseOrganization(session) ? (
-            <span className="rounded-full bg-black/20 px-3 py-1 text-xs text-white/90">
+            <span className="rounded-full bg-black/15 px-3 py-1 text-xs font-medium text-white/95">
               {visibleSucursales.length} sucursales visibles
             </span>
           ) : null}
-          <span className="rounded-full bg-black/20 px-3 py-1 text-xs text-white/90">
+          <span className="rounded-full bg-black/15 px-3 py-1 text-xs font-medium text-white/95">
             {visibleExpedientes.length} expedientes visibles
           </span>
           {isMasterRole(session.rol) ? (
-            <span className="rounded-full bg-black/20 px-3 py-1 text-xs text-white/90">
+            <span className="rounded-full bg-black/15 px-3 py-1 text-xs font-medium text-white/95">
               {miembros} miembros
             </span>
           ) : null}

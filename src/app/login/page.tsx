@@ -31,9 +31,9 @@ export default async function LoginPage({
   const showDevHint = process.env.NODE_ENV !== "production";
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--accent-soft),_transparent_55%),linear-gradient(180deg,var(--surface)_0%,#e4ebe7_100%)] px-4 py-16">
+    <div className="flex flex-1 items-center justify-center bg-[radial-gradient(ellipse_at_top,_rgba(26,92,255,0.18),_transparent_55%),linear-gradient(180deg,#f4f6fb_0%,#e7eeff_100%)] px-4 py-16">
       <div className="w-full max-w-md">
-        <p className="font-[family-name:var(--font-display)] text-3xl tracking-tight text-[var(--ink)]">
+        <p className="inline-flex rounded-2xl bg-[linear-gradient(135deg,var(--banner),var(--banner-end))] px-3.5 py-1.5 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-white shadow-[0_10px_24px_rgba(26,92,255,0.28)]">
           Repositoria
         </p>
         <p className="mt-2 text-[var(--muted)]">

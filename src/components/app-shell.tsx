@@ -44,7 +44,20 @@ function buildNav(session: Session): NavGroup[] {
     ],
   };
 
-  return [inicio, ...(organizacion ? [organizacion] : []), documentos];
+  const correo: NavGroup = {
+    title: "Correo",
+    items: [
+      { href: "/correo", label: "Hilos" },
+      { href: "/correo/configuracion", label: "Vincular casilla" },
+    ],
+  };
+
+  return [
+    inicio,
+    ...(organizacion ? [organizacion] : []),
+    documentos,
+    correo,
+  ];
 }
 
 function initials(nombre: string): string {
@@ -62,28 +75,28 @@ export function AppShell({
   const groups = buildNav(session);
 
   return (
-    <div className="flex min-h-full flex-1 bg-[var(--surface)]">
-      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface-elevated)] md:flex">
-        <div className="flex h-14 items-center border-b border-[var(--border)] px-4">
+    <div className="flex min-h-full flex-1">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface-elevated)]/95 shadow-[4px_0_24px_rgba(18,54,181,0.04)] backdrop-blur md:flex">
+        <div className="flex h-16 items-center px-4">
           <Link
             href="/dashboard"
-            className="font-[family-name:var(--font-questia)] text-lg tracking-tight text-[var(--ink)]"
+            className="rounded-2xl bg-[linear-gradient(135deg,var(--banner),var(--banner-end))] px-3.5 py-2 font-[family-name:var(--font-display)] text-base font-semibold tracking-tight text-white shadow-[0_8px_18px_rgba(26,92,255,0.28)]"
           >
             Repositoria
           </Link>
         </div>
         <SidebarNav groups={groups} />
-        <div className="border-t border-[var(--border)] px-4 py-3 text-[10px] text-[var(--muted)]">
-          Fase 2 · documentos
+        <div className="px-4 py-4 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--muted)]">
+          Fase 3 · correo
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur">
-          <div className="flex h-14 items-center gap-4 px-4 sm:px-6">
+        <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface-elevated)]/90 backdrop-blur">
+          <div className="flex h-16 items-center gap-4 px-4 sm:px-6">
             <Link
               href="/dashboard"
-              className="font-[family-name:var(--font-questia)] text-base text-[var(--ink)] md:hidden"
+              className="rounded-xl bg-[var(--accent)] px-2.5 py-1 font-[family-name:var(--font-display)] text-sm font-semibold text-white md:hidden"
             >
               Repositoria
             </Link>
@@ -97,14 +110,14 @@ export function AppShell({
                 type="search"
                 placeholder="Buscar…"
                 disabled
-                className="w-full rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-1.5 text-sm text-[var(--muted)] outline-none"
+                className="w-full rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--muted)] outline-none"
                 title="Búsqueda disponible en una fase posterior"
               />
             </div>
 
             <div className="ml-auto flex min-w-0 items-center gap-3">
               <div className="hidden min-w-0 text-right lg:block">
-                <p className="truncate text-sm font-medium text-[var(--ink)]">
+                <p className="truncate text-sm font-semibold text-[var(--ink)]">
                   {session.nombre}
                 </p>
                 <p className="truncate text-xs text-[var(--muted)]">
@@ -113,7 +126,7 @@ export function AppShell({
                 </p>
               </div>
               <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-medium text-white"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,var(--banner),var(--accent-glow))] text-sm font-semibold text-white shadow-[0_6px_14px_rgba(26,92,255,0.3)]"
                 aria-hidden
               >
                 {initials(session.nombre)}
@@ -122,7 +135,7 @@ export function AppShell({
                 <form action={changeEmpresa}>
                   <button
                     type="submit"
-                    className="rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs text-[var(--muted)] transition-colors hover:border-[var(--ink)] hover:text-[var(--ink)]"
+                    className="rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
                   >
                     Empresa
                   </button>
@@ -131,7 +144,7 @@ export function AppShell({
               <form action={logout}>
                 <button
                   type="submit"
-                  className="rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs text-[var(--muted)] transition-colors hover:border-[var(--ink)] hover:text-[var(--ink)]"
+                  className="rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
                 >
                   Salir
                 </button>
@@ -139,13 +152,12 @@ export function AppShell({
             </div>
           </div>
 
-          {/* Mobile nav */}
-          <div className="flex gap-1 overflow-x-auto border-t border-[var(--border)] px-3 py-2 md:hidden">
+          <div className="flex gap-1.5 overflow-x-auto px-3 py-2 md:hidden">
             {groups.flatMap((g) => g.items).map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="shrink-0 rounded-full border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]"
+                className="shrink-0 rounded-full border border-[var(--border)] bg-white px-3 py-1 text-xs font-medium text-[var(--muted)]"
               >
                 {item.label}
               </Link>

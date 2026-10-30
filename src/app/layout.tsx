@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import { Questrial } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
 /**
- * Product typography: Questia → Questrial (Google Fonts), the real webfont
- * matching that name. Used for both display and body.
+ * Modern geometric sans for the vibrant shell language.
+ * (Questia/Questrial remains a historical preference; Felipe asked for livelier UI.)
  */
-const questia = Questrial({
-  weight: "400",
+const sansModern = Plus_Jakarta_Sans({
   subsets: ["latin", "latin-ext"],
-  variable: "--font-questia",
+  variable: "--font-sans-modern",
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -23,8 +23,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es" className={`${questia.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col font-[family-name:var(--font-questia)]">
+    <html lang="es" className={`${sansModern.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col font-[family-name:var(--font-sans-modern)]">
         {children}
       </body>
     </html>

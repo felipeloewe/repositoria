@@ -12,7 +12,7 @@ export function PageHeader({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight text-[var(--ink)]">
+        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-[var(--ink)]">
           {title}
         </h1>
         {description ? (
@@ -33,7 +33,7 @@ export function Panel({
 }) {
   return (
     <div
-      className={`rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] ${className}`}
+      className={`rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-elevated)] shadow-[var(--shadow-card)] ${className}`}
     >
       {children}
     </div>
@@ -59,20 +59,20 @@ export function Field({
 }
 
 export const inputClass =
-  "w-full rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none ring-[var(--accent)] focus:ring-2";
+  "w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-white px-3.5 py-2.5 text-sm outline-none ring-[var(--accent)] transition-shadow focus:ring-2";
 
 export const btnPrimary =
-  "inline-flex items-center justify-center rounded bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50";
+  "inline-flex items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(26,92,255,0.28)] transition hover:bg-[var(--accent-strong)] disabled:opacity-50";
 
 export const btnSecondary =
-  "inline-flex items-center justify-center rounded border border-[var(--border)] px-3 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--surface-muted)]";
+  "inline-flex items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--ink)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]";
 
 export const btnDanger =
-  "inline-flex items-center justify-center rounded border border-red-200 px-3 py-2 text-sm text-red-700 transition-colors hover:bg-red-50";
+  "inline-flex items-center justify-center rounded-[var(--radius-control)] border border-rose-200 bg-white px-4 py-2.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50";
 
 export function Flash({ children }: { children: ReactNode }) {
   return (
-    <p className="rounded border border-[var(--border)] bg-[var(--accent-soft)] px-3 py-2 text-sm text-[var(--ink)]">
+    <p className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--accent-soft)] px-3.5 py-2.5 text-sm text-[var(--ink)]">
       {children}
     </p>
   );
@@ -86,8 +86,8 @@ export function EmptyState({
   detail?: string;
 }) {
   return (
-    <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-elevated)] p-8 text-center">
-      <p className="font-medium text-[var(--ink)]">{title}</p>
+    <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border)] bg-[var(--surface-elevated)] p-10 text-center shadow-[var(--shadow-card)]">
+      <p className="font-semibold text-[var(--ink)]">{title}</p>
       {detail ? (
         <p className="mt-1 text-sm text-[var(--muted)]">{detail}</p>
       ) : null}
