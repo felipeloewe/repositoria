@@ -1,7 +1,29 @@
 import { PrismaClient, type Rol } from "@prisma/client";
 import { createHash } from "crypto";
+import { mkdirSync, writeFileSync, rmSync } from "fs";
+import path from "path";
 
 const prisma = new PrismaClient();
+
+function storageRoot(): string {
+  return (
+    process.env.STORAGE_ROOT?.trim() ||
+    path.join(process.cwd(), "storage", "documents")
+  );
+}
+
+function writeSeedFile(
+  empresaId: string,
+  documentoId: string,
+  filename: string,
+  contents: string,
+): { storageKey: string; tamanioBytes: number } {
+  const storageKey = path.join(empresaId, documentoId, filename);
+  const full = path.join(storageRoot(), storageKey);
+  mkdirSync(path.dirname(full), { recursive: true });
+  writeFileSync(full, contents, "utf8");
+  return { storageKey, tamanioBytes: Buffer.byteLength(contents, "utf8") };
+}
 
 function hashPassword(password: string): string {
   return createHash("sha256")
@@ -55,6 +77,9 @@ const IDS = {
 async function main() {
   console.log("Seeding Repositoria demo data…");
 
+  await prisma.documentoAutorizacion.deleteMany();
+  await prisma.documento.deleteMany();
+  await prisma.documentoSeccion.deleteMany();
   await prisma.expedienteAutorizacion.deleteMany();
   await prisma.expedienteStub.deleteMany();
   await prisma.departamento.deleteMany();
@@ -62,6 +87,12 @@ async function main() {
   await prisma.sucursal.deleteMany();
   await prisma.usuario.deleteMany();
   await prisma.empresa.deleteMany();
+
+  try {
+    rmSync(storageRoot(), { recursive: true, force: true });
+  } catch {
+    /* empty */
+  }
 
   const passwordHash = hashPassword(DEMO_PASSWORD);
 
@@ -346,9 +377,105 @@ async function main() {
     ],
   });
 
+  // --- Fase 2: secciones + documentos de ejemplo ---
+  const secCorpContratos = await prisma.documentoSeccion.create({
+    data: {
+      id: "sec_corp_contratos",
+      empresaId: empresa.id,
+      sucursalId: null,
+      nombre: "Contratos",
+      codigo: "CONTRATOS",
+    },
+  });
+  const secNorteLiq = await prisma.documentoSeccion.create({
+    data: {
+      id: "sec_norte_liquidaciones",
+      empresaId: empresa.id,
+      sucursalId: norte.id,
+      nombre: "Liquidaciones",
+      codigo: "LIQUIDACIONES",
+    },
+  });
+  const secSurContratos = await prisma.documentoSeccion.create({
+    data: {
+      id: "sec_sur_contratos",
+      empresaId: empresa.id,
+      sucursalId: sur.id,
+      nombre: "Contratos",
+      codigo: "CONTRATOS",
+    },
+  });
+  await prisma.documentoSeccion.create({
+    data: {
+      id: "sec_norte_general",
+      empresaId: empresa.id,
+      sucursalId: norte.id,
+      nombre: "General",
+      codigo: "GENERAL",
+    },
+  });
+
+  const docs = [
+    {
+      id: "doc_politica_corp",
+      seccionId: secCorpContratos.id,
+      sucursalId: null as string | null,
+      titulo: "Política de contratos corporativos",
+      filename: "politica-contratos.txt",
+      body: "Documento corporativo de ejemplo — visible a Master y Jefes.\n",
+      authorize: [] as string[],
+    },
+    {
+      id: "doc_liq_norte",
+      seccionId: secNorteLiq.id,
+      sucursalId: norte.id,
+      titulo: "Liquidaciones Norte — marzo",
+      filename: "liquidaciones-norte-marzo.txt",
+      body: "Liquidaciones Sucursal Norte — ejemplo seed.\n",
+      authorize: [IDS.users.contador, IDS.users.multi],
+    },
+    {
+      id: "doc_contrato_sur",
+      seccionId: secSurContratos.id,
+      sucursalId: sur.id,
+      titulo: "Contrato proveedor Sur",
+      filename: "contrato-sur.txt",
+      body: "Contrato Sucursal Sur — ejemplo seed.\n",
+      authorize: [IDS.users.abogado],
+    },
+  ];
+
+  for (const d of docs) {
+    const file = writeSeedFile(empresa.id, d.id, d.filename, d.body);
+    await prisma.documento.create({
+      data: {
+        id: d.id,
+        empresaId: empresa.id,
+        seccionId: d.seccionId,
+        sucursalId: d.sucursalId,
+        titulo: d.titulo,
+        nombreArchivo: d.filename,
+        mimeType: "text/plain",
+        tamanioBytes: file.tamanioBytes,
+        storageKey: file.storageKey,
+        subidoPorId: IDS.users.master,
+      },
+    });
+    for (const uid of d.authorize) {
+      await prisma.documentoAutorizacion.create({
+        data: {
+          empresaId: empresa.id,
+          documentoId: d.id,
+          usuarioId: uid,
+        },
+      });
+    }
+  }
+
   console.log("Seed OK");
   console.log(`  Empresas: ${empresa.nombre}, ${empresaBeta.nombre}`);
   console.log(`  Contraseña demo: ${DEMO_PASSWORD}`);
+  console.log(`  Documentos seed: ${docs.length} en ${storageRoot()}`);
   console.log("  Usuarios:");
   for (const u of users) {
     console.log(`    ${u.email}`);

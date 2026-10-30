@@ -29,11 +29,14 @@ model Empresa {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sucursales      Sucursal[]
-  departamentos   Departamento[]
-  membresias      Membresia[]
-  expedientes     ExpedienteStub[]
-  autorizaciones  ExpedienteAutorizacion[]
+  sucursales           Sucursal[]
+  departamentos        Departamento[]
+  membresias           Membresia[]
+  expedientes          ExpedienteStub[]
+  autorizaciones       ExpedienteAutorizacion[]
+  documentoSecciones   DocumentoSeccion[]
+  documentos           Documento[]
+  documentoAuths       DocumentoAutorizacion[]
 
   @@index([rut])
   @@map("empresas")
@@ -49,10 +52,12 @@ model Sucursal {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  empresa       Empresa          @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  departamentos Departamento[]
-  membresias    Membresia[]
-  expedientes   ExpedienteStub[]
+  empresa            Empresa            @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  departamentos      Departamento[]
+  membresias         Membresia[]
+  expedientes        ExpedienteStub[]
+  documentoSecciones DocumentoSeccion[]
+  documentos         Documento[]
 
   @@unique([empresaId, nombre])
   @@index([empresaId])
@@ -90,8 +95,10 @@ model Usuario {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  membresias     Membresia[]
-  autorizaciones ExpedienteAutorizacion[]
+  membresias         Membresia[]
+  autorizaciones     ExpedienteAutorizacion[]
+  documentosSubidos  Documento[]              @relation("DocumentoSubidoPor")
+  documentoAuths     DocumentoAutorizacion[]
 
   @@index([rut])
   @@map("usuarios")
@@ -155,4 +162,74 @@ model ExpedienteAutorizacion {
   @@index([empresaId])
   @@index([usuarioId])
   @@map("expediente_autorizaciones")
+}
+
+/// Sección/carpeta del repositorio: corporativa (sucursalId null) o por sucursal.
+model DocumentoSeccion {
+  id         String   @id @default(cuid())
+  empresaId  String
+  /// null = sección corporativa de la empresa
+  sucursalId String?
+  nombre     String
+  /// Ej. CONTRATOS, LIQUIDACIONES, GENERAL
+  codigo     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  empresa    Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  sucursal   Sucursal?   @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  documentos Documento[]
+
+  @@unique([empresaId, sucursalId, codigo])
+  @@index([empresaId])
+  @@index([sucursalId])
+  @@map("documento_secciones")
+}
+
+/// Documento del repositorio unificado por empresa (Fase 2).
+model Documento {
+  id            String   @id @default(cuid())
+  empresaId     String
+  seccionId     String
+  /// Denormalizado desde la sección para consultas ACL (null = corporativo).
+  sucursalId    String?
+  titulo        String
+  nombreArchivo String
+  mimeType      String
+  tamanioBytes  Int
+  /// Ruta relativa bajo STORAGE_ROOT
+  storageKey    String
+  subidoPorId   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  empresa        Empresa                 @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  seccion        DocumentoSeccion        @relation(fields: [seccionId], references: [id], onDelete: Cascade)
+  sucursal       Sucursal?               @relation(fields: [sucursalId], references: [id], onDelete: SetNull)
+  subidoPor      Usuario                 @relation("DocumentoSubidoPor", fields: [subidoPorId], references: [id])
+  autorizaciones DocumentoAutorizacion[]
+
+  @@index([empresaId])
+  @@index([seccionId])
+  @@index([sucursalId])
+  @@index([subidoPorId])
+  @@map("documentos")
+}
+
+/// Autorización explícita (externos u otros) a un documento por usuarioId.
+model DocumentoAutorizacion {
+  id          String   @id @default(cuid())
+  empresaId   String
+  documentoId String
+  usuarioId   String
+  createdAt   DateTime @default(now())
+
+  empresa   Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  documento Documento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([documentoId, usuarioId])
+  @@index([empresaId])
+  @@index([usuarioId])
+  @@map("documento_autorizaciones")
 }

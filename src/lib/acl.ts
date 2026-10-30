@@ -106,3 +106,71 @@ export function requireSucursalManage(session: Session, sucursalId: string) {
 export function roleNeedsSucursal(rol: Rol | string): boolean {
   return rol === "JEFE_SUCURSAL";
 }
+
+export type DocumentoAclInput = {
+  empresaId: string;
+  sucursalId: string | null;
+  autorizadoUsuarioIds: string[];
+};
+
+/** Master: all tenant docs. Jefe: own sucursal + corporate. Externals: authorized only. */
+export function canViewDocumento(
+  session: Session,
+  doc: DocumentoAclInput,
+): boolean {
+  if (session.empresaId !== doc.empresaId) return false;
+  if (isMasterRole(session.rol)) return true;
+  if (session.rol === "JEFE_SUCURSAL") {
+    if (doc.sucursalId === null) return true; // corporate visible to jefes
+    return !!session.sucursalId && doc.sucursalId === session.sucursalId;
+  }
+  if (isExternalRole(session.rol)) {
+    return doc.autorizadoUsuarioIds.includes(session.userId);
+  }
+  return false;
+}
+
+export function canUploadDocumento(
+  session: Session,
+  target: { sucursalId: string | null },
+): boolean {
+  if (isMasterRole(session.rol)) return true;
+  if (session.rol === "JEFE_SUCURSAL") {
+    if (target.sucursalId === null) return false; // only Master uploads corporate
+    return session.sucursalId === target.sucursalId;
+  }
+  return false;
+}
+
+export function canDeleteDocumento(
+  session: Session,
+  doc: DocumentoAclInput & { subidoPorId?: string },
+): boolean {
+  if (!canViewDocumento(session, doc)) return false;
+  if (isMasterRole(session.rol)) return true;
+  if (session.rol === "JEFE_SUCURSAL") {
+    return (
+      !!session.sucursalId &&
+      doc.sucursalId === session.sucursalId
+    );
+  }
+  return false;
+}
+
+export function requireDocumentoView(
+  session: Session,
+  doc: DocumentoAclInput,
+) {
+  if (!canViewDocumento(session, doc)) {
+    throw new AclError("Sin acceso a este documento");
+  }
+}
+
+export function requireDocumentoUpload(
+  session: Session,
+  target: { sucursalId: string | null },
+) {
+  if (!canUploadDocumento(session, target)) {
+    throw new AclError("Sin permiso para subir en esta sección");
+  }
+}

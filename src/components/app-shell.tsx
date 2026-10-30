@@ -39,8 +39,8 @@ function buildNav(session: Session): NavGroup[] {
   const documentos: NavGroup = {
     title: "Documentos",
     items: [
+      { href: "/documentos", label: "Repositorio" },
       { href: "/expedientes", label: "Expedientes" },
-      // Fase 2 placeholder — keep nav intent without CRM modules
     ],
   };
 
@@ -74,7 +74,7 @@ export function AppShell({
         </div>
         <SidebarNav groups={groups} />
         <div className="border-t border-[var(--border)] px-4 py-3 text-[10px] text-[var(--muted)]">
-          Fase 1 · organización
+          Fase 2 · documentos
         </div>
       </aside>
 
