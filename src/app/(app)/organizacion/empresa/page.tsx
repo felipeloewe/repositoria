@@ -29,9 +29,12 @@ export default async function EmpresaPage() {
     <div className="space-y-6">
       <PageHeader
         title="Empresa"
-        description="Datos del tenant. Solo Administrador Master puede editar."
+        description="Identidad por ID estable. Nombre, slug y RUT son atributos complementarios."
       />
       <Panel className="p-5">
+        <p className="mb-4 text-xs text-[var(--muted)]">
+          ID: <code className="rounded bg-[var(--surface-muted)] px-1">{empresa.id}</code>
+        </p>
         <form action={updateEmpresa} className="max-w-lg space-y-4">
           <Field label="Nombre">
             <input
@@ -47,6 +50,14 @@ export default async function EmpresaPage() {
               name="slug"
               defaultValue={empresa.slug}
               required
+            />
+          </Field>
+          <Field label="RUT (opcional)">
+            <input
+              className={inputClass}
+              name="rut"
+              defaultValue={empresa.rut ?? ""}
+              placeholder="76.111.111-1"
             />
           </Field>
           <button type="submit" className={btnPrimary}>

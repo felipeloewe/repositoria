@@ -71,9 +71,10 @@ export default async function SeleccionarEmpresaPage() {
           Repositoria
         </p>
         <p className="mt-2 text-[var(--muted)]">
-          Hola, {usuario.nombre}. Elige la <strong>empresa</strong> a la que
-          quieres entrar. Tu rol en cada una viene de tu membresía (no se elige
-          un personaje).
+          Hola, {usuario.nombre}. Elige una <strong>empresa</strong> de tu
+          perfil. El rol sale de la membresía de esa empresa; si cambia respecto
+          a la sesión actual, te pediremos confirmar y restableceremos el
+          perfil activo.
         </p>
 
         <ul className="mt-8 space-y-2">

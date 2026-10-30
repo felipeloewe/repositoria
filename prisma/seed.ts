@@ -70,6 +70,7 @@ async function main() {
       id: IDS.empresa,
       nombre: "Empresa Demo",
       slug: "empresa-demo",
+      rut: "76.111.111-1",
       activa: true,
     },
   });
@@ -79,6 +80,7 @@ async function main() {
       id: IDS.empresaBeta,
       nombre: "Empresa Beta",
       slug: "empresa-beta",
+      rut: "76.222.222-2",
       activa: true,
     },
   });
@@ -193,15 +195,18 @@ async function main() {
     },
   ];
 
+  let rutSeq = 1;
   for (const u of users) {
     await prisma.usuario.create({
       data: {
         id: u.id,
         email: u.email,
         nombre: u.nombre,
+        rut: `11.111.11${rutSeq}-${rutSeq}`,
         passwordHash,
       },
     });
+    rutSeq += 1;
   }
 
   const memberships: Array<{

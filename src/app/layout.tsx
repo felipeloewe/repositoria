@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
-import { DM_Sans, Fraunces } from "next/font/google";
+import { Questrial } from "next/font/google";
 import "./globals.css";
 
-const display = Fraunces({
-  variable: "--font-display",
-  subsets: ["latin"],
-  axes: ["SOFT", "WONK", "opsz"],
-});
-
-const body = DM_Sans({
-  variable: "--font-body",
-  subsets: ["latin"],
+/**
+ * Product typography: Questia → Questrial (Google Fonts), the real webfont
+ * matching that name. Used for both display and body.
+ */
+const questia = Questrial({
+  weight: "400",
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-questia",
 });
 
 export const metadata: Metadata = {
@@ -24,11 +23,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="es"
-      className={`${display.variable} ${body.variable} h-full antialiased`}
-    >
-      <body className="flex min-h-full flex-col">{children}</body>
+    <html lang="es" className={`${questia.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col font-[family-name:var(--font-questia)]">
+        {children}
+      </body>
     </html>
   );
 }

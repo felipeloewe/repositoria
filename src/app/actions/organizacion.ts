@@ -41,12 +41,13 @@ export async function updateEmpresa(formData: FormData) {
 
   const nombre = String(formData.get("nombre") ?? "").trim();
   const slugRaw = String(formData.get("slug") ?? "").trim();
+  const rut = String(formData.get("rut") ?? "").trim() || null;
   if (!nombre) throw new AclError("Nombre requerido");
 
   const slug = slugify(slugRaw || nombre);
   await prisma.empresa.update({
     where: { id: session.empresaId },
-    data: { nombre, slug },
+    data: { nombre, slug, rut },
   });
   revalidateOrg();
 }
@@ -191,12 +192,24 @@ export async function createMiembro(formData: FormData) {
     update: { nombre, activo: true },
   });
 
-  await prisma.membresia.create({
-    data: {
+  // One Membresia per (usuarioId, empresaId) — upsert role/scope for that pair.
+  await prisma.membresia.upsert({
+    where: {
+      usuarioId_empresaId: {
+        usuarioId: usuario.id,
+        empresaId: session.empresaId,
+      },
+    },
+    create: {
       empresaId: session.empresaId,
       usuarioId: usuario.id,
       rol,
       sucursalId: roleNeedsSucursal(rol) || sucursalId ? sucursalId : null,
+    },
+    update: {
+      rol,
+      sucursalId: roleNeedsSucursal(rol) || sucursalId ? sucursalId : null,
+      activa: true,
     },
   });
   revalidateOrg();

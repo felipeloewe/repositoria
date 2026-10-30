@@ -2,28 +2,33 @@ import { cookies } from "next/headers";
 import type { Rol } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
+/** Authenticated user identity cookie — value is Usuario.id (cuid). */
 export const USER_COOKIE = "repositoria_user_id";
+/** Active tenant profile — value is Membresia.id (cuid). */
 export const SESSION_COOKIE = "repositoria_membresia_id";
+/** One-shot banner after switching empresa with a different role. */
+export const PROFILE_NOTICE_COOKIE = "repositoria_profile_notice";
 
 export type Session = {
   membresiaId: string;
   userId: string;
   email: string;
   nombre: string;
+  rut: string | null;
   empresaId: string;
   empresaNombre: string;
   empresaSlug: string;
+  empresaRut: string | null;
   rol: Rol;
   sucursalId: string | null;
   sucursalNombre: string | null;
 };
 
-const ROLE_RANK: Record<Rol, number> = {
-  ADMINISTRADOR_MASTER: 100,
-  JEFE_SUCURSAL: 80,
-  CONTADOR: 40,
-  ABOGADO: 40,
-  PREVENCIONISTA: 40,
+export type ProfileSwitchNotice = {
+  fromEmpresaNombre: string;
+  fromRol: Rol;
+  toEmpresaNombre: string;
+  toRol: Rol;
 };
 
 export async function getAuthenticatedUserId(): Promise<string | null> {
@@ -45,6 +50,7 @@ export async function getSession(): Promise<Session | null> {
 
   if (membresiaId) {
     const session = await loadSessionByMembresiaId(membresiaId);
+    // ACL/tenancy: membership must belong to this user id.
     if (session && session.userId === userId) return session;
   }
 
@@ -85,16 +91,18 @@ export async function loadSessionByMembresiaId(
     userId: membresia.usuarioId,
     email: membresia.usuario.email,
     nombre: membresia.usuario.nombre,
+    rut: membresia.usuario.rut,
     empresaId: membresia.empresaId,
     empresaNombre: membresia.empresa.nombre,
     empresaSlug: membresia.empresa.slug,
+    empresaRut: membresia.empresa.rut,
     rol: membresia.rol,
     sucursalId: membresia.sucursalId,
     sucursalNombre: membresia.sucursal?.nombre ?? null,
   };
 }
 
-/** Active memberships for a user, grouped later by empresa for tenant picker. */
+/** Active memberships for a user (at most one per empresa). */
 export async function listUserMembresias(userId: string) {
   return prisma.membresia.findMany({
     where: {
@@ -107,7 +115,7 @@ export async function listUserMembresias(userId: string) {
       empresa: true,
       sucursal: true,
     },
-    orderBy: [{ empresa: { nombre: "asc" } }, { rol: "asc" }],
+    orderBy: [{ empresa: { nombre: "asc" } }],
   });
 }
 
@@ -115,49 +123,45 @@ export type TenantOption = {
   empresaId: string;
   empresaNombre: string;
   empresaSlug: string;
-  /** Membership chosen for this tenant (highest-privilege perfil, not a costume picker). */
+  empresaRut: string | null;
   membresiaId: string;
   rol: Rol;
   sucursalNombre: string | null;
 };
 
-/**
- * One option per empresa the user belongs to.
- * If they have several roles in the same empresa, pick the highest-privilege
- * membership automatically — never offer a role costume switcher.
- */
+/** One option per empresa membership — role comes from that Membresia row. */
 export function tenantOptionsFromMembresias(
   membresias: Awaited<ReturnType<typeof listUserMembresias>>,
 ): TenantOption[] {
-  const byEmpresa = new Map<string, typeof membresias>();
-
-  for (const m of membresias) {
-    const list = byEmpresa.get(m.empresaId) ?? [];
-    list.push(m);
-    byEmpresa.set(m.empresaId, list);
-  }
-
-  const options: TenantOption[] = [];
-  for (const [, list] of byEmpresa) {
-    const best = [...list].sort(
-      (a, b) => (ROLE_RANK[b.rol] ?? 0) - (ROLE_RANK[a.rol] ?? 0),
-    )[0];
-    options.push({
-      empresaId: best.empresaId,
-      empresaNombre: best.empresa.nombre,
-      empresaSlug: best.empresa.slug,
-      membresiaId: best.id,
-      rol: best.rol,
-      sucursalNombre: best.sucursal?.nombre ?? null,
-    });
-  }
-
-  return options.sort((a, b) =>
-    a.empresaNombre.localeCompare(b.empresaNombre, "es"),
-  );
+  return membresias
+    .map((m) => ({
+      empresaId: m.empresaId,
+      empresaNombre: m.empresa.nombre,
+      empresaSlug: m.empresa.slug,
+      empresaRut: m.empresa.rut,
+      membresiaId: m.id,
+      rol: m.rol,
+      sucursalNombre: m.sucursal?.nombre ?? null,
+    }))
+    .sort((a, b) => a.empresaNombre.localeCompare(b.empresaNombre, "es"));
 }
 
 export async function countUserEmpresas(userId: string): Promise<number> {
-  const memberships = await listUserMembresias(userId);
-  return tenantOptionsFromMembresias(memberships).length;
+  return (await listUserMembresias(userId)).length;
+}
+
+/** Read-only — cookie deletion must happen in a Server Action. */
+export async function peekProfileNotice(): Promise<ProfileSwitchNotice | null> {
+  const jar = await cookies();
+  const raw = jar.get(PROFILE_NOTICE_COOKIE)?.value;
+  if (!raw) return null;
+  try {
+    return JSON.parse(decodeURIComponent(raw)) as ProfileSwitchNotice;
+  } catch {
+    return null;
+  }
+}
+
+export function encodeProfileNotice(notice: ProfileSwitchNotice): string {
+  return encodeURIComponent(JSON.stringify(notice));
 }

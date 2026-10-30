@@ -1,5 +1,5 @@
 // Repositoria — Fase 1 data model
-// Tenant = Empresa. All tenant-scoped tables carry empresaId.
+// Tenant = Empresa. Identity and ACL use stable IDs (cuid); email/RUT are attributes.
 
 generator client {
   provider = "prisma-client-js"
@@ -18,11 +18,13 @@ enum Rol {
   PREVENCIONISTA
 }
 
-/// Organización cliente (tenant). Isolation boundary for all data.
+/// Organización cliente (tenant). Primary key is `id` (cuid).
 model Empresa {
   id        String   @id @default(cuid())
   nombre    String
   slug      String   @unique
+  /// Tax ID (RUT/etc.) — complementary attribute, not the ACL key.
+  rut       String?
   activa    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -33,10 +35,11 @@ model Empresa {
   expedientes     ExpedienteStub[]
   autorizaciones  ExpedienteAutorizacion[]
 
+  @@index([rut])
   @@map("empresas")
 }
 
-/// Sucursal within an Empresa. Jefe Sucursal is scoped to one of these.
+/// Sucursal within an Empresa. Scoped by empresaId.
 model Sucursal {
   id        String   @id @default(cuid())
   empresaId String
@@ -56,7 +59,7 @@ model Sucursal {
   @@map("sucursales")
 }
 
-/// Departamento under a Sucursal (e.g. Administración, RR.HH., Prevención).
+/// Departamento under a Sucursal.
 model Departamento {
   id         String   @id @default(cuid())
   empresaId  String
@@ -74,12 +77,14 @@ model Departamento {
   @@map("departamentos")
 }
 
-/// Global user identity. Access to empresas is via Membresia.
+/// Global user identity. Primary key is `id` (cuid). Email/RUT are attributes.
 model Usuario {
   id           String   @id @default(cuid())
   email        String   @unique
   nombre       String
-  /// Placeholder hash for auth stub; replace with real auth later.
+  /// Tax ID (RUT/etc.) — complementary attribute, not the ACL key.
+  rut          String?
+  /// Local auth hash; replace with IdP later.
   passwordHash String?
   activo       Boolean  @default(true)
   createdAt    DateTime @default(now())
@@ -88,10 +93,11 @@ model Usuario {
   membresias     Membresia[]
   autorizaciones ExpedienteAutorizacion[]
 
+  @@index([rut])
   @@map("usuarios")
 }
 
-/// Membership of a Usuario in an Empresa, with role and optional sucursal scope.
+/// One membership per (usuarioId, empresaId) → rol + optional sucursal scope.
 model Membresia {
   id         String   @id @default(cuid())
   empresaId  String
@@ -107,7 +113,7 @@ model Membresia {
   usuario  Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   sucursal Sucursal? @relation(fields: [sucursalId], references: [id], onDelete: SetNull)
 
-  @@unique([empresaId, usuarioId, rol])
+  @@unique([usuarioId, empresaId])
   @@index([empresaId])
   @@index([usuarioId])
   @@index([sucursalId])
@@ -124,8 +130,8 @@ model ExpedienteStub {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  empresa        Empresa                   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  sucursal       Sucursal?                 @relation(fields: [sucursalId], references: [id], onDelete: SetNull)
+  empresa        Empresa                  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  sucursal       Sucursal?                @relation(fields: [sucursalId], references: [id], onDelete: SetNull)
   autorizaciones ExpedienteAutorizacion[]
 
   @@index([empresaId])
@@ -133,7 +139,7 @@ model ExpedienteStub {
   @@map("expedientes_stub")
 }
 
-/// Grants an external (or any) user access to a specific expediente stub.
+/// Grants a user (by usuarioId) access to a specific expediente stub.
 model ExpedienteAutorizacion {
   id           String   @id @default(cuid())
   empresaId    String
@@ -141,9 +147,9 @@ model ExpedienteAutorizacion {
   usuarioId    String
   createdAt    DateTime @default(now())
 
-  empresa    Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  expediente ExpedienteStub  @relation(fields: [expedienteId], references: [id], onDelete: Cascade)
-  usuario    Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  empresa    Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  expediente ExpedienteStub @relation(fields: [expedienteId], references: [id], onDelete: Cascade)
+  usuario    Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@unique([expedienteId, usuarioId])
   @@index([empresaId])

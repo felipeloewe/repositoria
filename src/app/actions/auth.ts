@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import {
+  PROFILE_NOTICE_COOKIE,
   SESSION_COOKIE,
   USER_COOKIE,
+  encodeProfileNotice,
   listUserMembresias,
   loadSessionByMembresiaId,
   tenantOptionsFromMembresias,
@@ -69,11 +71,16 @@ export async function loginWithPassword(
     redirect("/dashboard");
   }
 
-  // Multiple empresas: authenticate user, then pick tenant (not role).
   await setAuthCookies(usuario.id, null);
   redirect("/seleccionar-empresa");
 }
 
+/**
+ * Enter (or switch to) an empresa by id.
+ * Access is validated via Membresia (usuarioId + empresaId).
+ * If the active role differs from the target membership, redirect to a
+ * confirmation screen that resets the session profile.
+ */
 export async function selectEmpresa(formData: FormData) {
   const jar = await cookies();
   const userId = jar.get(USER_COOKIE)?.value;
@@ -82,6 +89,8 @@ export async function selectEmpresa(formData: FormData) {
   }
 
   const empresaId = String(formData.get("empresaId") ?? "");
+  const confirmed = String(formData.get("confirmed") ?? "") === "1";
+
   const membresias = await listUserMembresias(userId);
   const tenants = tenantOptionsFromMembresias(membresias);
   const chosen = tenants.find((t) => t.empresaId === empresaId);
@@ -90,26 +99,61 @@ export async function selectEmpresa(formData: FormData) {
     redirect("/seleccionar-empresa");
   }
 
-  const session = await loadSessionByMembresiaId(chosen.membresiaId);
-  if (!session || session.userId !== userId) {
+  const nextSession = await loadSessionByMembresiaId(chosen.membresiaId);
+  if (!nextSession || nextSession.userId !== userId) {
     redirect("/login");
   }
 
+  const currentMembresiaId = jar.get(SESSION_COOKIE)?.value;
+  const current = currentMembresiaId
+    ? await loadSessionByMembresiaId(currentMembresiaId)
+    : null;
+
+  const roleChanges =
+    !!current &&
+    current.empresaId !== nextSession.empresaId &&
+    current.rol !== nextSession.rol;
+
+  if (roleChanges && !confirmed) {
+    redirect(
+      `/seleccionar-empresa/confirmar?empresaId=${encodeURIComponent(empresaId)}`,
+    );
+  }
+
+  // Always reset active session profile to the membership for the chosen empresa.
   jar.set(SESSION_COOKIE, chosen.membresiaId, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
   });
+
+  if (roleChanges && current) {
+    jar.set(
+      PROFILE_NOTICE_COOKIE,
+      encodeProfileNotice({
+        fromEmpresaNombre: current.empresaNombre,
+        fromRol: current.rol,
+        toEmpresaNombre: nextSession.empresaNombre,
+        toRol: nextSession.rol,
+      }),
+      {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 120,
+      },
+    );
+  }
+
   redirect("/dashboard");
 }
 
-/** Drop active tenant so the signed-in user can pick another empresa they belong to. */
+/** Keep current session while browsing the empresa list (needed to compare roles). */
 export async function changeEmpresa() {
   const jar = await cookies();
   if (!jar.get(USER_COOKIE)?.value) {
     redirect("/login");
   }
-  jar.delete(SESSION_COOKIE);
   redirect("/seleccionar-empresa");
 }
 
@@ -117,5 +161,6 @@ export async function logout() {
   const jar = await cookies();
   jar.delete(USER_COOKIE);
   jar.delete(SESSION_COOKIE);
+  jar.delete(PROFILE_NOTICE_COOKIE);
   redirect("/login");
 }

@@ -2,13 +2,20 @@
 
 Repositorio documental **multi-usuario y multi-empresa** (tenant = empresa). Stack: **Next.js App Router** + **MySQL** (Prisma). Local-first.
 
-**Fase 1 — Organización y perfiles:** empresa → sucursales → departamentos, membresías con roles, ACL, y stubs de expedientes para autorizaciones externas.
+**Fase 1 — Organización y perfiles:** empresa → sucursales → departamentos, membresías con roles, ACL, stubs de expedientes.
 
-## Requisitos
+## Identidad y membresía
 
-- Node.js 20+ (recomendado 22)
-- MySQL 8+ / MariaDB 10.11+
-- npm
+- **Usuario** y **Empresa** se identifican por **ID estable** (`cuid`). Correo y RUT son atributos complementarios; la ACL/tenancy valida por `usuarioId` / `empresaId`.
+- **Membresia** = un registro por par `(usuarioId, empresaId)` → `rol` (+ `sucursalId` si aplica). El mismo usuario puede tener **distinto rol en cada empresa**.
+- Login: correo/contraseña → sesión con la membresía de la empresa elegida.
+- Multi-empresa: selector de empresas del perfil. Si al cambiar de empresa el **rol difiere**, se muestra confirmación, se **restablece el perfil activo** a esa membresía y se informa en el dashboard (no se conserva el rol anterior).
+
+## Tipografía y shell
+
+- UI en **Questrial** (Google Fonts) — webfont real correspondiente a la referencia de producto «Questia».
+- Colores Repositoria (verde/teal); no se copia la paleta CRM de referencia.
+- Shell: barra superior (marca, búsqueda opcional, usuario + rol/empresa) + **sidebar** con navegación Repositoria (Dashboard, Organización, Expedientes). La referencia CRM se usó solo como idea de layout.
 
 ## Setup local
 
@@ -17,66 +24,41 @@ git clone https://github.com/felipeloewe/repositoria.git
 cd repositoria
 npm install
 cp .env.example .env
-```
-
-Ajusta `DATABASE_URL` en `.env`, crea la base, luego:
-
-```bash
+# ajustar DATABASE_URL
 npx prisma migrate deploy
 npx prisma generate
 npm run db:seed
 npm run dev
 ```
 
-Abre [http://localhost:3000/login](http://localhost:3000/login).
-
-## Entrada (perfilado real)
-
-1. El usuario inicia sesión con **correo + contraseña**.
-2. La sesión carga su **Usuario** y la(s) **Membresia**(s) asociadas.
-3. Si pertenece a **una** empresa, entra directo con el rol de esa membresía.
-4. Si pertenece a **varias** empresas, ve un **selector de empresa** (solo tenants donde es miembro). El rol no se “elige”: sale del perfil en esa empresa.
-5. No hay switcher de personas/roles como flujo principal.
-
-Opcional solo-dev: `DEV_AUTH_SWITCHER=1` habilita `/dev/switcher` para impersonación local. No es el producto.
+→ [http://localhost:3000/login](http://localhost:3000/login)
 
 ## Usuarios seed
 
-Contraseña de todos: **`demo123`**
+Contraseña: **`demo123`**
 
-| Correo | Perfil |
+| Correo | Membresía |
 | --- | --- |
-| `admin@repositoria.local` | Master en Empresa Demo |
+| `admin@repositoria.local` | Master · Empresa Demo |
 | `jefe.norte@repositoria.local` | Jefe Sucursal Norte |
 | `jefe.sur@repositoria.local` | Jefe Sucursal Sur |
-| `contador@repositoria.local` | Contador (expedientes autorizados) |
-| `abogado@repositoria.local` | Abogado |
-| `prevencionista@repositoria.local` | Prevencionista |
-| `multi@repositoria.local` | Contador en Demo **y** Master en Empresa Beta (muestra el picker de empresa) |
-
-## Scripts
-
-| Script | Descripción |
-| --- | --- |
-| `npm run dev` | Desarrollo |
-| `npm run build` / `start` | Producción |
-| `npm run lint` | ESLint |
-| `npm run db:migrate` / `db:deploy` | Migraciones |
-| `npm run db:seed` | Datos demo |
-| `npm run db:studio` | Prisma Studio |
+| `contador@repositoria.local` | Contador (Demo) |
+| `abogado@repositoria.local` | Abogado (Demo) |
+| `prevencionista@repositoria.local` | Prevencionista (Demo) |
+| `multi@repositoria.local` | Contador en Demo **y** Master en Empresa Beta (cambio de rol al cambiar empresa) |
 
 ## ACL (Fase 1)
 
-- **Administrador Master:** CRUD organización + todos los expedientes stub del tenant.
-- **Jefe de Sucursal:** solo su sucursal (sin acceso cruzado).
-- **Contador / Abogado / Prevencionista:** solo expedientes con autorización explícita.
+- **Administrador Master:** organización completa del tenant + expedientes stub.
+- **Jefe de Sucursal:** solo su sucursal.
+- **Externos:** solo expedientes autorizados por `usuarioId`.
 
-Enforcement: `src/lib/acl.ts` + server actions.
+## Scripts
 
-## Fuera de alcance aún
+`npm run dev` · `build` · `lint` · `db:migrate` · `db:deploy` · `db:seed` · `db:studio`
 
-Documentos (Fase 2), correo (Fase 3), flujos (Fase 4), auth de producción (OAuth/IdP).
+Opcional solo-dev: `DEV_AUTH_SWITCHER=1` → `/dev/switcher`.
 
-## Licencia
+## Fuera de alcance
 
-Privado — uso interno del proyecto.
+Documentos (Fase 2), correo (Fase 3), flujos (Fase 4), auth de producción.
