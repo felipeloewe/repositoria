@@ -7,6 +7,7 @@ Repositorio documental **multi-usuario y multi-empresa** (tenant = empresa). Sta
 - **Fase 1:** organización, membresías, ACL, shell.
 - **Fase 2:** repositorio de documentos por empresa (ligados a departamentos; alcance por sucursal).
 - **Fase 3:** integración con [imap-mail](https://github.com/felipeloewe/imap-mail) — casilla por usuario, hilos, adjuntos + certificado PDF → repositorio.
+- **Fase 4:** fiscalización (autorización Master antes de exportar/enviar) + canales seguros para externos.
 
 ## Jerarquía
 
@@ -93,6 +94,14 @@ npm run dev
 
 `dev` · `build` · `lint` · `db:migrate` · `db:deploy` · `db:seed` · `db:studio`
 
+## Flujos (Fase 4)
+
+| UI | Función |
+| --- | --- |
+| `/flujos` | Resumen fiscalización + canales |
+| `/flujos/fiscalizacion` | Solicitar envío liquidaciones/contratos; Master aprueba/rechaza; solo entonces “enviar/exportar”; auditoría |
+| `/flujos/canales` | Paquetes documentales para Contador / Abogado / Prevencionista |
+
 ## Fuera de alcance aún
 
-Flujos (Fase 4), áreas/etapas en depto (Fase 5), IA sobre índice de correo, auth de producción / object storage real.
+Áreas/etapas en depto (Fase 5), IA sobre índice de correo, auth de producción / object storage real.

@@ -75,6 +75,12 @@ const IDS = {
 async function main() {
   console.log("Seeding Repositoria demo data…");
 
+  await prisma.fiscalizacionAuditoria.deleteMany();
+  await prisma.fiscalizacionDocumento.deleteMany();
+  await prisma.fiscalizacionSolicitud.deleteMany();
+  await prisma.canalPaqueteAuditoria.deleteMany();
+  await prisma.canalPaqueteDocumento.deleteMany();
+  await prisma.canalPaquete.deleteMany();
   await prisma.documentoAutorizacion.deleteMany();
   await prisma.documento.deleteMany();
   await prisma.documentoSeccion.deleteMany();
@@ -541,6 +547,131 @@ async function main() {
     }
   }
 
+  // --- Fase 4: fiscalización + canal seguro ---
+  const fisPendiente = await prisma.fiscalizacionSolicitud.create({
+    data: {
+      id: "fis_liq_norte_pendiente",
+      empresaId: empresa.id,
+      departamentoId: IDS.depts.admin,
+      sucursalId: norte.id,
+      tipo: "LIQUIDACION",
+      titulo: "Envío liquidaciones Norte — marzo (fiscalización)",
+      motivo: "Requiere OK Master antes de remitir a fiscalización / contador.",
+      estado: "PENDIENTE",
+      solicitadoPorId: IDS.users.jefeNorte,
+      documentos: {
+        create: [{ documentoId: "doc_liq_norte" }],
+      },
+    },
+  });
+  await prisma.fiscalizacionAuditoria.createMany({
+    data: [
+      {
+        empresaId: empresa.id,
+        solicitudId: fisPendiente.id,
+        actorId: IDS.users.jefeNorte,
+        accion: "CREATED",
+        detalle: "Solicitud demo pendiente",
+      },
+      {
+        empresaId: empresa.id,
+        solicitudId: fisPendiente.id,
+        actorId: IDS.users.jefeNorte,
+        accion: "SUBMITTED",
+      },
+    ],
+  });
+
+  const fisAprobada = await prisma.fiscalizacionSolicitud.create({
+    data: {
+      id: "fis_contrato_sur_aprobada",
+      empresaId: empresa.id,
+      departamentoId: IDS.depts.admin,
+      sucursalId: sur.id,
+      tipo: "CONTRATO",
+      titulo: "Exportar contrato proveedor Sur",
+      motivo: "Envío a equipo legal externo.",
+      estado: "APROBADA",
+      solicitadoPorId: IDS.users.master,
+      revisadoPorId: IDS.users.master,
+      revisadoAt: new Date("2026-03-20T12:00:00Z"),
+      comentarioRevision: "Autorizado para exportación.",
+      documentos: {
+        create: [{ documentoId: "doc_contrato_sur" }],
+      },
+    },
+  });
+  await prisma.fiscalizacionAuditoria.createMany({
+    data: [
+      {
+        empresaId: empresa.id,
+        solicitudId: fisAprobada.id,
+        actorId: IDS.users.master,
+        accion: "CREATED",
+      },
+      {
+        empresaId: empresa.id,
+        solicitudId: fisAprobada.id,
+        actorId: IDS.users.master,
+        accion: "SUBMITTED",
+      },
+      {
+        empresaId: empresa.id,
+        solicitudId: fisAprobada.id,
+        actorId: IDS.users.master,
+        accion: "APPROVED",
+        detalle: "Autorizado para exportación.",
+      },
+    ],
+  });
+
+  const paqueteContador = await prisma.canalPaquete.create({
+    data: {
+      id: "canal_pkg_contador_liq",
+      empresaId: empresa.id,
+      titulo: "Paquete liquidaciones — Contador",
+      descripcion: "Canal seguro: liquidaciones Norte autorizadas para revisión.",
+      destinatarioId: IDS.users.contador,
+      creadoPorId: IDS.users.master,
+      estado: "ACTIVO",
+      documentos: {
+        create: [{ documentoId: "doc_liq_norte" }],
+      },
+    },
+  });
+  await prisma.canalPaqueteAuditoria.create({
+    data: {
+      empresaId: empresa.id,
+      paqueteId: paqueteContador.id,
+      actorId: IDS.users.master,
+      accion: "CREATED",
+      detalle: "Paquete demo para contador externo",
+    },
+  });
+
+  const paqueteAbogado = await prisma.canalPaquete.create({
+    data: {
+      id: "canal_pkg_abogado_contrato",
+      empresaId: empresa.id,
+      titulo: "Paquete contratos — Abogado",
+      descripcion: "Contrato Sur para revisión legal.",
+      destinatarioId: IDS.users.abogado,
+      creadoPorId: IDS.users.master,
+      estado: "ACTIVO",
+      documentos: {
+        create: [{ documentoId: "doc_contrato_sur" }],
+      },
+    },
+  });
+  await prisma.canalPaqueteAuditoria.create({
+    data: {
+      empresaId: empresa.id,
+      paqueteId: paqueteAbogado.id,
+      actorId: IDS.users.master,
+      accion: "CREATED",
+    },
+  });
+
   console.log("Seed OK");
   console.log(`  Empresas: ${empresa.nombre}, ${empresaBeta.nombre}`);
   console.log(
@@ -548,6 +679,9 @@ async function main() {
   );
   console.log(`  Contraseña demo: ${DEMO_PASSWORD}`);
   console.log(`  Documentos seed: ${docs.length} en ${storageRoot()}`);
+  console.log(
+    `  Fase 4: fiscalización pendiente ${fisPendiente.id}; canal contador ${paqueteContador.id}`,
+  );
   console.log("  Usuarios:");
   for (const u of users) {
     console.log(`    ${u.email}`);

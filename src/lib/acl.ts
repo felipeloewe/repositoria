@@ -218,3 +218,56 @@ export function requireDocumentoUpload(
     throw new AclError("Sin permiso para subir en esta sección");
   }
 }
+
+/** Master or Jefe can open fiscalización / flujos. Externals use canales only. */
+export function canBrowseFlujos(session: Session): boolean {
+  return (
+    isMasterRole(session.rol) ||
+    session.rol === "JEFE_SUCURSAL" ||
+    isExternalRole(session.rol)
+  );
+}
+
+/** Create / submit fiscalización requests (Master or Jefe). */
+export function canRequestFiscalizacion(session: Session): boolean {
+  return isMasterRole(session.rol) || session.rol === "JEFE_SUCURSAL";
+}
+
+/** Only Master approves/denies and authorizes send/export. */
+export function canReviewFiscalizacion(session: Session): boolean {
+  return isMasterRole(session.rol);
+}
+
+export function canViewFiscalizacion(
+  session: Session,
+  solicitud: { empresaId: string; sucursalId: string | null; solicitadoPorId: string },
+): boolean {
+  if (session.empresaId !== solicitud.empresaId) return false;
+  if (isMasterRole(session.rol)) return true;
+  if (session.rol === "JEFE_SUCURSAL") {
+    if (solicitud.solicitadoPorId === session.userId) return true;
+    return (
+      !!session.sucursalId &&
+      !!solicitud.sucursalId &&
+      solicitud.sucursalId === session.sucursalId
+    );
+  }
+  return false;
+}
+
+/** Master creates/revokes secure packages for externals. */
+export function canManageCanalPaquetes(session: Session): boolean {
+  return isMasterRole(session.rol);
+}
+
+export function canViewCanalPaquete(
+  session: Session,
+  paquete: { empresaId: string; destinatarioId: string; estado: string },
+): boolean {
+  if (session.empresaId !== paquete.empresaId) return false;
+  if (isMasterRole(session.rol)) return true;
+  if (isExternalRole(session.rol) && paquete.destinatarioId === session.userId) {
+    return paquete.estado === "ACTIVO";
+  }
+  return false;
+}

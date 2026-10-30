@@ -52,11 +52,26 @@ function buildNav(session: Session): NavGroup[] {
     ],
   };
 
+  const flujos: NavGroup = {
+    title: "Flujos",
+    items: isMasterRole(session.rol) || session.rol === "JEFE_SUCURSAL"
+      ? [
+          { href: "/flujos", label: "Resumen" },
+          { href: "/flujos/fiscalizacion", label: "Fiscalización" },
+          { href: "/flujos/canales", label: "Canales seguros" },
+        ]
+      : [
+          { href: "/flujos", label: "Resumen" },
+          { href: "/flujos/canales", label: "Canales seguros" },
+        ],
+  };
+
   return [
     inicio,
     ...(organizacion ? [organizacion] : []),
     documentos,
     correo,
+    flujos,
   ];
 }
 
@@ -87,7 +102,7 @@ export function AppShell({
         </div>
         <SidebarNav groups={groups} />
         <div className="px-4 py-4 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--muted)]">
-          Fase 3 · correo
+          Fase 4 · flujos
         </div>
       </aside>
 
