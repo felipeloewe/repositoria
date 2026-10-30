@@ -1,5 +1,6 @@
-// Repositoria — Fase 1 data model
-// Tenant = Empresa. Identity and ACL use stable IDs (cuid); email/RUT are attributes.
+// Repositoria data model
+// Tenant = Empresa. Identity/ACL use stable IDs (cuid); email/RUT are attributes.
+// Hierarchy: Empresa → Departamentos → Sucursales
 
 generator client {
   provider = "prisma-client-js"
@@ -29,8 +30,10 @@ model Empresa {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sucursales           Sucursal[]
   departamentos        Departamento[]
+  sucursales           Sucursal[]
+  actividades          Actividad[]
+  temasInteres         TemaInteres[]
   membresias           Membresia[]
   expedientes          ExpedienteStub[]
   autorizaciones       ExpedienteAutorizacion[]
@@ -42,44 +45,85 @@ model Empresa {
   @@map("empresas")
 }
 
-/// Sucursal within an Empresa. Scoped by empresaId.
-model Sucursal {
+/// Departamento under an Empresa.
+/// TODO(Fase 5): Areas/etapas inside Departamento for further categorization — not in MVP yet.
+model Departamento {
   id        String   @id @default(cuid())
   empresaId String
   nombre    String
-  codigo    String?
-  activa    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   empresa            Empresa            @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  departamentos      Departamento[]
-  membresias         Membresia[]
-  expedientes        ExpedienteStub[]
+  sucursales         Sucursal[]
+  actividades        Actividad[]
+  temasInteres       TemaInteres[]
   documentoSecciones DocumentoSeccion[]
   documentos         Documento[]
 
   @@unique([empresaId, nombre])
   @@index([empresaId])
+  @@map("departamentos")
+}
+
+/// Sucursal under a Departamento (and tenant-scoped via empresaId).
+model Sucursal {
+  id             String   @id @default(cuid())
+  empresaId      String
+  departamentoId String
+  nombre         String
+  codigo         String?
+  activa         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  empresa            Empresa            @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  departamento       Departamento       @relation(fields: [departamentoId], references: [id], onDelete: Cascade)
+  membresias         Membresia[]
+  expedientes        ExpedienteStub[]
+  documentoSecciones DocumentoSeccion[]
+  documentos         Documento[]
+
+  @@unique([departamentoId, nombre])
+  @@index([empresaId])
+  @@index([departamentoId])
   @@map("sucursales")
 }
 
-/// Departamento under a Sucursal.
-model Departamento {
-  id         String   @id @default(cuid())
-  empresaId  String
-  sucursalId String
-  nombre     String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+/// Tag on Departamento — Actividades (independent of Temas de Interés).
+model Actividad {
+  id             String   @id @default(cuid())
+  empresaId      String
+  departamentoId String
+  nombre         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  empresa  Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  sucursal Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  empresa      Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  departamento Departamento @relation(fields: [departamentoId], references: [id], onDelete: Cascade)
 
-  @@unique([sucursalId, nombre])
+  @@unique([departamentoId, nombre])
   @@index([empresaId])
-  @@index([sucursalId])
-  @@map("departamentos")
+  @@index([departamentoId])
+  @@map("actividades")
+}
+
+/// Tag on Departamento — Temas de Interés (independent of Actividades).
+model TemaInteres {
+  id             String   @id @default(cuid())
+  empresaId      String
+  departamentoId String
+  nombre         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  empresa      Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  departamento Departamento @relation(fields: [departamentoId], references: [id], onDelete: Cascade)
+
+  @@unique([departamentoId, nombre])
+  @@index([empresaId])
+  @@index([departamentoId])
+  @@map("temas_interes")
 }
 
 /// Global user identity. Primary key is `id` (cuid). Email/RUT are attributes.
@@ -95,10 +139,10 @@ model Usuario {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  membresias         Membresia[]
-  autorizaciones     ExpedienteAutorizacion[]
-  documentosSubidos  Documento[]              @relation("DocumentoSubidoPor")
-  documentoAuths     DocumentoAutorizacion[]
+  membresias        Membresia[]
+  autorizaciones    ExpedienteAutorizacion[]
+  documentosSubidos Documento[]              @relation("DocumentoSubidoPor")
+  documentoAuths    DocumentoAutorizacion[]
 
   @@index([rut])
   @@map("usuarios")
@@ -127,7 +171,7 @@ model Membresia {
   @@map("membresias")
 }
 
-/// Minimal expediente stub for Fase 1 ACL demos (not full document storage).
+/// Minimal expediente stub for ACL demos (not full document storage).
 model ExpedienteStub {
   id         String   @id @default(cuid())
   empresaId  String
@@ -146,7 +190,6 @@ model ExpedienteStub {
   @@map("expedientes_stub")
 }
 
-/// Grants a user (by usuarioId) access to a specific expediente stub.
 model ExpedienteAutorizacion {
   id           String   @id @default(cuid())
   empresaId    String
@@ -164,59 +207,64 @@ model ExpedienteAutorizacion {
   @@map("expediente_autorizaciones")
 }
 
-/// Sección/carpeta del repositorio: corporativa (sucursalId null) o por sucursal.
+/// Sección del repositorio ligada a un Departamento (opc. acotada a una Sucursal).
 model DocumentoSeccion {
-  id         String   @id @default(cuid())
-  empresaId  String
-  /// null = sección corporativa de la empresa
-  sucursalId String?
-  nombre     String
+  id             String   @id @default(cuid())
+  empresaId      String
+  departamentoId String
+  /// null = sección a nivel departamento (todas las sucursales del depto)
+  sucursalId     String?
+  nombre         String
   /// Ej. CONTRATOS, LIQUIDACIONES, GENERAL
-  codigo     String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  codigo         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  empresa    Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  sucursal   Sucursal?   @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
-  documentos Documento[]
+  empresa      Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  departamento Departamento @relation(fields: [departamentoId], references: [id], onDelete: Cascade)
+  sucursal     Sucursal?    @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  documentos   Documento[]
 
-  @@unique([empresaId, sucursalId, codigo])
+  @@unique([departamentoId, sucursalId, codigo])
   @@index([empresaId])
+  @@index([departamentoId])
   @@index([sucursalId])
   @@map("documento_secciones")
 }
 
-/// Documento del repositorio unificado por empresa (Fase 2).
+/// Documento del repositorio — siempre ligado a un Departamento.
 model Documento {
-  id            String   @id @default(cuid())
-  empresaId     String
-  seccionId     String
-  /// Denormalizado desde la sección para consultas ACL (null = corporativo).
-  sucursalId    String?
-  titulo        String
-  nombreArchivo String
-  mimeType      String
-  tamanioBytes  Int
+  id             String   @id @default(cuid())
+  empresaId      String
+  departamentoId String
+  seccionId      String
+  /// Opcional: acota a una sucursal del departamento (null = nivel departamento).
+  sucursalId     String?
+  titulo         String
+  nombreArchivo  String
+  mimeType       String
+  tamanioBytes   Int
   /// Ruta relativa bajo STORAGE_ROOT
-  storageKey    String
-  subidoPorId   String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  storageKey     String
+  subidoPorId    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   empresa        Empresa                 @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  departamento   Departamento            @relation(fields: [departamentoId], references: [id], onDelete: Cascade)
   seccion        DocumentoSeccion        @relation(fields: [seccionId], references: [id], onDelete: Cascade)
   sucursal       Sucursal?               @relation(fields: [sucursalId], references: [id], onDelete: SetNull)
   subidoPor      Usuario                 @relation("DocumentoSubidoPor", fields: [subidoPorId], references: [id])
   autorizaciones DocumentoAutorizacion[]
 
   @@index([empresaId])
+  @@index([departamentoId])
   @@index([seccionId])
   @@index([sucursalId])
   @@index([subidoPorId])
   @@map("documentos")
 }
 
-/// Autorización explícita (externos u otros) a un documento por usuarioId.
 model DocumentoAutorizacion {
   id          String   @id @default(cuid())
   empresaId   String

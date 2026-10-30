@@ -36,6 +36,12 @@ const DEMO_PASSWORD = "demo123";
 const IDS = {
   empresa: "emp_demo_repositoria",
   empresaBeta: "emp_demo_beta",
+  depts: {
+    admin: "dep_admin",
+    rrhh: "dep_rrhh",
+    prev: "dep_prev",
+    adminBeta: "dep_admin_beta",
+  },
   sucursalNorte: "suc_norte",
   sucursalSur: "suc_sur",
   sucursalBeta: "suc_beta",
@@ -58,14 +64,6 @@ const IDS = {
     multiDemo: "mem_multi_demo",
     multiBeta: "mem_multi_beta",
   },
-  depts: {
-    adminNorte: "dep_admin_norte",
-    rrhhNorte: "dep_rrhh_norte",
-    prevNorte: "dep_prev_norte",
-    adminSur: "dep_admin_sur",
-    rrhhSur: "dep_rrhh_sur",
-    adminBeta: "dep_admin_beta",
-  },
   expedientes: {
     finiquitoNorte: "exp_finiquito_norte",
     liquidacionSur: "exp_liquidacion_sur",
@@ -82,9 +80,11 @@ async function main() {
   await prisma.documentoSeccion.deleteMany();
   await prisma.expedienteAutorizacion.deleteMany();
   await prisma.expedienteStub.deleteMany();
-  await prisma.departamento.deleteMany();
+  await prisma.actividad.deleteMany();
+  await prisma.temaInteres.deleteMany();
   await prisma.membresia.deleteMany();
   await prisma.sucursal.deleteMany();
+  await prisma.departamento.deleteMany();
   await prisma.usuario.deleteMany();
   await prisma.empresa.deleteMany();
 
@@ -116,10 +116,101 @@ async function main() {
     },
   });
 
+  // Empresa → Departamentos → Sucursales
+  await prisma.departamento.createMany({
+    data: [
+      {
+        id: IDS.depts.admin,
+        empresaId: empresa.id,
+        nombre: "Administración",
+      },
+      {
+        id: IDS.depts.rrhh,
+        empresaId: empresa.id,
+        nombre: "RR.HH.",
+      },
+      {
+        id: IDS.depts.prev,
+        empresaId: empresa.id,
+        nombre: "Prevención",
+      },
+      {
+        id: IDS.depts.adminBeta,
+        empresaId: empresaBeta.id,
+        nombre: "Administración",
+      },
+    ],
+  });
+
+  await prisma.actividad.createMany({
+    data: [
+      {
+        id: "act_admin_contabilidad",
+        empresaId: empresa.id,
+        departamentoId: IDS.depts.admin,
+        nombre: "Contabilidad",
+      },
+      {
+        id: "act_admin_tesoreria",
+        empresaId: empresa.id,
+        departamentoId: IDS.depts.admin,
+        nombre: "Tesorería",
+      },
+      {
+        id: "act_rrhh_seleccion",
+        empresaId: empresa.id,
+        departamentoId: IDS.depts.rrhh,
+        nombre: "Selección",
+      },
+      {
+        id: "act_prev_fiscalizacion",
+        empresaId: empresa.id,
+        departamentoId: IDS.depts.prev,
+        nombre: "Fiscalización",
+      },
+    ],
+  });
+
+  await prisma.temaInteres.createMany({
+    data: [
+      {
+        id: "tema_admin_contratos",
+        empresaId: empresa.id,
+        departamentoId: IDS.depts.admin,
+        nombre: "Contratos marco",
+      },
+      {
+        id: "tema_admin_politicas",
+        empresaId: empresa.id,
+        departamentoId: IDS.depts.admin,
+        nombre: "Políticas",
+      },
+      {
+        id: "tema_rrhh_finiquitos",
+        empresaId: empresa.id,
+        departamentoId: IDS.depts.rrhh,
+        nombre: "Finiquitos",
+      },
+      {
+        id: "tema_rrhh_liquidaciones",
+        empresaId: empresa.id,
+        departamentoId: IDS.depts.rrhh,
+        nombre: "Liquidaciones",
+      },
+      {
+        id: "tema_prev_reclamos",
+        empresaId: empresa.id,
+        departamentoId: IDS.depts.prev,
+        nombre: "Reclamos",
+      },
+    ],
+  });
+
   const norte = await prisma.sucursal.create({
     data: {
       id: IDS.sucursalNorte,
       empresaId: empresa.id,
+      departamentoId: IDS.depts.admin,
       nombre: "Sucursal Norte",
       codigo: "NTE",
     },
@@ -129,6 +220,7 @@ async function main() {
     data: {
       id: IDS.sucursalSur,
       empresaId: empresa.id,
+      departamentoId: IDS.depts.admin,
       nombre: "Sucursal Sur",
       codigo: "SUR",
     },
@@ -138,50 +230,10 @@ async function main() {
     data: {
       id: IDS.sucursalBeta,
       empresaId: empresaBeta.id,
+      departamentoId: IDS.depts.adminBeta,
       nombre: "Casa Matriz",
       codigo: "BETA",
     },
-  });
-
-  await prisma.departamento.createMany({
-    data: [
-      {
-        id: IDS.depts.adminNorte,
-        empresaId: empresa.id,
-        sucursalId: norte.id,
-        nombre: "Administración",
-      },
-      {
-        id: IDS.depts.rrhhNorte,
-        empresaId: empresa.id,
-        sucursalId: norte.id,
-        nombre: "RR.HH.",
-      },
-      {
-        id: IDS.depts.prevNorte,
-        empresaId: empresa.id,
-        sucursalId: norte.id,
-        nombre: "Prevención",
-      },
-      {
-        id: IDS.depts.adminSur,
-        empresaId: empresa.id,
-        sucursalId: sur.id,
-        nombre: "Administración",
-      },
-      {
-        id: IDS.depts.rrhhSur,
-        empresaId: empresa.id,
-        sucursalId: sur.id,
-        nombre: "RR.HH.",
-      },
-      {
-        id: IDS.depts.adminBeta,
-        empresaId: empresaBeta.id,
-        sucursalId: betaSuc.id,
-        nombre: "Administración",
-      },
-    ],
   });
 
   const users: Array<{
@@ -289,7 +341,6 @@ async function main() {
       rol: "PREVENCIONISTA",
       sucursalId: null,
     },
-    // Multi-empresa: Contador in Demo + Master in Beta — picker is by empresa only.
     {
       id: IDS.membresias.multiDemo,
       empresaId: empresa.id,
@@ -377,29 +428,32 @@ async function main() {
     ],
   });
 
-  // --- Fase 2: secciones + documentos de ejemplo ---
-  const secCorpContratos = await prisma.documentoSeccion.create({
+  // Documentos ligados a Departamentos (+ sucursal opcional)
+  const secAdminContratos = await prisma.documentoSeccion.create({
     data: {
-      id: "sec_corp_contratos",
+      id: "sec_admin_contratos",
       empresaId: empresa.id,
+      departamentoId: IDS.depts.admin,
       sucursalId: null,
       nombre: "Contratos",
       codigo: "CONTRATOS",
     },
   });
-  const secNorteLiq = await prisma.documentoSeccion.create({
+  const secAdminNorteLiq = await prisma.documentoSeccion.create({
     data: {
-      id: "sec_norte_liquidaciones",
+      id: "sec_admin_norte_liquidaciones",
       empresaId: empresa.id,
+      departamentoId: IDS.depts.admin,
       sucursalId: norte.id,
       nombre: "Liquidaciones",
       codigo: "LIQUIDACIONES",
     },
   });
-  const secSurContratos = await prisma.documentoSeccion.create({
+  const secAdminSurContratos = await prisma.documentoSeccion.create({
     data: {
-      id: "sec_sur_contratos",
+      id: "sec_admin_sur_contratos",
       empresaId: empresa.id,
+      departamentoId: IDS.depts.admin,
       sucursalId: sur.id,
       nombre: "Contratos",
       codigo: "CONTRATOS",
@@ -407,40 +461,54 @@ async function main() {
   });
   await prisma.documentoSeccion.create({
     data: {
-      id: "sec_norte_general",
+      id: "sec_admin_norte_general",
       empresaId: empresa.id,
+      departamentoId: IDS.depts.admin,
       sucursalId: norte.id,
       nombre: "General",
       codigo: "GENERAL",
+    },
+  });
+  await prisma.documentoSeccion.create({
+    data: {
+      id: "sec_rrhh_liquidaciones",
+      empresaId: empresa.id,
+      departamentoId: IDS.depts.rrhh,
+      sucursalId: null,
+      nombre: "Liquidaciones",
+      codigo: "LIQUIDACIONES",
     },
   });
 
   const docs = [
     {
       id: "doc_politica_corp",
-      seccionId: secCorpContratos.id,
+      departamentoId: IDS.depts.admin,
+      seccionId: secAdminContratos.id,
       sucursalId: null as string | null,
-      titulo: "Política de contratos corporativos",
+      titulo: "Política de contratos — Administración",
       filename: "politica-contratos.txt",
-      body: "Documento corporativo de ejemplo — visible a Master y Jefes.\n",
+      body: "Documento a nivel departamento Administración — visible a Master y Jefes de sucursales de Admin.\n",
       authorize: [] as string[],
     },
     {
       id: "doc_liq_norte",
-      seccionId: secNorteLiq.id,
+      departamentoId: IDS.depts.admin,
+      seccionId: secAdminNorteLiq.id,
       sucursalId: norte.id,
       titulo: "Liquidaciones Norte — marzo",
       filename: "liquidaciones-norte-marzo.txt",
-      body: "Liquidaciones Sucursal Norte — ejemplo seed.\n",
+      body: "Liquidaciones Sucursal Norte (depto Administración) — ejemplo seed.\n",
       authorize: [IDS.users.contador, IDS.users.multi],
     },
     {
       id: "doc_contrato_sur",
-      seccionId: secSurContratos.id,
+      departamentoId: IDS.depts.admin,
+      seccionId: secAdminSurContratos.id,
       sucursalId: sur.id,
       titulo: "Contrato proveedor Sur",
       filename: "contrato-sur.txt",
-      body: "Contrato Sucursal Sur — ejemplo seed.\n",
+      body: "Contrato Sucursal Sur (depto Administración) — ejemplo seed.\n",
       authorize: [IDS.users.abogado],
     },
   ];
@@ -451,6 +519,7 @@ async function main() {
       data: {
         id: d.id,
         empresaId: empresa.id,
+        departamentoId: d.departamentoId,
         seccionId: d.seccionId,
         sucursalId: d.sucursalId,
         titulo: d.titulo,
@@ -474,6 +543,9 @@ async function main() {
 
   console.log("Seed OK");
   console.log(`  Empresas: ${empresa.nombre}, ${empresaBeta.nombre}`);
+  console.log(
+    `  Jerarquía: Empresa → Departamentos → Sucursales (${norte.nombre}, ${sur.nombre}, ${betaSuc.nombre})`,
+  );
   console.log(`  Contraseña demo: ${DEMO_PASSWORD}`);
   console.log(`  Documentos seed: ${docs.length} en ${storageRoot()}`);
   console.log("  Usuarios:");

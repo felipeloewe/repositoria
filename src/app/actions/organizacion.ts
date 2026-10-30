@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
   AclError,
+  canManageDepartamentoTags,
   requireMaster,
   requireOrgManager,
   requireSucursalAccess,
-  requireSucursalManage,
   roleNeedsSucursal,
 } from "@/lib/acl";
 import { isRole } from "@/lib/roles";
@@ -32,6 +32,7 @@ function revalidateOrg() {
   revalidatePath("/organizacion/miembros");
   revalidatePath("/dashboard");
   revalidatePath("/expedientes");
+  revalidatePath("/documentos");
   revalidatePath("/login");
 }
 
@@ -52,17 +53,74 @@ export async function updateEmpresa(formData: FormData) {
   revalidateOrg();
 }
 
-export async function createSucursal(formData: FormData) {
+export async function createDepartamento(formData: FormData) {
   const session = await requireSession();
   requireOrgManager(session);
 
   const nombre = String(formData.get("nombre") ?? "").trim();
-  const codigo = String(formData.get("codigo") ?? "").trim() || null;
   if (!nombre) throw new Error("Nombre requerido");
+
+  await prisma.departamento.create({
+    data: {
+      empresaId: session.empresaId,
+      nombre,
+    },
+  });
+  revalidateOrg();
+}
+
+export async function updateDepartamento(formData: FormData) {
+  const session = await requireSession();
+  requireOrgManager(session);
+
+  const id = String(formData.get("id") ?? "");
+  const nombre = String(formData.get("nombre") ?? "").trim();
+  if (!nombre) throw new Error("Nombre requerido");
+
+  const existing = await prisma.departamento.findUnique({ where: { id } });
+  if (!existing || existing.empresaId !== session.empresaId) {
+    throw new AclError("Departamento no encontrado");
+  }
+
+  await prisma.departamento.update({
+    where: { id },
+    data: { nombre },
+  });
+  revalidateOrg();
+}
+
+export async function deleteDepartamento(formData: FormData) {
+  const session = await requireSession();
+  requireOrgManager(session);
+  const id = String(formData.get("id") ?? "");
+  const existing = await prisma.departamento.findUnique({ where: { id } });
+  if (!existing || existing.empresaId !== session.empresaId) {
+    throw new AclError("Departamento no encontrado");
+  }
+  await prisma.departamento.delete({ where: { id } });
+  revalidateOrg();
+}
+
+export async function createSucursal(formData: FormData) {
+  const session = await requireSession();
+  requireOrgManager(session);
+
+  const departamentoId = String(formData.get("departamentoId") ?? "");
+  const nombre = String(formData.get("nombre") ?? "").trim();
+  const codigo = String(formData.get("codigo") ?? "").trim() || null;
+  if (!nombre || !departamentoId) throw new Error("Datos incompletos");
+
+  const depto = await prisma.departamento.findUnique({
+    where: { id: departamentoId },
+  });
+  if (!depto || depto.empresaId !== session.empresaId) {
+    throw new AclError("Departamento no encontrado");
+  }
 
   await prisma.sucursal.create({
     data: {
       empresaId: session.empresaId,
+      departamentoId,
       nombre,
       codigo,
     },
@@ -72,7 +130,10 @@ export async function createSucursal(formData: FormData) {
 
 export async function updateSucursal(formData: FormData) {
   const session = await requireSession();
+  requireOrgManager(session);
+
   const id = String(formData.get("id") ?? "");
+  const departamentoId = String(formData.get("departamentoId") ?? "");
   const nombre = String(formData.get("nombre") ?? "").trim();
   const codigo = String(formData.get("codigo") ?? "").trim() || null;
   const activa = String(formData.get("activa") ?? "true") === "true";
@@ -81,16 +142,18 @@ export async function updateSucursal(formData: FormData) {
   if (!existing || existing.empresaId !== session.empresaId) {
     throw new AclError("Sucursal no encontrada");
   }
-  requireSucursalManage(session, id);
-  // Jefe can rename? Assignment says Master manages tenant; Jefe only own branch access.
-  // Limit write of sucursal metadata to Master; Jefe manages departamentos only.
-  requireOrgManager(session);
+  if (!nombre || !departamentoId) throw new Error("Datos incompletos");
 
-  if (!nombre) throw new Error("Nombre requerido");
+  const depto = await prisma.departamento.findUnique({
+    where: { id: departamentoId },
+  });
+  if (!depto || depto.empresaId !== session.empresaId) {
+    throw new AclError("Departamento no encontrado");
+  }
 
   await prisma.sucursal.update({
     where: { id },
-    data: { nombre, codigo, activa },
+    data: { nombre, codigo, activa, departamentoId },
   });
   revalidateOrg();
 }
@@ -107,56 +170,83 @@ export async function deleteSucursal(formData: FormData) {
   revalidateOrg();
 }
 
-export async function createDepartamento(formData: FormData) {
+export async function createActividad(formData: FormData) {
   const session = await requireSession();
-  const sucursalId = String(formData.get("sucursalId") ?? "");
+  const departamentoId = String(formData.get("departamentoId") ?? "");
   const nombre = String(formData.get("nombre") ?? "").trim();
-  if (!nombre || !sucursalId) throw new Error("Datos incompletos");
+  if (!departamentoId || !nombre) throw new Error("Datos incompletos");
 
-  const sucursal = await prisma.sucursal.findUnique({ where: { id: sucursalId } });
-  if (!sucursal || sucursal.empresaId !== session.empresaId) {
-    throw new AclError("Sucursal no encontrada");
+  const depto = await prisma.departamento.findUnique({
+    where: { id: departamentoId },
+  });
+  if (!depto || depto.empresaId !== session.empresaId) {
+    throw new AclError("Departamento no encontrado");
   }
-  requireSucursalManage(session, sucursalId);
+  if (!canManageDepartamentoTags(session, departamentoId)) {
+    throw new AclError("Sin permiso para actividades de este departamento");
+  }
 
-  await prisma.departamento.create({
+  await prisma.actividad.create({
     data: {
       empresaId: session.empresaId,
-      sucursalId,
+      departamentoId,
       nombre,
     },
   });
   revalidateOrg();
 }
 
-export async function updateDepartamento(formData: FormData) {
+export async function deleteActividad(formData: FormData) {
   const session = await requireSession();
   const id = String(formData.get("id") ?? "");
-  const nombre = String(formData.get("nombre") ?? "").trim();
-  if (!nombre) throw new Error("Nombre requerido");
-
-  const existing = await prisma.departamento.findUnique({ where: { id } });
+  const existing = await prisma.actividad.findUnique({ where: { id } });
   if (!existing || existing.empresaId !== session.empresaId) {
+    throw new AclError("Actividad no encontrada");
+  }
+  if (!canManageDepartamentoTags(session, existing.departamentoId)) {
+    throw new AclError("Sin permiso para actividades de este departamento");
+  }
+  await prisma.actividad.delete({ where: { id } });
+  revalidateOrg();
+}
+
+export async function createTemaInteres(formData: FormData) {
+  const session = await requireSession();
+  const departamentoId = String(formData.get("departamentoId") ?? "");
+  const nombre = String(formData.get("nombre") ?? "").trim();
+  if (!departamentoId || !nombre) throw new Error("Datos incompletos");
+
+  const depto = await prisma.departamento.findUnique({
+    where: { id: departamentoId },
+  });
+  if (!depto || depto.empresaId !== session.empresaId) {
     throw new AclError("Departamento no encontrado");
   }
-  requireSucursalManage(session, existing.sucursalId);
+  if (!canManageDepartamentoTags(session, departamentoId)) {
+    throw new AclError("Sin permiso para temas de este departamento");
+  }
 
-  await prisma.departamento.update({
-    where: { id },
-    data: { nombre },
+  await prisma.temaInteres.create({
+    data: {
+      empresaId: session.empresaId,
+      departamentoId,
+      nombre,
+    },
   });
   revalidateOrg();
 }
 
-export async function deleteDepartamento(formData: FormData) {
+export async function deleteTemaInteres(formData: FormData) {
   const session = await requireSession();
   const id = String(formData.get("id") ?? "");
-  const existing = await prisma.departamento.findUnique({ where: { id } });
+  const existing = await prisma.temaInteres.findUnique({ where: { id } });
   if (!existing || existing.empresaId !== session.empresaId) {
-    throw new AclError("Departamento no encontrado");
+    throw new AclError("Tema no encontrado");
   }
-  requireSucursalManage(session, existing.sucursalId);
-  await prisma.departamento.delete({ where: { id } });
+  if (!canManageDepartamentoTags(session, existing.departamentoId)) {
+    throw new AclError("Sin permiso para temas de este departamento");
+  }
+  await prisma.temaInteres.delete({ where: { id } });
   revalidateOrg();
 }
 

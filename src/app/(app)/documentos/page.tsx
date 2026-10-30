@@ -32,24 +32,38 @@ function formatBytes(n: number): string {
 export default async function DocumentosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sucursal?: string; seccion?: string }>;
+  searchParams: Promise<{
+    departamento?: string;
+    sucursal?: string;
+    seccion?: string;
+  }>;
 }) {
   const session = (await getSession())!;
   const filters = await searchParams;
 
-  const [secciones, sucursales, documentos] = await Promise.all([
+  const [secciones, departamentos, sucursales, documentos] = await Promise.all([
     prisma.documentoSeccion.findMany({
       where: { empresaId: session.empresaId },
-      include: { sucursal: true },
-      orderBy: [{ sucursalId: "asc" }, { nombre: "asc" }],
+      include: { departamento: true, sucursal: true },
+      orderBy: [
+        { departamento: { nombre: "asc" } },
+        { sucursalId: "asc" },
+        { nombre: "asc" },
+      ],
+    }),
+    prisma.departamento.findMany({
+      where: { empresaId: session.empresaId },
+      orderBy: { nombre: "asc" },
     }),
     prisma.sucursal.findMany({
       where: { empresaId: session.empresaId, activa: true },
+      include: { departamento: true },
       orderBy: { nombre: "asc" },
     }),
     prisma.documento.findMany({
       where: { empresaId: session.empresaId },
       include: {
+        departamento: true,
         seccion: true,
         sucursal: true,
         subidoPor: true,
@@ -62,12 +76,16 @@ export default async function DocumentosPage({
   let visible = documentos.filter((d) =>
     canViewDocumento(session, {
       empresaId: d.empresaId,
+      departamentoId: d.departamentoId,
       sucursalId: d.sucursalId,
       autorizadoUsuarioIds: d.autorizaciones.map((a) => a.usuarioId),
     }),
   );
 
-  if (filters.sucursal === "corp") {
+  if (filters.departamento) {
+    visible = visible.filter((d) => d.departamentoId === filters.departamento);
+  }
+  if (filters.sucursal === "depto") {
     visible = visible.filter((d) => d.sucursalId === null);
   } else if (filters.sucursal) {
     visible = visible.filter((d) => d.sucursalId === filters.sucursal);
@@ -77,12 +95,17 @@ export default async function DocumentosPage({
   }
 
   const uploadSecciones = secciones
-    .filter((s) => canUploadDocumento(session, { sucursalId: s.sucursalId }))
+    .filter((s) =>
+      canUploadDocumento(session, {
+        sucursalId: s.sucursalId,
+        departamentoId: s.departamentoId,
+      }),
+    )
     .map((s) => ({
       id: s.id,
       label: s.sucursal
-        ? `${s.sucursal.nombre} · ${s.nombre}`
-        : `Corporativo · ${s.nombre}`,
+        ? `${s.departamento.nombre} · ${s.sucursal.nombre} · ${s.nombre}`
+        : `${s.departamento.nombre} · Nivel depto · ${s.nombre}`,
     }));
 
   const seccionCodigos = [...new Set(secciones.map((s) => s.codigo))];
@@ -91,11 +114,26 @@ export default async function DocumentosPage({
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title="Documentos"
-        description="Repositorio unificado por empresa: secciones corporativas y por sucursal, con ACL por rol."
+        description="Repositorio por empresa ligado a departamentos; alcance opcional por sucursal y ACL por rol."
       />
 
       <Panel className="rounded-2xl p-4 shadow-sm">
         <form className="flex flex-wrap items-end gap-3" method="get">
+          <label className="space-y-1 text-sm">
+            <span className="text-[var(--muted)]">Departamento</span>
+            <select
+              name="departamento"
+              defaultValue={filters.departamento ?? ""}
+              className="block rounded border border-[var(--border)] bg-white px-3 py-2 text-sm"
+            >
+              <option value="">Todos</option>
+              {departamentos.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="space-y-1 text-sm">
             <span className="text-[var(--muted)]">Ámbito</span>
             <select
@@ -104,10 +142,10 @@ export default async function DocumentosPage({
               className="block rounded border border-[var(--border)] bg-white px-3 py-2 text-sm"
             >
               <option value="">Todos visibles</option>
-              <option value="corp">Corporativo</option>
+              <option value="depto">Nivel departamento</option>
               {sucursales.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.nombre}
+                  {s.departamento.nombre} · {s.nombre}
                 </option>
               ))}
             </select>
@@ -130,7 +168,7 @@ export default async function DocumentosPage({
           <button type="submit" className={btnSecondary}>
             Filtrar
           </button>
-          {(filters.sucursal || filters.seccion) && (
+          {(filters.departamento || filters.sucursal || filters.seccion) && (
             <Link href="/documentos" className="text-sm text-[var(--accent)]">
               Limpiar
             </Link>
@@ -162,6 +200,7 @@ export default async function DocumentosPage({
           {visible.map((d) => {
             const canDelete = canDeleteDocumento(session, {
               empresaId: d.empresaId,
+              departamentoId: d.departamentoId,
               sucursalId: d.sucursalId,
               autorizadoUsuarioIds: d.autorizaciones.map((a) => a.usuarioId),
             });
@@ -173,12 +212,12 @@ export default async function DocumentosPage({
                 <div className="min-w-0">
                   <p className="font-medium text-[var(--ink)]">{d.titulo}</p>
                   <p className="mt-0.5 text-sm text-[var(--muted)]">
-                    {d.seccion.nombre}
+                    {d.departamento.nombre}
                     {d.sucursal
                       ? ` · ${d.sucursal.nombre}`
-                      : " · Corporativo"}{" "}
-                    · {d.nombreArchivo} · {formatBytes(d.tamanioBytes)} ·{" "}
-                    {d.subidoPor.nombre}
+                      : " · Nivel depto"}{" "}
+                    · {d.seccion.nombre} · {d.nombreArchivo} ·{" "}
+                    {formatBytes(d.tamanioBytes)} · {d.subidoPor.nombre}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-2">

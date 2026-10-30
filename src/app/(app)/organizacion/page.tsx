@@ -6,6 +6,8 @@ import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, Panel } from "@/components/ui";
 
+export const instant = false;
+
 export const metadata = {
   title: "Organización",
 };
@@ -16,14 +18,21 @@ export default async function OrganizacionPage() {
     redirect("/expedientes");
   }
 
-  const [empresa, sucursales, departamentos, miembros] = await Promise.all([
+  const deptoWhere =
+    session.rol === "JEFE_SUCURSAL" && session.departamentoId
+      ? { id: session.departamentoId }
+      : {};
+
+  const [empresa, departamentos, sucursales, miembros] = await Promise.all([
     prisma.empresa.findUniqueOrThrow({ where: { id: session.empresaId } }),
-    prisma.sucursal.count({ where: { empresaId: session.empresaId } }),
     prisma.departamento.count({
+      where: { empresaId: session.empresaId, ...deptoWhere },
+    }),
+    prisma.sucursal.count({
       where: {
         empresaId: session.empresaId,
         ...(session.rol === "JEFE_SUCURSAL" && session.sucursalId
-          ? { sucursalId: session.sucursalId }
+          ? { id: session.sucursalId }
           : {}),
       },
     }),
@@ -42,15 +51,15 @@ export default async function OrganizacionPage() {
       masterOnly: true,
     },
     {
-      href: "/organizacion/sucursales",
-      title: "Sucursales",
-      detail: `${sucursales} registradas`,
+      href: "/organizacion/departamentos",
+      title: "Departamentos",
+      detail: `${departamentos} visibles · actividades y temas`,
       masterOnly: false,
     },
     {
-      href: "/organizacion/departamentos",
-      title: "Departamentos",
-      detail: `${departamentos} visibles`,
+      href: "/organizacion/sucursales",
+      title: "Sucursales",
+      detail: `${sucursales} bajo departamentos`,
       masterOnly: false,
     },
     {
@@ -68,7 +77,7 @@ export default async function OrganizacionPage() {
     <div className="space-y-6">
       <PageHeader
         title="Organización"
-        description="Empresa → sucursales → departamentos, con membresías y ACL por rol."
+        description="Empresa → departamentos → sucursales. Actividades y temas de interés son tags del departamento."
       />
       <ul className="grid gap-3 sm:grid-cols-2">
         {links.map((link) => (

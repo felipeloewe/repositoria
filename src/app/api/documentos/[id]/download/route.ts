@@ -26,6 +26,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   const allowed = canViewDocumento(session, {
     empresaId: doc.empresaId,
+    departamentoId: doc.departamentoId,
     sucursalId: doc.sucursalId,
     autorizadoUsuarioIds: doc.autorizaciones.map((a) => a.usuarioId),
   });

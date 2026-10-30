@@ -24,8 +24,8 @@ function buildNav(session: Session): NavGroup[] {
         title: "Organización",
         items: [
           { href: "/organizacion", label: "Resumen" },
-          { href: "/organizacion/sucursales", label: "Sucursales" },
           { href: "/organizacion/departamentos", label: "Departamentos" },
+          { href: "/organizacion/sucursales", label: "Sucursales" },
           ...(isMasterRole(session.rol)
             ? [
                 { href: "/organizacion/empresa", label: "Empresa" },

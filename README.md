@@ -5,7 +5,14 @@ Repositorio documental **multi-usuario y multi-empresa** (tenant = empresa). Sta
 ## Fases en este repo
 
 - **Fase 1:** organización, membresías, ACL, shell.
-- **Fase 2:** repositorio de documentos por empresa (secciones corporativas / por sucursal, carga y descarga con ACL).
+- **Fase 2:** repositorio de documentos por empresa (ligados a departamentos; alcance por sucursal).
+
+## Jerarquía
+
+**Empresa → Departamentos → Sucursales.**
+
+En cada Departamento: mantenedores de **Actividades** y **Temas de Interés** (tags independientes entre sí).  
+Fase 5 (más adelante): áreas/etapas dentro de Departamentos — no implementado aún.
 
 ## Identidad y membresía
 
@@ -15,10 +22,10 @@ Repositorio documental **multi-usuario y multi-empresa** (tenant = empresa). Sta
 
 ## Documentos (Fase 2)
 
-- Secciones (`DocumentoSeccion`): corporativas (`sucursalId` null) o por sucursal (Contratos, Liquidaciones, General…).
-- Archivos (`Documento`) en disco local bajo `STORAGE_ROOT` (default `./storage/documents`).
-- ACL: **Master** ve/sube todo; **Jefe** ve corporativo + su sucursal (sube solo en su sucursal); **externos** solo documentos con `DocumentoAutorizacion`.
-- UI: `/documentos` — listar, filtrar, subir, descargar (`/api/documentos/[id]/download`).
+- Secciones (`DocumentoSeccion`) y archivos (`Documento`) ligados a un **Departamento**; `sucursalId` null = nivel departamento.
+- Archivos en disco local bajo `STORAGE_ROOT` (default `./storage/documents`).
+- ACL: **Master** ve/sube todo; **Jefe** ve nivel-depto de su departamento + su sucursal (sube solo en su sucursal); **externos** solo documentos con `DocumentoAutorizacion`.
+- UI: `/documentos` — listar, filtrar por departamento/ámbito/sección, subir, descargar.
 
 ## Tipografía y shell
 
@@ -56,4 +63,4 @@ npm run dev
 
 ## Fuera de alcance aún
 
-Correo (Fase 3), flujos (Fase 4), auth de producción / object storage real.
+Correo (Fase 3), flujos (Fase 4), áreas/etapas en depto (Fase 5), auth de producción / object storage real.

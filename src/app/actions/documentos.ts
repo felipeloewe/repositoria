@@ -48,7 +48,10 @@ export async function uploadDocumento(
   }
 
   try {
-    requireDocumentoUpload(session, { sucursalId: seccion.sucursalId });
+    requireDocumentoUpload(session, {
+      sucursalId: seccion.sucursalId,
+      departamentoId: seccion.departamentoId,
+    });
   } catch (e) {
     return {
       error: e instanceof AclError ? e.message : "Sin permiso de carga.",
@@ -60,6 +63,7 @@ export async function uploadDocumento(
   const doc = await prisma.documento.create({
     data: {
       empresaId: session.empresaId,
+      departamentoId: seccion.departamentoId,
       seccionId: seccion.id,
       sucursalId: seccion.sucursalId,
       titulo,
@@ -105,6 +109,7 @@ export async function deleteDocumento(formData: FormData) {
 
   const acl = {
     empresaId: doc.empresaId,
+    departamentoId: doc.departamentoId,
     sucursalId: doc.sucursalId,
     autorizadoUsuarioIds: doc.autorizaciones.map((a) => a.usuarioId),
     subidoPorId: doc.subidoPorId,

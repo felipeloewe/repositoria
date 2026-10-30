@@ -23,6 +23,7 @@ export function canManageMemberships(session: Session): boolean {
   return isMasterRole(session.rol);
 }
 
+/** Master manages all sucursales; Jefe only their assigned branch. */
 export function canManageSucursal(
   session: Session,
   sucursalId: string,
@@ -52,6 +53,41 @@ export function filterVisibleSucursalIds(
     return sucursalIds.filter((id) => id === session.sucursalId);
   }
   return [];
+}
+
+/**
+ * Hierarchy: Empresa → Departamentos → Sucursales.
+ * Master: all depts. Jefe: the departamento that owns their sucursal.
+ */
+export function canViewDepartamento(
+  session: Session,
+  departamentoId: string,
+): boolean {
+  if (isMasterRole(session.rol)) return true;
+  if (session.rol === "JEFE_SUCURSAL") {
+    return session.departamentoId === departamentoId;
+  }
+  return false;
+}
+
+/** Master creates/edits/deletes departamentos. */
+export function canManageDepartamento(session: Session): boolean {
+  return isMasterRole(session.rol);
+}
+
+/**
+ * Actividades / Temas de Interés tags on a Departamento.
+ * Master: any. Jefe: tags of their departamento only.
+ */
+export function canManageDepartamentoTags(
+  session: Session,
+  departamentoId: string,
+): boolean {
+  if (isMasterRole(session.rol)) return true;
+  if (session.rol === "JEFE_SUCURSAL") {
+    return session.departamentoId === departamentoId;
+  }
+  return false;
 }
 
 export function canBrowseOrganization(session: Session): boolean {
@@ -109,11 +145,16 @@ export function roleNeedsSucursal(rol: Rol | string): boolean {
 
 export type DocumentoAclInput = {
   empresaId: string;
+  departamentoId: string;
   sucursalId: string | null;
   autorizadoUsuarioIds: string[];
 };
 
-/** Master: all tenant docs. Jefe: own sucursal + corporate. Externals: authorized only. */
+/**
+ * Master: all tenant docs.
+ * Jefe: own sucursal + departamento-level docs (sucursalId null) of their depto.
+ * Externals: authorized only.
+ */
 export function canViewDocumento(
   session: Session,
   doc: DocumentoAclInput,
@@ -121,7 +162,9 @@ export function canViewDocumento(
   if (session.empresaId !== doc.empresaId) return false;
   if (isMasterRole(session.rol)) return true;
   if (session.rol === "JEFE_SUCURSAL") {
-    if (doc.sucursalId === null) return true; // corporate visible to jefes
+    if (doc.sucursalId === null) {
+      return session.departamentoId === doc.departamentoId;
+    }
     return !!session.sucursalId && doc.sucursalId === session.sucursalId;
   }
   if (isExternalRole(session.rol)) {
@@ -130,13 +173,14 @@ export function canViewDocumento(
   return false;
 }
 
+/** Master: any section. Jefe: only sections scoped to their sucursal (not depto-level). */
 export function canUploadDocumento(
   session: Session,
-  target: { sucursalId: string | null },
+  target: { sucursalId: string | null; departamentoId?: string },
 ): boolean {
   if (isMasterRole(session.rol)) return true;
   if (session.rol === "JEFE_SUCURSAL") {
-    if (target.sucursalId === null) return false; // only Master uploads corporate
+    if (target.sucursalId === null) return false; // only Master uploads depto-level
     return session.sucursalId === target.sucursalId;
   }
   return false;
@@ -168,7 +212,7 @@ export function requireDocumentoView(
 
 export function requireDocumentoUpload(
   session: Session,
-  target: { sucursalId: string | null },
+  target: { sucursalId: string | null; departamentoId?: string },
 ) {
   if (!canUploadDocumento(session, target)) {
     throw new AclError("Sin permiso para subir en esta sección");

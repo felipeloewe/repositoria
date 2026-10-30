@@ -22,6 +22,9 @@ export type Session = {
   rol: Rol;
   sucursalId: string | null;
   sucursalNombre: string | null;
+  /** Departamento that owns the assigned sucursal (Jefe); null otherwise. */
+  departamentoId: string | null;
+  departamentoNombre: string | null;
 };
 
 export type ProfileSwitchNotice = {
@@ -73,7 +76,7 @@ export async function loadSessionByMembresiaId(
     include: {
       usuario: true,
       empresa: true,
-      sucursal: true,
+      sucursal: { include: { departamento: true } },
     },
   });
 
@@ -99,6 +102,8 @@ export async function loadSessionByMembresiaId(
     rol: membresia.rol,
     sucursalId: membresia.sucursalId,
     sucursalNombre: membresia.sucursal?.nombre ?? null,
+    departamentoId: membresia.sucursal?.departamentoId ?? null,
+    departamentoNombre: membresia.sucursal?.departamento?.nombre ?? null,
   };
 }
 
