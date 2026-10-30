@@ -1,0 +1,111 @@
+// Repositoria — Fase 1 data model
+// Tenant = Empresa. All tenant-scoped tables carry empresaId.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  ADMINISTRADOR_MASTER
+  JEFE_SUCURSAL
+  CONTADOR
+  ABOGADO
+  PREVENCIONISTA
+}
+
+/// Organización cliente (tenant). Isolation boundary for all data.
+model Empresa {
+  id        String   @id @default(cuid())
+  nombre    String
+  slug      String   @unique
+  activa    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sucursales     Sucursal[]
+  departamentos  Departamento[]
+  membresias     Membresia[]
+
+  @@map("empresas")
+}
+
+/// Sucursal within an Empresa. Jefe Sucursal is scoped to one of these.
+model Sucursal {
+  id        String   @id @default(cuid())
+  empresaId String
+  nombre    String
+  codigo    String?
+  activa    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  empresa       Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  departamentos Departamento[]
+  membresias    Membresia[]
+
+  @@unique([empresaId, nombre])
+  @@index([empresaId])
+  @@map("sucursales")
+}
+
+/// Departamento under a Sucursal (e.g. Administración, RR.HH., Prevención).
+model Departamento {
+  id         String   @id @default(cuid())
+  empresaId  String
+  sucursalId String
+  nombre     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  empresa  Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  sucursal Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+
+  @@unique([sucursalId, nombre])
+  @@index([empresaId])
+  @@index([sucursalId])
+  @@map("departamentos")
+}
+
+/// Global user identity. Access to empresas is via Membresia.
+model Usuario {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  nombre       String
+  /// Placeholder hash for auth stub; replace with real auth later.
+  passwordHash String?
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  membresias Membresia[]
+
+  @@map("usuarios")
+}
+
+/// Membership of a Usuario in an Empresa, with role and optional sucursal scope.
+model Membresia {
+  id         String   @id @default(cuid())
+  empresaId  String
+  usuarioId  String
+  rol        Rol
+  /// Required for JEFE_SUCURSAL; optional for external roles when scoped to a branch.
+  sucursalId String?
+  activa     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  empresa  Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  usuario  Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  sucursal Sucursal? @relation(fields: [sucursalId], references: [id], onDelete: SetNull)
+
+  @@unique([empresaId, usuarioId, rol])
+  @@index([empresaId])
+  @@index([usuarioId])
+  @@index([sucursalId])
+  @@map("membresias")
+}
