@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
-import { getStubSession } from "@/lib/auth-stub";
+import { getSession } from "@/lib/session";
 
-export default function HomePage() {
-  const session = getStubSession();
+export const instant = false;
+
+export default async function HomePage() {
+  const session = await getSession();
   redirect(session ? "/dashboard" : "/login");
 }

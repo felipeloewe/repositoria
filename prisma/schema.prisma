@@ -27,9 +27,11 @@ model Empresa {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sucursales     Sucursal[]
-  departamentos  Departamento[]
-  membresias     Membresia[]
+  sucursales      Sucursal[]
+  departamentos   Departamento[]
+  membresias      Membresia[]
+  expedientes     ExpedienteStub[]
+  autorizaciones  ExpedienteAutorizacion[]
 
   @@map("empresas")
 }
@@ -44,9 +46,10 @@ model Sucursal {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  empresa       Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresa       Empresa          @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   departamentos Departamento[]
   membresias    Membresia[]
+  expedientes   ExpedienteStub[]
 
   @@unique([empresaId, nombre])
   @@index([empresaId])
@@ -82,7 +85,8 @@ model Usuario {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  membresias Membresia[]
+  membresias     Membresia[]
+  autorizaciones ExpedienteAutorizacion[]
 
   @@map("usuarios")
 }
@@ -108,4 +112,41 @@ model Membresia {
   @@index([usuarioId])
   @@index([sucursalId])
   @@map("membresias")
+}
+
+/// Minimal expediente stub for Fase 1 ACL demos (not full document storage).
+model ExpedienteStub {
+  id         String   @id @default(cuid())
+  empresaId  String
+  sucursalId String?
+  titulo     String
+  tipo       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  empresa        Empresa                   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  sucursal       Sucursal?                 @relation(fields: [sucursalId], references: [id], onDelete: SetNull)
+  autorizaciones ExpedienteAutorizacion[]
+
+  @@index([empresaId])
+  @@index([sucursalId])
+  @@map("expedientes_stub")
+}
+
+/// Grants an external (or any) user access to a specific expediente stub.
+model ExpedienteAutorizacion {
+  id           String   @id @default(cuid())
+  empresaId    String
+  expedienteId String
+  usuarioId    String
+  createdAt    DateTime @default(now())
+
+  empresa    Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  expediente ExpedienteStub  @relation(fields: [expedienteId], references: [id], onDelete: Cascade)
+  usuario    Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([expedienteId, usuarioId])
+  @@index([empresaId])
+  @@index([usuarioId])
+  @@map("expediente_autorizaciones")
 }

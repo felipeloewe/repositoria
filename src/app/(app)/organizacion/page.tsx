@@ -1,45 +1,84 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { canBrowseOrganization } from "@/lib/acl";
+import { isMasterRole } from "@/lib/roles";
+import { getSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
+import { PageHeader, Panel } from "@/components/ui";
+
 export const metadata = {
   title: "Organización",
 };
 
-const ENTITIES = [
-  {
-    name: "Empresa",
-    detail: "Tenant raíz. Aísla usuarios, sucursales y documentos.",
-  },
-  {
-    name: "Sucursal",
-    detail: "Unidad dentro de la empresa. Alcance de Jefe de Sucursal.",
-  },
-  {
-    name: "Departamento",
-    detail: "Área bajo una sucursal (Administración, RR.HH., Prevención…).",
-  },
-  {
-    name: "Usuario + Membresía",
-    detail:
-      "Identidad global con rol por empresa: Administrador Master, Jefe Sucursal, Contador, Abogado, Prevencionista.",
-  },
-] as const;
+export default async function OrganizacionPage() {
+  const session = (await getSession())!;
+  if (!canBrowseOrganization(session)) {
+    redirect("/expedientes");
+  }
 
-export default function OrganizacionPage() {
+  const [empresa, sucursales, departamentos, miembros] = await Promise.all([
+    prisma.empresa.findUniqueOrThrow({ where: { id: session.empresaId } }),
+    prisma.sucursal.count({ where: { empresaId: session.empresaId } }),
+    prisma.departamento.count({
+      where: {
+        empresaId: session.empresaId,
+        ...(session.rol === "JEFE_SUCURSAL" && session.sucursalId
+          ? { sucursalId: session.sucursalId }
+          : {}),
+      },
+    }),
+    isMasterRole(session.rol)
+      ? prisma.membresia.count({
+          where: { empresaId: session.empresaId, activa: true },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  const links = [
+    {
+      href: "/organizacion/empresa",
+      title: "Empresa",
+      detail: `${empresa.nombre} · ${empresa.slug}`,
+      masterOnly: true,
+    },
+    {
+      href: "/organizacion/sucursales",
+      title: "Sucursales",
+      detail: `${sucursales} registradas`,
+      masterOnly: false,
+    },
+    {
+      href: "/organizacion/departamentos",
+      title: "Departamentos",
+      detail: `${departamentos} visibles`,
+      masterOnly: false,
+    },
+    {
+      href: "/organizacion/miembros",
+      title: "Miembros y roles",
+      detail:
+        miembros === null
+          ? "Solo Master"
+          : `${miembros} membresías activas`,
+      masterOnly: true,
+    },
+  ].filter((l) => !l.masterOnly || isMasterRole(session.rol));
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight text-[var(--ink)]">
-          Organización
-        </h1>
-        <p className="mt-1 text-[var(--muted)]">
-          Fundamentos del modelo de datos (Prisma / MySQL). La UI de alta y
-          edición llega en el siguiente incremento.
-        </p>
-      </div>
-
-      <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)]">
-        {ENTITIES.map((entity) => (
-          <li key={entity.name} className="px-5 py-4">
-            <p className="font-medium text-[var(--ink)]">{entity.name}</p>
-            <p className="mt-0.5 text-sm text-[var(--muted)]">{entity.detail}</p>
+      <PageHeader
+        title="Organización"
+        description="Empresa → sucursales → departamentos, con membresías y ACL por rol."
+      />
+      <ul className="grid gap-3 sm:grid-cols-2">
+        {links.map((link) => (
+          <li key={link.href}>
+            <Link href={link.href}>
+              <Panel className="h-full p-5 transition-colors hover:border-[var(--accent)]">
+                <p className="font-medium text-[var(--ink)]">{link.title}</p>
+                <p className="mt-1 text-sm text-[var(--muted)]">{link.detail}</p>
+              </Panel>
+            </Link>
           </li>
         ))}
       </ul>

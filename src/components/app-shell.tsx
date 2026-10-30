@@ -1,35 +1,49 @@
 import Link from "next/link";
-import type { StubSession } from "@/lib/auth-stub";
-import { roleLabel } from "@/lib/roles";
+import { logoutDemoUser } from "@/app/actions/auth";
+import { isMasterRole, roleLabel } from "@/lib/roles";
+import type { Session } from "@/lib/session";
 
 type AppShellProps = {
-  session: StubSession;
+  session: Session;
   children: React.ReactNode;
 };
 
-const NAV = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/organizacion", label: "Organización" },
-];
-
 export function AppShell({ session, children }: AppShellProps) {
+  const showOrg =
+    isMasterRole(session.rol) || session.rol === "JEFE_SUCURSAL";
+
+  const nav = [
+    { href: "/dashboard", label: "Dashboard" },
+    ...(showOrg
+      ? [
+          { href: "/organizacion", label: "Organización" },
+          { href: "/organizacion/sucursales", label: "Sucursales" },
+          { href: "/organizacion/departamentos", label: "Departamentos" },
+          ...(isMasterRole(session.rol)
+            ? [{ href: "/organizacion/miembros", label: "Miembros" }]
+            : []),
+        ]
+      : []),
+    { href: "/expedientes", label: "Expedientes" },
+  ];
+
   return (
     <div className="flex min-h-full flex-1 flex-col bg-[var(--surface)]">
       <header className="border-b border-[var(--border)] bg-[var(--surface-elevated)]">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-6 px-4 sm:px-6">
-          <div className="flex items-center gap-8">
+          <div className="flex min-w-0 items-center gap-6">
             <Link
               href="/dashboard"
-              className="font-[family-name:var(--font-display)] text-lg tracking-tight text-[var(--ink)]"
+              className="shrink-0 font-[family-name:var(--font-display)] text-lg tracking-tight text-[var(--ink)]"
             >
               Repositoria
             </Link>
-            <nav className="hidden items-center gap-1 sm:flex">
-              {NAV.map((item) => (
+            <nav className="hidden items-center gap-1 md:flex">
+              {nav.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded px-3 py-1.5 text-sm text-[var(--muted)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--ink)]"
+                  className="rounded px-2.5 py-1.5 text-sm text-[var(--muted)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--ink)]"
                 >
                   {item.label}
                 </Link>
@@ -43,14 +57,23 @@ export function AppShell({ session, children }: AppShellProps) {
               </p>
               <p className="truncate text-xs text-[var(--muted)]">
                 {session.nombre} · {roleLabel(session.rol)}
+                {session.sucursalNombre ? ` · ${session.sucursalNombre}` : ""}
               </p>
             </div>
             <Link
               href="/login"
               className="shrink-0 rounded border border-[var(--border)] px-3 py-1.5 text-[var(--muted)] transition-colors hover:border-[var(--ink)] hover:text-[var(--ink)]"
             >
-              Salir
+              Cambiar
             </Link>
+            <form action={logoutDemoUser}>
+              <button
+                type="submit"
+                className="shrink-0 rounded border border-[var(--border)] px-3 py-1.5 text-[var(--muted)] transition-colors hover:border-[var(--ink)] hover:text-[var(--ink)]"
+              >
+                Salir
+              </button>
+            </form>
           </div>
         </div>
       </header>
