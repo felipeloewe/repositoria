@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { roleLabel } from "@/lib/roles";
-import { getSession, listDemoMembresias } from "@/lib/session";
-import { btnPrimary, Panel } from "@/components/ui";
+import { redirect } from "next/navigation";
+import { LoginForm } from "@/components/login-form";
+import { Panel } from "@/components/ui";
+import { getAuthenticatedUserId, getSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 
 export const instant = false;
 
@@ -9,67 +11,69 @@ export const metadata = {
   title: "Ingresar",
 };
 
-export default async function LoginPage() {
-  const [membresias, current] = await Promise.all([
-    listDemoMembresias(),
-    getSession(),
-  ]);
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const session = await getSession();
+  if (session) {
+    redirect("/dashboard");
+  }
+
+  const userId = await getAuthenticatedUserId();
+  if (userId) {
+    redirect("/seleccionar-empresa");
+  }
+
+  const params = await searchParams;
+  const userCount = await prisma.usuario.count();
+  const showDevHint = process.env.NODE_ENV !== "production";
 
   return (
     <div className="flex flex-1 items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--accent-soft),_transparent_55%),linear-gradient(180deg,var(--surface)_0%,#e4ebe7_100%)] px-4 py-16">
-      <div className="w-full max-w-xl">
+      <div className="w-full max-w-md">
         <p className="font-[family-name:var(--font-display)] text-3xl tracking-tight text-[var(--ink)]">
           Repositoria
         </p>
         <p className="mt-2 text-[var(--muted)]">
-          Stub de auth: elige un usuario demo para probar ACL por rol y
-          sucursal. Auth real llega después.
+          Ingresa con tu usuario. El alcance (empresa, rol y sucursal) sale de
+          tu membresía — no se elige un perfil de disfraz.
         </p>
 
-        {membresias.length === 0 ? (
+        {userCount === 0 ? (
           <Panel className="mt-8 p-6">
-            <p className="font-medium text-[var(--ink)]">Sin datos seed</p>
+            <p className="font-medium text-[var(--ink)]">Sin usuarios</p>
             <p className="mt-1 text-sm text-[var(--muted)]">
               Ejecuta{" "}
               <code className="rounded bg-[var(--surface-muted)] px-1">
                 npm run db:seed
               </code>{" "}
-              tras migrar MySQL.
+              para cargar usuarios de prueba.
             </p>
           </Panel>
         ) : (
-          <ul className="mt-8 space-y-2">
-            {membresias.map((m) => {
-              const active = current?.membresiaId === m.id;
-              const href = `/api/demo-switch?membresiaId=${encodeURIComponent(m.id)}&next=/dashboard`;
-              return (
-                <li key={m.id}>
-                  <Link
-                    href={href}
-                    className={`flex w-full items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left transition-colors ${
-                      active
-                        ? "border-[var(--accent)] bg-[var(--accent-soft)]"
-                        : "border-[var(--border)] bg-[var(--surface-elevated)] hover:border-[var(--accent)]"
-                    }`}
-                  >
-                    <span>
-                      <span className="block font-medium text-[var(--ink)]">
-                        {m.usuario.nombre}
-                      </span>
-                      <span className="block text-sm text-[var(--muted)]">
-                        {m.usuario.email} · {roleLabel(m.rol)}
-                        {m.sucursal ? ` · ${m.sucursal.nombre}` : ""}
-                      </span>
-                    </span>
-                    <span className={btnPrimary}>
-                      {active ? "Continuar" : "Entrar"}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          <Panel className="mt-8 p-6">
+            <LoginForm initialError={params.error} />
+          </Panel>
         )}
+
+        {showDevHint ? (
+          <p className="mt-4 text-center text-xs text-[var(--muted)]">
+            Seed: correo de prueba + contraseña{" "}
+            <code className="rounded bg-[var(--surface-muted)] px-1">demo123</code>
+            . Ver README.
+            {process.env.DEV_AUTH_SWITCHER === "1" ? (
+              <>
+                {" "}
+                ·{" "}
+                <Link href="/dev/switcher" className="underline">
+                  switcher solo-dev
+                </Link>
+              </>
+            ) : null}
+          </p>
+        ) : null}
       </div>
     </div>
   );

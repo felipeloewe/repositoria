@@ -2,7 +2,7 @@
 
 Repositorio documental **multi-usuario y multi-empresa** (tenant = empresa). Stack: **Next.js App Router** + **MySQL** (Prisma). Local-first.
 
-Este repo cubre **Fase 1 — Organización y perfiles**: estructura empresa → sucursales → departamentos, membresías con roles, ACL por rol/sucursal, y stubs de expedientes para demostrar autorizaciones externas.
+**Fase 1 — Organización y perfiles:** empresa → sucursales → departamentos, membresías con roles, ACL, y stubs de expedientes para autorizaciones externas.
 
 ## Requisitos
 
@@ -19,22 +19,7 @@ npm install
 cp .env.example .env
 ```
 
-Ajusta `DATABASE_URL` en `.env`:
-
-```env
-DATABASE_URL="mysql://repositoria:repositoria@localhost:3306/repositoria"
-```
-
-Crea la base (ejemplo MySQL/MariaDB):
-
-```sql
-CREATE DATABASE repositoria CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'repositoria'@'localhost' IDENTIFIED BY 'repositoria';
-GRANT ALL PRIVILEGES ON repositoria.* TO 'repositoria'@'localhost';
-FLUSH PRIVILEGES;
-```
-
-Migrar, generar cliente y cargar demo:
+Ajusta `DATABASE_URL` en `.env`, crea la base, luego:
 
 ```bash
 npx prisma migrate deploy
@@ -43,56 +28,54 @@ npm run db:seed
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000). En **/login** elige un usuario demo (stub de auth con cookie de membresía).
+Abre [http://localhost:3000/login](http://localhost:3000/login).
 
-## Usuarios demo (seed)
+## Entrada (perfilado real)
 
-| Correo | Rol | Alcance |
-| --- | --- | --- |
-| `admin@repositoria.local` | Administrador Master | Toda la empresa |
-| `jefe.norte@repositoria.local` | Jefe de Sucursal | Solo Sucursal Norte |
-| `jefe.sur@repositoria.local` | Jefe de Sucursal | Solo Sucursal Sur |
-| `contador@repositoria.local` | Contador | Expedientes autorizados |
-| `abogado@repositoria.local` | Abogado | Expedientes autorizados |
-| `prevencionista@repositoria.local` | Prevencionista | Expedientes autorizados |
+1. El usuario inicia sesión con **correo + contraseña**.
+2. La sesión carga su **Usuario** y la(s) **Membresia**(s) asociadas.
+3. Si pertenece a **una** empresa, entra directo con el rol de esa membresía.
+4. Si pertenece a **varias** empresas, ve un **selector de empresa** (solo tenants donde es miembro). El rol no se “elige”: sale del perfil en esa empresa.
+5. No hay switcher de personas/roles como flujo principal.
 
-Seed: 1 empresa, 2 sucursales, departamentos de ejemplo, membresías y 4 expedientes stub con autorizaciones.
+Opcional solo-dev: `DEV_AUTH_SWITCHER=1` habilita `/dev/switcher` para impersonación local. No es el producto.
+
+## Usuarios seed
+
+Contraseña de todos: **`demo123`**
+
+| Correo | Perfil |
+| --- | --- |
+| `admin@repositoria.local` | Master en Empresa Demo |
+| `jefe.norte@repositoria.local` | Jefe Sucursal Norte |
+| `jefe.sur@repositoria.local` | Jefe Sucursal Sur |
+| `contador@repositoria.local` | Contador (expedientes autorizados) |
+| `abogado@repositoria.local` | Abogado |
+| `prevencionista@repositoria.local` | Prevencionista |
+| `multi@repositoria.local` | Contador en Demo **y** Master en Empresa Beta (muestra el picker de empresa) |
 
 ## Scripts
 
 | Script | Descripción |
 | --- | --- |
-| `npm run dev` | Next.js desarrollo |
-| `npm run build` / `npm run start` | Producción |
+| `npm run dev` | Desarrollo |
+| `npm run build` / `start` | Producción |
 | `npm run lint` | ESLint |
-| `npm run db:generate` | `prisma generate` |
-| `npm run db:migrate` | `prisma migrate dev` |
-| `npm run db:deploy` | `prisma migrate deploy` |
+| `npm run db:migrate` / `db:deploy` | Migraciones |
 | `npm run db:seed` | Datos demo |
 | `npm run db:studio` | Prisma Studio |
 
 ## ACL (Fase 1)
 
-- **Administrador Master:** CRUD de empresa, sucursales, departamentos y membresías; ve todos los expedientes stub del tenant.
-- **Jefe de Sucursal:** ve/administra departamentos de **su** sucursal; sin acceso cruzado a otras; ve expedientes de su sucursal.
-- **Contador / Abogado / Prevencionista:** no navegan la organización; solo expedientes con `ExpedienteAutorizacion` a su usuario.
+- **Administrador Master:** CRUD organización + todos los expedientes stub del tenant.
+- **Jefe de Sucursal:** solo su sucursal (sin acceso cruzado).
+- **Contador / Abogado / Prevencionista:** solo expedientes con autorización explícita.
 
-La enforcement vive en `src/lib/acl.ts` y en server actions (`src/app/actions/*`).
-
-## Modelo de datos
-
-| Modelo | Notas |
-| --- | --- |
-| **Empresa** | Tenant |
-| **Sucursal** / **Departamento** | `empresaId` (+ `sucursalId` en depto) |
-| **Usuario** / **Membresia** | Rol + sucursal opcional |
-| **ExpedienteStub** / **ExpedienteAutorizacion** | Solo para demo ACL (no es Fase 2 documental) |
-
-Schema: [`prisma/schema.prisma`](prisma/schema.prisma).
+Enforcement: `src/lib/acl.ts` + server actions.
 
 ## Fuera de alcance aún
 
-Gestión documental completa (Fase 2), correo (Fase 3), flujos con terceros (Fase 4), auth real.
+Documentos (Fase 2), correo (Fase 3), flujos (Fase 4), auth de producción (OAuth/IdP).
 
 ## Licencia
 

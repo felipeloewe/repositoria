@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { getSession } from "@/lib/session";
+import {
+  countUserEmpresas,
+  getAuthenticatedUserId,
+  getSession,
+} from "@/lib/session";
 
-// Session cookie + DB reads — opt out of instant prerender for this segment.
 export const instant = false;
 
 export default async function TenantAppLayout({
@@ -13,8 +16,15 @@ export default async function TenantAppLayout({
   const session = await getSession();
 
   if (!session) {
-    redirect("/login");
+    const userId = await getAuthenticatedUserId();
+    redirect(userId ? "/seleccionar-empresa" : "/login");
   }
 
-  return <AppShell session={session}>{children}</AppShell>;
+  const multiEmpresa = (await countUserEmpresas(session.userId)) > 1;
+
+  return (
+    <AppShell session={session} multiEmpresa={multiEmpresa}>
+      {children}
+    </AppShell>
+  );
 }

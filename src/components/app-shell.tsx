@@ -1,14 +1,19 @@
 import Link from "next/link";
-import { logoutDemoUser } from "@/app/actions/auth";
+import { changeEmpresa, logout } from "@/app/actions/auth";
 import { isMasterRole, roleLabel } from "@/lib/roles";
 import type { Session } from "@/lib/session";
 
 type AppShellProps = {
   session: Session;
+  multiEmpresa?: boolean;
   children: React.ReactNode;
 };
 
-export function AppShell({ session, children }: AppShellProps) {
+export function AppShell({
+  session,
+  multiEmpresa = false,
+  children,
+}: AppShellProps) {
   const showOrg =
     isMasterRole(session.rol) || session.rol === "JEFE_SUCURSAL";
 
@@ -60,13 +65,17 @@ export function AppShell({ session, children }: AppShellProps) {
                 {session.sucursalNombre ? ` · ${session.sucursalNombre}` : ""}
               </p>
             </div>
-            <Link
-              href="/login"
-              className="shrink-0 rounded border border-[var(--border)] px-3 py-1.5 text-[var(--muted)] transition-colors hover:border-[var(--ink)] hover:text-[var(--ink)]"
-            >
-              Cambiar
-            </Link>
-            <form action={logoutDemoUser}>
+            {multiEmpresa ? (
+              <form action={changeEmpresa}>
+                <button
+                  type="submit"
+                  className="shrink-0 rounded border border-[var(--border)] px-3 py-1.5 text-[var(--muted)] transition-colors hover:border-[var(--ink)] hover:text-[var(--ink)]"
+                >
+                  Empresa
+                </button>
+              </form>
+            ) : null}
+            <form action={logout}>
               <button
                 type="submit"
                 className="shrink-0 rounded border border-[var(--border)] px-3 py-1.5 text-[var(--muted)] transition-colors hover:border-[var(--ink)] hover:text-[var(--ink)]"
