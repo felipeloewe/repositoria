@@ -23,14 +23,18 @@
         <nav class="nav">
             <a href="<?= site_url('dashboard') ?>" class="<?= ($title ?? '') === 'Inicio' ? 'active' : '' ?>">Inicio</a>
             <a href="<?= site_url('documentos') ?>" class="<?= ($title ?? '') === 'Documentos' ? 'active' : '' ?>">Documentos</a>
+            <a href="<?= site_url('correo') ?>" class="<?= ($title ?? '') === 'Correo' ? 'active' : '' ?>">Correo</a>
+            <?php if (\App\Libraries\FlujosAcl::canBrowseFlujos($memb)): ?>
+                <a href="<?= site_url('flujos') ?>" class="<?= ($title ?? '') === 'Flujos' ? 'active' : '' ?>">Flujos</a>
+            <?php endif; ?>
             <?php if (\App\Libraries\Roles::canManageOrg($memb['rol'])): ?>
                 <a href="<?= site_url('organizacion') ?>" class="<?= ($title ?? '') === 'Organización' ? 'active' : '' ?>">Organización</a>
             <?php endif; ?>
             <a href="<?= site_url('logout') ?>">Salir</a>
         </nav>
         <div class="sidebar-foot">
-            Fase 1–2 · Auth, org, docs<br>
-            Fases 3–4: follow-up
+            MVP Fases 1–4<br>
+            CI4 + MySQL
         </div>
     </aside>
     <div class="main">

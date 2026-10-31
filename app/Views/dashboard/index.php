@@ -41,13 +41,15 @@
 
 <div class="card section-card" style="animation-delay:.08s">
     <h3>Roadmap en este stack</h3>
-    <p class="muted" style="margin-top:0">CI4 · Fase 1 auth/org + Fase 2 repositorio documental.</p>
+    <p class="muted" style="margin-top:0">CI4 · MVP Fases 1–4 en este stack.</p>
     <ul>
-        <li><strong>Fase 2</strong> — docs por departamento, secciones, upload/download, ACL ✓</li>
-        <li><strong>Fase 3</strong> — integración imap-mail (follow-up)</li>
-        <li><strong>Fase 4</strong> — fiscalización y canales seguros (follow-up)</li>
+        <li><strong>Fase 2</strong> — docs + ACL ✓</li>
+        <li><strong>Fase 3</strong> — Correo / imap-mail ✓</li>
+        <li><strong>Fase 4</strong> — fiscalización + canales ✓</li>
     </ul>
-    <a class="btn btn-primary btn-sm" href="<?= site_url('documentos') ?>">Ir al repositorio</a>
+    <a class="btn btn-primary btn-sm" href="<?= site_url('documentos') ?>">Documentos</a>
+    <a class="btn btn-ghost btn-sm" href="<?= site_url('correo') ?>">Correo</a>
+    <a class="btn btn-ghost btn-sm" href="<?= site_url('flujos') ?>">Flujos</a>
     <?php if ($canOrg): ?>
         <a class="btn btn-ghost btn-sm" href="<?= site_url('organizacion') ?>">Organización</a>
     <?php endif; ?>

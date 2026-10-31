@@ -24,11 +24,15 @@ class DemoSeeder extends Seeder
         // Clean slate (order matters for FKs)
         $this->db->query('SET FOREIGN_KEY_CHECKS=0');
         foreach ([
+            'canal_paquete_auditoria', 'canal_paquete_documentos', 'canal_paquetes',
+            'fiscalizacion_auditoria', 'fiscalizacion_documentos', 'fiscalizacion_solicitudes',
             'documento_autorizaciones', 'documentos', 'documento_secciones',
             'membresias', 'temas_interes', 'actividades', 'sucursales',
             'departamentos', 'usuarios', 'empresas',
         ] as $table) {
-            $this->db->table($table)->truncate();
+            if ($this->db->tableExists($table)) {
+                $this->db->table($table)->truncate();
+            }
         }
         $this->db->query('SET FOREIGN_KEY_CHECKS=1');
 
@@ -166,9 +170,14 @@ class DemoSeeder extends Seeder
             ],
         ]);
 
+        $docManual = new_id();
+        $docLiqNorte = new_id();
+        $docContratoSur = new_id();
+        $docPolitica = new_id();
+
         $samples = [
             [
-                'id' => new_id(),
+                'id' => $docManual,
                 'departamento_id' => $deptoOps,
                 'seccion_id' => $secOpsGeneral,
                 'sucursal_id' => null,
@@ -178,7 +187,7 @@ class DemoSeeder extends Seeder
                 'authorize' => [],
             ],
             [
-                'id' => new_id(),
+                'id' => $docLiqNorte,
                 'departamento_id' => $deptoOps,
                 'seccion_id' => $secOpsNorte,
                 'sucursal_id' => $sucNorte,
@@ -188,7 +197,7 @@ class DemoSeeder extends Seeder
                 'authorize' => [$users['contador']['id'], $users['multi']['id']],
             ],
             [
-                'id' => new_id(),
+                'id' => $docContratoSur,
                 'departamento_id' => $deptoOps,
                 'seccion_id' => $secOpsSur,
                 'sucursal_id' => $sucSur,
@@ -198,7 +207,7 @@ class DemoSeeder extends Seeder
                 'authorize' => [$users['abogado']['id']],
             ],
             [
-                'id' => new_id(),
+                'id' => $docPolitica,
                 'departamento_id' => $deptoAdmin,
                 'seccion_id' => $secAdminCorp,
                 'sucursal_id' => null,
@@ -236,6 +245,102 @@ class DemoSeeder extends Seeder
                     'created_at'   => $now,
                 ]);
             }
+        }
+
+        // --- Fase 4 demos ---
+        if ($this->db->tableExists('fiscalizacion_solicitudes')) {
+            $fisPendiente = new_id();
+            $fisAprobada  = new_id();
+
+            $this->db->table('fiscalizacion_solicitudes')->insert([
+                'id' => $fisPendiente, 'empresa_id' => $empresaDemo,
+                'departamento_id' => $deptoOps, 'sucursal_id' => $sucNorte,
+                'tipo' => 'LIQUIDACION',
+                'titulo' => 'Envío liquidaciones Norte — marzo (fiscalización)',
+                'motivo' => 'Requiere OK Master antes de remitir a fiscalización / contador.',
+                'estado' => 'PENDIENTE',
+                'solicitado_por_id' => $users['jefeNorte']['id'],
+                'revisado_por_id' => null, 'revisado_at' => null, 'comentario_revision' => null,
+                'enviado_at' => null, 'created_at' => $now, 'updated_at' => $now,
+            ]);
+            $this->db->table('fiscalizacion_solicitudes')->insert([
+                'id' => $fisAprobada, 'empresa_id' => $empresaDemo,
+                'departamento_id' => $deptoOps, 'sucursal_id' => $sucSur,
+                'tipo' => 'CONTRATO',
+                'titulo' => 'Exportación contrato Sur — aprobada',
+                'motivo' => 'Demo de solicitud ya autorizada por Master.',
+                'estado' => 'APROBADA',
+                'solicitado_por_id' => $users['jefeSur']['id'],
+                'revisado_por_id' => $users['admin']['id'],
+                'revisado_at' => $now,
+                'comentario_revision' => 'OK para exportar.',
+                'enviado_at' => null, 'created_at' => $now, 'updated_at' => $now,
+            ]);
+
+            $this->db->table('fiscalizacion_documentos')->insertBatch([
+                ['id' => new_id(), 'solicitud_id' => $fisPendiente, 'documento_id' => $docLiqNorte],
+                ['id' => new_id(), 'solicitud_id' => $fisAprobada, 'documento_id' => $docContratoSur],
+            ]);
+
+            $this->db->table('fiscalizacion_auditoria')->insertBatch([
+                [
+                    'id' => new_id(), 'empresa_id' => $empresaDemo, 'solicitud_id' => $fisPendiente,
+                    'actor_id' => $users['jefeNorte']['id'], 'accion' => 'CREATED',
+                    'detalle' => 'LIQUIDACION · seed', 'created_at' => $now,
+                ],
+                [
+                    'id' => new_id(), 'empresa_id' => $empresaDemo, 'solicitud_id' => $fisPendiente,
+                    'actor_id' => $users['jefeNorte']['id'], 'accion' => 'SUBMITTED',
+                    'detalle' => null, 'created_at' => $now,
+                ],
+                [
+                    'id' => new_id(), 'empresa_id' => $empresaDemo, 'solicitud_id' => $fisAprobada,
+                    'actor_id' => $users['jefeSur']['id'], 'accion' => 'CREATED',
+                    'detalle' => 'CONTRATO · seed', 'created_at' => $now,
+                ],
+                [
+                    'id' => new_id(), 'empresa_id' => $empresaDemo, 'solicitud_id' => $fisAprobada,
+                    'actor_id' => $users['admin']['id'], 'accion' => 'APPROVED',
+                    'detalle' => 'OK para exportar.', 'created_at' => $now,
+                ],
+            ]);
+
+            $paqContador = new_id();
+            $paqAbogado  = new_id();
+            $this->db->table('canal_paquetes')->insertBatch([
+                [
+                    'id' => $paqContador, 'empresa_id' => $empresaDemo,
+                    'titulo' => 'Paquete liquidaciones — Contador',
+                    'descripcion' => 'Acceso acotado a liquidaciones Norte.',
+                    'destinatario_id' => $users['contador']['id'],
+                    'creado_por_id' => $users['admin']['id'],
+                    'estado' => 'ACTIVO', 'created_at' => $now, 'updated_at' => $now,
+                ],
+                [
+                    'id' => $paqAbogado, 'empresa_id' => $empresaDemo,
+                    'titulo' => 'Paquete contratos — Abogado',
+                    'descripcion' => 'Contrato Sur para revisión legal.',
+                    'destinatario_id' => $users['abogado']['id'],
+                    'creado_por_id' => $users['admin']['id'],
+                    'estado' => 'ACTIVO', 'created_at' => $now, 'updated_at' => $now,
+                ],
+            ]);
+            $this->db->table('canal_paquete_documentos')->insertBatch([
+                ['id' => new_id(), 'paquete_id' => $paqContador, 'documento_id' => $docLiqNorte],
+                ['id' => new_id(), 'paquete_id' => $paqAbogado, 'documento_id' => $docContratoSur],
+            ]);
+            $this->db->table('canal_paquete_auditoria')->insertBatch([
+                [
+                    'id' => new_id(), 'empresa_id' => $empresaDemo, 'paquete_id' => $paqContador,
+                    'actor_id' => $users['admin']['id'], 'accion' => 'CREATED',
+                    'detalle' => 'Paquete liquidaciones — Contador', 'created_at' => $now,
+                ],
+                [
+                    'id' => new_id(), 'empresa_id' => $empresaDemo, 'paquete_id' => $paqAbogado,
+                    'actor_id' => $users['admin']['id'], 'accion' => 'CREATED',
+                    'detalle' => 'Paquete contratos — Abogado', 'created_at' => $now,
+                ],
+            ]);
         }
     }
 

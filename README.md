@@ -10,10 +10,10 @@ El prototipo Next.js (rama `cursor/scaffold-repositoria-e946` / PR #1) queda com
 
 - Scaffold CI4 Apache-friendly
 - **Fase 1:** auth por membresía real (sin role switcher) + CRUD de organización (Empresa → Departamento → Sucursal; tags Actividades / Temas de Interés)
-- **Fase 2:** repositorio documental ligado a Departamentos — secciones, upload/download en disco (`STORAGE_ROOT`), ACL (Master / Jefe sucursal / externos autorizados)
-- Migraciones + seed demo (org + sample docs)
-
-**Follow-ups:** Fase 3 (imap-mail), Fase 4 (fiscalización / canales).
+- **Fase 2:** repositorio documental ligado a Departamentos — secciones, upload/download en disco (`STORAGE_ROOT`), ACL
+- **Fase 3:** Correo vía imap-mail (`IMAP_MAIL_BASE_URL`) + mock offline; guardar adjunto/certificado PDF → Documentos
+- **Fase 4:** fiscalización (Master aprueba antes de envío) + canales seguros + auditoría
+- Migraciones + seed demo
 
 ## Jerarquía e identidad
 
@@ -36,6 +36,18 @@ El prototipo Next.js (rama `cursor/scaffold-repositoria-e946` / PR #1) queda com
 - UI `/documentos` — listar, filtrar (departamento / ámbito / sección), subir, descargar, autorizar externos (Master)
 - Archivos en disco bajo `STORAGE_ROOT` (default `./storage/documents`)
 - Secciones ligadas a Departamento; `sucursal_id` null = nivel departamento
+
+## Correo (Fase 3)
+
+- UI `/correo`, `/correo/configuracion`, `/correo/{threadId}`
+- Cliente HTTP a imap-mail; sin `IMAP_MAIL_BASE_URL` (o si cae) → fixtures mock
+- Guardar **adjunto** y **certificado PDF** del hilo como `Documento` (sección + ACL)
+- Webhook stub `POST /api/webhooks/imap-mail`
+
+## Flujos (Fase 4)
+
+- `/flujos/fiscalizacion` — solicitar → Master aprueba/rechaza → registrar envío (solo si APROBADA) + auditoría
+- `/flujos/canales` — paquetes Master → externos; descarga + revocación + auditoría
 
 ## Setup local
 
