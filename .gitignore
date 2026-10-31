@@ -1,0 +1,66 @@
+#-------------------------
+# Operating Specific Junk Files
+#-------------------------
+.DS_Store
+Thumbs.db
+
+#-------------------------
+# Environment Files
+#-------------------------
+.env
+.phpunit.result.cache
+.php-cs-fixer.cache
+
+#-------------------------
+# Temporary Files
+#-------------------------
+writable/cache/*
+!writable/cache/index.html
+writable/logs/*
+!writable/logs/index.html
+writable/session/*
+!writable/session/index.html
+writable/uploads/*
+!writable/uploads/index.html
+writable/debugbar/*
+!writable/debugbar/index.html
+
+#-------------------------
+# User Guide Temp Files
+#-------------------------
+user_guide_src/build/*
+user_guide_src/cilexer/build/*
+user_guide_src/cilexer/dist/*
+user_guide_src/cilexer/pycilexer.egg-info/*
+/vendor/
+
+#-------------------------
+# Test Files
+#-------------------------
+tests/coverage*
+tests/.phpunit.result.cache
+
+#-------------------------
+# Composer
+#-------------------------
+vendor/
+!composer.lock
+
+#-------------------------
+# IDE / Development Files
+#-------------------------
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.phpintel/
+.buildpath
+.project
+.settings/
+
+#-------------------------
+# Local storage (Fase 2)
+#-------------------------
+storage/**
+!storage/documents/
+!storage/documents/.gitkeep
