@@ -6,7 +6,7 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-/** Fase 2 ACL stub — schema + model only. */
+/** Autorización explícita de documento a usuario externo. */
 class DocumentoAutorizacionModel extends Model
 {
     protected $table            = 'documento_autorizaciones';

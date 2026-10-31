@@ -44,4 +44,15 @@ final class Roles
     {
         return self::isMaster($rol);
     }
+
+    public static function isExternal(string $rol): bool
+    {
+        return DocumentAcl::isExternal($rol);
+    }
+
+    /** Master and Jefe can upload (with further ACL on section scope). */
+    public static function canUploadDocs(string $rol): bool
+    {
+        return self::isMaster($rol) || $rol === self::JEFE_SUCURSAL;
+    }
 }

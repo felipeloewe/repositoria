@@ -10,10 +10,10 @@ El prototipo Next.js (rama `cursor/scaffold-repositoria-e946` / PR #1) queda com
 
 - Scaffold CI4 Apache-friendly
 - **Fase 1:** auth por membresía real (sin role switcher) + CRUD de organización (Empresa → Departamento → Sucursal; tags Actividades / Temas de Interés)
-- Migraciones + seed demo
-- Stubs de esquema ACL documental (Fase 2 tables)
+- **Fase 2:** repositorio documental ligado a Departamentos — secciones, upload/download en disco (`STORAGE_ROOT`), ACL (Master / Jefe sucursal / externos autorizados)
+- Migraciones + seed demo (org + sample docs)
 
-**Follow-ups:** Fase 2 (docs + ACL UI), Fase 3 (imap-mail), Fase 4 (fiscalización / canales).
+**Follow-ups:** Fase 3 (imap-mail), Fase 4 (fiscalización / canales).
 
 ## Jerarquía e identidad
 
@@ -25,11 +25,17 @@ El prototipo Next.js (rama `cursor/scaffold-repositoria-e946` / PR #1) queda com
 
 ## Roles
 
-| Rol | Alcance (Fase 1) |
+| Rol | Alcance |
 | --- | --- |
-| Administrador Master | Org CRUD + visibilidad total |
-| Jefe de Sucursal | Perfil acotado a su sucursal |
-| Contador / Abogado / Prevencionista | Externos acotados (docs ACL en Fase 2) |
+| Administrador Master | Org CRUD + ve/sube todos los docs |
+| Jefe de Sucursal | Docs de su sucursal + nivel-depto de su departamento; sube solo en su sucursal |
+| Contador / Abogado / Prevencionista | Solo documentos con autorización explícita |
+
+## Documentos (Fase 2)
+
+- UI `/documentos` — listar, filtrar (departamento / ámbito / sección), subir, descargar, autorizar externos (Master)
+- Archivos en disco bajo `STORAGE_ROOT` (default `./storage/documents`)
+- Secciones ligadas a Departamento; `sucursal_id` null = nivel departamento
 
 ## Setup local
 

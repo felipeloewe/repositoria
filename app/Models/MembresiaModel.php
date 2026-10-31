@@ -37,7 +37,7 @@ class MembresiaModel extends Model
     public function findActive(string $membresiaId): ?array
     {
         $row = $this->db->table('membresias m')
-            ->select('m.*, e.nombre AS empresa_nombre, e.slug AS empresa_slug, s.nombre AS sucursal_nombre, u.nombre AS usuario_nombre, u.email AS usuario_email')
+            ->select('m.*, e.nombre AS empresa_nombre, e.slug AS empresa_slug, s.nombre AS sucursal_nombre, s.departamento_id AS departamento_id, u.nombre AS usuario_nombre, u.email AS usuario_email')
             ->join('empresas e', 'e.id = m.empresa_id')
             ->join('usuarios u', 'u.id = m.usuario_id')
             ->join('sucursales s', 's.id = m.sucursal_id', 'left')

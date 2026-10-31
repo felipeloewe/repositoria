@@ -23,4 +23,11 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('organizacion/sucursal', 'Organizacion::storeSucursal');
     $routes->post('organizacion/actividad', 'Organizacion::storeActividad');
     $routes->post('organizacion/tema', 'Organizacion::storeTema');
+
+    $routes->get('documentos', 'Documentos::index');
+    $routes->post('documentos/seccion', 'Documentos::storeSeccion');
+    $routes->post('documentos/upload', 'Documentos::upload');
+    $routes->post('documentos/authorize', 'Documentos::authorize');
+    $routes->get('documentos/(:segment)/download', 'Documentos::download/$1');
+    $routes->post('documentos/(:segment)/delete', 'Documentos::delete/$1');
 });

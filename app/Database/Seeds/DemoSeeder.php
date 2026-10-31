@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Database\Seeds;
 
+use App\Libraries\DocumentStorage;
 use App\Libraries\Roles;
 use CodeIgniter\Database\Seeder;
 
@@ -19,6 +20,26 @@ class DemoSeeder extends Seeder
 
         $now  = date('Y-m-d H:i:s');
         $hash = password_hash('demo123', PASSWORD_DEFAULT);
+
+        // Clean slate (order matters for FKs)
+        $this->db->query('SET FOREIGN_KEY_CHECKS=0');
+        foreach ([
+            'documento_autorizaciones', 'documentos', 'documento_secciones',
+            'membresias', 'temas_interes', 'actividades', 'sucursales',
+            'departamentos', 'usuarios', 'empresas',
+        ] as $table) {
+            $this->db->table($table)->truncate();
+        }
+        $this->db->query('SET FOREIGN_KEY_CHECKS=1');
+
+        // Wipe demo files under storage root
+        $root = DocumentStorage::root();
+        if (is_dir($root)) {
+            $this->rmTree($root);
+        }
+        if (! is_dir($root)) {
+            mkdir($root, 0750, true);
+        }
 
         $empresaDemo = new_id();
         $empresaBeta = new_id();
@@ -102,7 +123,6 @@ class DemoSeeder extends Seeder
             [$users['contador']['id'], $empresaDemo, Roles::CONTADOR, null],
             [$users['abogado']['id'], $empresaDemo, Roles::ABOGADO, null],
             [$users['prevencionista']['id'], $empresaDemo, Roles::PREVENCIONISTA, null],
-            // multi: Contador in Demo + Master in Beta
             [$users['multi']['id'], $empresaDemo, Roles::CONTADOR, null],
             [$users['multi']['id'], $empresaBeta, Roles::ADMINISTRADOR_MASTER, null],
         ];
@@ -117,12 +137,128 @@ class DemoSeeder extends Seeder
         }
         $this->db->table('membresias')->insertBatch($batch);
 
-        // Documento sección stub (Fase 2 schema smoke)
-        $secId = new_id();
-        $this->db->table('documento_secciones')->insert([
-            'id' => $secId, 'empresa_id' => $empresaDemo, 'departamento_id' => $deptoOps,
-            'sucursal_id' => null, 'nombre' => 'General', 'codigo' => 'GENERAL',
-            'created_at' => $now, 'updated_at' => $now,
+        // --- Fase 2: secciones + documentos de ejemplo ---
+        $secOpsGeneral = new_id();
+        $secOpsNorte   = new_id();
+        $secOpsSur     = new_id();
+        $secAdminCorp  = new_id();
+
+        $this->db->table('documento_secciones')->insertBatch([
+            [
+                'id' => $secOpsGeneral, 'empresa_id' => $empresaDemo, 'departamento_id' => $deptoOps,
+                'sucursal_id' => null, 'nombre' => 'General', 'codigo' => 'GENERAL',
+                'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => $secOpsNorte, 'empresa_id' => $empresaDemo, 'departamento_id' => $deptoOps,
+                'sucursal_id' => $sucNorte, 'nombre' => 'Liquidaciones', 'codigo' => 'LIQUIDACIONES',
+                'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => $secOpsSur, 'empresa_id' => $empresaDemo, 'departamento_id' => $deptoOps,
+                'sucursal_id' => $sucSur, 'nombre' => 'Contratos', 'codigo' => 'CONTRATOS',
+                'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => $secAdminCorp, 'empresa_id' => $empresaDemo, 'departamento_id' => $deptoAdmin,
+                'sucursal_id' => null, 'nombre' => 'Contratos', 'codigo' => 'CONTRATOS',
+                'created_at' => $now, 'updated_at' => $now,
+            ],
         ]);
+
+        $samples = [
+            [
+                'id' => new_id(),
+                'departamento_id' => $deptoOps,
+                'seccion_id' => $secOpsGeneral,
+                'sucursal_id' => null,
+                'titulo' => 'Manual de operaciones — nivel departamento',
+                'filename' => 'manual-operaciones.txt',
+                'body' => "Documento a nivel departamento Operaciones.\nVisible a Master y a Jefes de sucursales de Operaciones.\n",
+                'authorize' => [],
+            ],
+            [
+                'id' => new_id(),
+                'departamento_id' => $deptoOps,
+                'seccion_id' => $secOpsNorte,
+                'sucursal_id' => $sucNorte,
+                'titulo' => 'Liquidaciones Norte — marzo',
+                'filename' => 'liquidaciones-norte-marzo.txt',
+                'body' => "Liquidaciones Sucursal Norte — ejemplo seed.\nAutorizado a Contador.\n",
+                'authorize' => [$users['contador']['id'], $users['multi']['id']],
+            ],
+            [
+                'id' => new_id(),
+                'departamento_id' => $deptoOps,
+                'seccion_id' => $secOpsSur,
+                'sucursal_id' => $sucSur,
+                'titulo' => 'Contrato proveedor Sur',
+                'filename' => 'contrato-sur.txt',
+                'body' => "Contrato Sucursal Sur — ejemplo seed.\nAutorizado a Abogado.\n",
+                'authorize' => [$users['abogado']['id']],
+            ],
+            [
+                'id' => new_id(),
+                'departamento_id' => $deptoAdmin,
+                'seccion_id' => $secAdminCorp,
+                'sucursal_id' => null,
+                'titulo' => 'Política de contratos — Administración',
+                'filename' => 'politica-contratos.txt',
+                'body' => "Documento a nivel departamento Administración.\nVisible a Master (Jefes de Ops no lo ven: otro depto).\n",
+                'authorize' => [],
+            ],
+        ];
+
+        foreach ($samples as $d) {
+            $saved = DocumentStorage::save($empresaDemo, $d['id'], $d['filename'], $d['body']);
+            $this->db->table('documentos')->insert([
+                'id'              => $d['id'],
+                'empresa_id'      => $empresaDemo,
+                'departamento_id' => $d['departamento_id'],
+                'seccion_id'      => $d['seccion_id'],
+                'sucursal_id'     => $d['sucursal_id'],
+                'titulo'          => $d['titulo'],
+                'nombre_archivo'  => $d['filename'],
+                'ruta_relativa'   => $saved['ruta_relativa'],
+                'mime'            => 'text/plain',
+                'tamano_bytes'    => $saved['tamano_bytes'],
+                'subido_por_id'   => $users['admin']['id'],
+                'created_at'      => $now,
+                'updated_at'      => $now,
+            ]);
+
+            foreach ($d['authorize'] as $uid) {
+                $this->db->table('documento_autorizaciones')->insert([
+                    'id'           => new_id(),
+                    'empresa_id'   => $empresaDemo,
+                    'documento_id' => $d['id'],
+                    'usuario_id'   => $uid,
+                    'created_at'   => $now,
+                ]);
+            }
+        }
+    }
+
+    private function rmTree(string $dir): void
+    {
+        if (! is_dir($dir)) {
+            return;
+        }
+        $items = scandir($dir);
+        if ($items === false) {
+            return;
+        }
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..' || $item === '.gitkeep') {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            if (is_dir($path)) {
+                $this->rmTree($path);
+                @rmdir($path);
+            } else {
+                @unlink($path);
+            }
+        }
     }
 }

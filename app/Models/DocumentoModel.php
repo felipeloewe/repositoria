@@ -6,7 +6,7 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-/** Fase 2 stub — schema + model only. */
+/** Repositorio documental (Fase 2). */
 class DocumentoModel extends Model
 {
     protected $table            = 'documentos';

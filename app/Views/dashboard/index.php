@@ -35,20 +35,21 @@
     <div class="card">
         <h3>Documentos</h3>
         <div class="value"><?= (int) $stats['documentos'] ?></div>
-        <div class="hint">Fase 2 (stub de esquema listo)</div>
+        <div class="hint">Visibles para tu membresía</div>
     </div>
 </div>
 
 <div class="card section-card" style="animation-delay:.08s">
     <h3>Roadmap en este stack</h3>
-    <p class="muted" style="margin-top:0">Este PR: scaffold CodeIgniter 4 + Fase 1 (auth + organización).</p>
+    <p class="muted" style="margin-top:0">CI4 · Fase 1 auth/org + Fase 2 repositorio documental.</p>
     <ul>
-        <li><strong>Fase 2</strong> — repositorio documental + ACL (follow-up)</li>
+        <li><strong>Fase 2</strong> — docs por departamento, secciones, upload/download, ACL ✓</li>
         <li><strong>Fase 3</strong> — integración imap-mail (follow-up)</li>
         <li><strong>Fase 4</strong> — fiscalización y canales seguros (follow-up)</li>
     </ul>
+    <a class="btn btn-primary btn-sm" href="<?= site_url('documentos') ?>">Ir al repositorio</a>
     <?php if ($canOrg): ?>
-        <a class="btn btn-primary btn-sm" href="<?= site_url('organizacion') ?>">Gestionar organización</a>
+        <a class="btn btn-ghost btn-sm" href="<?= site_url('organizacion') ?>">Organización</a>
     <?php endif; ?>
 </div>
 

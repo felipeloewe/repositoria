@@ -6,7 +6,7 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-/** Fase 2 stub — schema + model only. */
+/** Sección del repositorio ligada a un Departamento (opc. sucursal). */
 class DocumentoSeccionModel extends Model
 {
     protected $table            = 'documento_secciones';

@@ -22,14 +22,15 @@
         </div>
         <nav class="nav">
             <a href="<?= site_url('dashboard') ?>" class="<?= ($title ?? '') === 'Inicio' ? 'active' : '' ?>">Inicio</a>
+            <a href="<?= site_url('documentos') ?>" class="<?= ($title ?? '') === 'Documentos' ? 'active' : '' ?>">Documentos</a>
             <?php if (\App\Libraries\Roles::canManageOrg($memb['rol'])): ?>
                 <a href="<?= site_url('organizacion') ?>" class="<?= ($title ?? '') === 'Organización' ? 'active' : '' ?>">Organización</a>
             <?php endif; ?>
             <a href="<?= site_url('logout') ?>">Salir</a>
         </nav>
         <div class="sidebar-foot">
-            Fase 1 · Auth + org<br>
-            Fases 2–4: follow-up
+            Fase 1–2 · Auth, org, docs<br>
+            Fases 3–4: follow-up
         </div>
     </aside>
     <div class="main">
