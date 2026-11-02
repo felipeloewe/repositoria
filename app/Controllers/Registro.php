@@ -90,15 +90,23 @@ class Registro extends BaseController
         }
 
         $adminNombre = (string) $this->request->getPost('nombre');
+        $adminAlias  = (string) $this->request->getPost('admin_alias');
+        $adminCargo  = (string) $this->request->getPost('admin_cargo');
+        $adminRut    = (string) $this->request->getPost('admin_rut');
         $adminEmail  = (string) $this->request->getPost('email');
         $adminPass   = (string) $this->request->getPost('password');
         $adminPass2  = (string) $this->request->getPost('password_confirm');
 
+        $oldAdmin = [
+            'nombre'      => $adminNombre,
+            'admin_alias' => $adminAlias,
+            'admin_cargo' => $adminCargo,
+            'admin_rut'   => $adminRut,
+            'email'       => $adminEmail,
+        ];
+
         if ($adminPass !== $adminPass2) {
-            return redirect()->to('/registro/admin')->with('error', 'Las contraseñas no coinciden.')->with('old', [
-                'nombre' => $adminNombre,
-                'email'  => $adminEmail,
-            ]);
+            return redirect()->to('/registro/admin')->with('error', 'Las contraseñas no coinciden.')->with('old', $oldAdmin);
         }
 
         try {
@@ -108,14 +116,14 @@ class Registro extends BaseController
                 'rut'            => $draft['rut'] ?? null,
                 'tipo'           => 'b',
                 'admin_nombre'   => $adminNombre,
+                'admin_alias'    => $adminAlias,
+                'admin_cargo'    => $adminCargo,
+                'admin_rut'      => $adminRut,
                 'admin_email'    => $adminEmail,
                 'admin_password' => $adminPass,
             ]);
         } catch (RuntimeException $e) {
-            return redirect()->to('/registro/admin')->with('error', $e->getMessage())->with('old', [
-                'nombre' => $adminNombre,
-                'email'  => $adminEmail,
-            ]);
+            return redirect()->to('/registro/admin')->with('error', $e->getMessage())->with('old', $oldAdmin);
         } catch (Throwable $e) {
             log_message('error', 'Registro storeAdmin: {msg}', ['msg' => $e->getMessage()]);
 

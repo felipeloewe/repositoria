@@ -122,6 +122,9 @@ class AdminCentral extends BaseController
             'tipo'           => $tipo,
             'plan_id'        => $tipo === PlanEntitlement::TIPO_A ? $planId : null,
             'admin_nombre'   => (string) $this->request->getPost('admin_nombre'),
+            'admin_alias'    => (string) $this->request->getPost('admin_alias'),
+            'admin_cargo'    => (string) $this->request->getPost('admin_cargo'),
+            'admin_rut'      => (string) $this->request->getPost('admin_rut'),
             'admin_email'    => (string) $this->request->getPost('admin_email'),
             'admin_password' => (string) $this->request->getPost('admin_password'),
         ];

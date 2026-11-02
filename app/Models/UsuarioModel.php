@@ -13,11 +13,21 @@ class UsuarioModel extends Model
     protected $useAutoIncrement = false;
     protected $returnType       = 'array';
     protected $useTimestamps    = true;
-    protected $allowedFields    = ['id', 'email', 'nombre', 'rut', 'password_hash', 'activo', 'es_admin_central'];
+    protected $allowedFields    = [
+        'id', 'email', 'nombre', 'alias', 'cargo', 'rut',
+        'password_hash', 'activo', 'es_admin_central',
+    ];
 
     public function findByEmail(string $email): ?array
     {
         $row = $this->where('email', $email)->first();
+
+        return $row ?: null;
+    }
+
+    public function findByAlias(string $alias): ?array
+    {
+        $row = $this->where('alias', $alias)->first();
 
         return $row ?: null;
     }

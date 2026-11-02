@@ -42,7 +42,7 @@
             <input id="alias" type="text" name="alias" required maxlength="191"
                    value="<?= esc($old['alias'] ?? $old['slug'] ?? '') ?>"
                    placeholder="servicios-andes" autocomplete="off">
-            <p class="hint" style="margin-top:-.5rem;margin-bottom:1rem">Identificador único (letras, números o guiones). Obligatorio.</p>
+            <p class="hint" style="margin-top:-.5rem;margin-bottom:1rem">Identificador único de la empresa (letras, números o guiones). Obligatorio.</p>
 
             <label for="rut">RUT (opcional)</label>
             <input id="rut" type="text" name="rut" maxlength="32"
