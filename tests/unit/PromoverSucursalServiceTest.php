@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Libraries\DocumentStorage;
+use App\Libraries\PlanEntitlement;
 use App\Libraries\PromoverSucursalService;
 use App\Libraries\Roles;
 use CodeIgniter\Test\CIUnitTestCase;
@@ -106,6 +107,11 @@ final class PromoverSucursalServiceTest extends CIUnitTestCase
         $this->assertSame(1, $result['documentos_movidos']);
         $this->assertSame(1, $result['secciones_movidas']);
         $this->assertGreaterThanOrEqual(1, $result['membresias_creadas']);
+
+        $nuevaEmpresa = $db->table('empresas')->where('id', $result['nueva_empresa_id'])->get()->getRowArray();
+        $this->assertSame(PlanEntitlement::TIPO_A, $nuevaEmpresa['tipo']);
+        $this->assertSame(PlanEntitlement::STATUS_REQUIRES_PLAN, $nuevaEmpresa['subscription_status']);
+        $this->assertNull($nuevaEmpresa['plan_id']);
 
         $origen = $db->table('sucursales')->where('id', $sucId)->get()->getRowArray();
         $this->assertSame(PromoverSucursalService::ESTADO_PROMOVIDA, $origen['estado']);

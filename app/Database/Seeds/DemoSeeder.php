@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Database\Seeds;
 
 use App\Libraries\DocumentStorage;
+use App\Libraries\PlanEntitlement;
 use App\Libraries\Roles;
 use CodeIgniter\Database\Seeder;
 
@@ -29,7 +30,7 @@ class DemoSeeder extends Seeder
             'fiscalizacion_auditoria', 'fiscalizacion_documentos', 'fiscalizacion_solicitudes',
             'documento_autorizaciones', 'documentos', 'documento_secciones',
             'membresias', 'temas_interes', 'actividades', 'sucursales',
-            'departamentos', 'usuarios', 'empresas',
+            'departamentos', 'usuarios', 'empresas', 'planes',
         ] as $table) {
             if ($this->db->tableExists($table)) {
                 $this->db->table($table)->truncate();
@@ -46,17 +47,54 @@ class DemoSeeder extends Seeder
             mkdir($root, 0750, true);
         }
 
+        $planFree    = new_id();
+        $planStarter = new_id();
+        $planPro     = new_id();
+
+        $this->db->table('planes')->insertBatch([
+            [
+                'id' => $planFree, 'codigo' => PlanEntitlement::CODIGO_FREE, 'nombre' => 'Free Filial',
+                'descripcion' => 'Gratis para tipo (b): hasta 3 usuarios y 10 GB.',
+                'tipo_aplicable' => 'b', 'max_usuarios' => PlanEntitlement::FREE_MAX_USERS,
+                'max_storage_bytes' => PlanEntitlement::FREE_MAX_STORAGE, 'es_gratuito' => 1,
+                'precio_mensual' => 0, 'activo' => 1, 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => $planStarter, 'codigo' => PlanEntitlement::CODIGO_STARTER, 'nombre' => 'Starter',
+                'descripcion' => 'Plan de pago inicial: 10 usuarios / 50 GB.',
+                'tipo_aplicable' => 'ambos', 'max_usuarios' => 10,
+                'max_storage_bytes' => 50 * 1024 * 1024 * 1024, 'es_gratuito' => 0,
+                'precio_mensual' => 29.90, 'activo' => 1, 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => $planPro, 'codigo' => PlanEntitlement::CODIGO_PRO, 'nombre' => 'Pro',
+                'descripcion' => 'Plan ampliado: 50 usuarios / 200 GB.',
+                'tipo_aplicable' => 'ambos', 'max_usuarios' => 50,
+                'max_storage_bytes' => 200 * 1024 * 1024 * 1024, 'es_gratuito' => 0,
+                'precio_mensual' => 99.90, 'activo' => 1, 'created_at' => $now, 'updated_at' => $now,
+            ],
+        ]);
+
         $empresaDemo = new_id();
         $empresaBeta = new_id();
 
         $this->db->table('empresas')->insertBatch([
             [
                 'id' => $empresaDemo, 'nombre' => 'Empresa Demo', 'slug' => 'empresa-demo',
-                'rut' => '76.123.456-7', 'activa' => 1, 'created_at' => $now, 'updated_at' => $now,
+                'rut' => '76.123.456-7', 'activa' => 1,
+                'tipo' => PlanEntitlement::TIPO_A, 'plan_id' => $planStarter,
+                'subscription_status' => PlanEntitlement::STATUS_ACTIVE,
+                'seats_limit' => 10, 'storage_limit_bytes' => 50 * 1024 * 1024 * 1024,
+                'created_at' => $now, 'updated_at' => $now,
             ],
             [
                 'id' => $empresaBeta, 'nombre' => 'Empresa Beta', 'slug' => 'empresa-beta',
-                'rut' => '77.987.654-3', 'activa' => 1, 'created_at' => $now, 'updated_at' => $now,
+                'rut' => '77.987.654-3', 'activa' => 1,
+                'tipo' => PlanEntitlement::TIPO_B, 'plan_id' => $planFree,
+                'subscription_status' => PlanEntitlement::STATUS_FREE,
+                'seats_limit' => PlanEntitlement::FREE_MAX_USERS,
+                'storage_limit_bytes' => PlanEntitlement::FREE_MAX_STORAGE,
+                'created_at' => $now, 'updated_at' => $now,
             ],
         ]);
 

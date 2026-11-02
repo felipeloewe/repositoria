@@ -281,6 +281,9 @@ class Correo extends BaseController
         }
 
         $file  = $loader();
+        $bytes = $file['bytes'];
+        (new \App\Libraries\PlanEntitlement())->assertCanUpload($memb['empresa_id'], strlen($bytes));
+
         $docId = new_id();
         $titulo = $tituloOverride ?: ($file['titulo'] ?: ('Correo · ' . $file['filename']));
 
@@ -295,12 +298,12 @@ class Correo extends BaseController
             'nombre_archivo'  => $file['filename'],
             'ruta_relativa'   => 'pending',
             'mime'            => $file['mime'],
-            'tamano_bytes'    => strlen($file['bytes']),
+            'tamano_bytes'    => strlen($bytes),
             'subido_por_id'   => $memb['usuario_id'],
         ]);
 
         try {
-            $saved = DocumentStorage::save($memb['empresa_id'], $docId, $file['filename'], $file['bytes']);
+            $saved = DocumentStorage::save($memb['empresa_id'], $docId, $file['filename'], $bytes);
             $docs->update($docId, [
                 'ruta_relativa' => $saved['ruta_relativa'],
                 'tamano_bytes'  => $saved['tamano_bytes'],
