@@ -22,8 +22,10 @@
         · Plan <?= esc($planSnap['plan']['codigo'] ?? '—') ?>
         · Estado <?= esc($planSnap['empresa']['subscription_status'] ?? '—') ?>
         · Usuarios <?= (int) $planSnap['seats_used'] ?>/<?= $planSnap['seats_limit'] === null ? '∞' : (int) $planSnap['seats_limit'] ?>
-        · Storage <?= esc(\App\Libraries\PlanEntitlement::formatBytes((int) $planSnap['storage_used_bytes'])) ?>
+        · Disco <?= esc(\App\Libraries\PlanEntitlement::formatBytes((int) ($planSnap['disk_used_bytes'] ?? 0))) ?>
         / <?= $planSnap['storage_limit_bytes'] === null ? '∞' : esc(\App\Libraries\PlanEntitlement::formatBytes((int) $planSnap['storage_limit_bytes'])) ?>
+        <br>BD docs: <?= esc(\App\Libraries\PlanEntitlement::formatBytes((int) ($planSnap['db_storage_bytes'] ?? 0))) ?>
+        · Facturable: <?= esc(\App\Libraries\PlanEntitlement::formatBytes((int) $planSnap['storage_used_bytes'])) ?>
     </p>
 </div>
 <?php endif; ?>

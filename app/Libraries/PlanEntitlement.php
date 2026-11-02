@@ -47,6 +47,8 @@ final class PlanEntitlement
      *   plan: ?array<string, mixed>,
      *   seats_used: int,
      *   storage_used_bytes: int,
+     *   disk_used_bytes: int,
+     *   db_storage_bytes: int,
      *   seats_limit: ?int,
      *   storage_limit_bytes: ?int,
      *   seats_ok: bool,
@@ -75,6 +77,8 @@ final class PlanEntitlement
             'plan'                 => $plan,
             'seats_used'           => $usage['seats_used'],
             'storage_used_bytes'   => $usage['storage_used_bytes'],
+            'disk_used_bytes'      => $usage['disk_used_bytes'],
+            'db_storage_bytes'     => $usage['db_storage_bytes'],
             'seats_limit'          => $limits['seats_limit'],
             'storage_limit_bytes'  => $limits['storage_limit_bytes'],
             'seats_ok'             => $seatsOk,
@@ -84,7 +88,14 @@ final class PlanEntitlement
     }
 
     /**
-     * @return array{seats_used: int, storage_used_bytes: int}
+     * Usage for seats + storage. Billable storage = max(disk folder, SUM documentos).
+     *
+     * @return array{
+     *   seats_used: int,
+     *   storage_used_bytes: int,
+     *   disk_used_bytes: int,
+     *   db_storage_bytes: int
+     * }
      */
     public function usage(string $empresaId): array
     {
@@ -99,9 +110,14 @@ final class PlanEntitlement
             ->get()
             ->getRowArray();
 
+        $dbBytes   = (int) ($row['total'] ?? 0);
+        $diskBytes = DocumentStorage::empresaDiskBytes($empresaId);
+
         return [
             'seats_used'         => $seats,
-            'storage_used_bytes' => (int) ($row['total'] ?? 0),
+            'disk_used_bytes'    => $diskBytes,
+            'db_storage_bytes'   => $dbBytes,
+            'storage_used_bytes' => max($diskBytes, $dbBytes),
         ];
     }
 
@@ -171,11 +187,12 @@ final class PlanEntitlement
 
         $limit = $snap['storage_limit_bytes'];
         if ($limit !== null) {
-            $projected = $snap['storage_used_bytes'] + $additionalBytes;
+            $used      = (int) $snap['storage_used_bytes']; // max(disco, BD)
+            $projected = $used + $additionalBytes;
             if ($projected > $limit) {
                 throw new RuntimeException(sprintf(
-                    'Límite de almacenamiento alcanzado (%s usados de %s). Amplía el Plan o elimina documentos.',
-                    self::formatBytes($snap['storage_used_bytes']),
+                    'Límite de almacenamiento alcanzado (%s en disco/uso de %s del plan). Amplía el Plan o elimina documentos.',
+                    self::formatBytes($used),
                     self::formatBytes($limit)
                 ));
             }

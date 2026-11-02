@@ -101,6 +101,90 @@ final class DocumentStorage
     }
 
     /**
+     * Absolute path of an empresa folder under STORAGE_ROOT: `{root}/{empresaId}`.
+     */
+    public static function empresaDir(string $empresaId): string
+    {
+        $empresaId = preg_replace('/[^a-zA-Z0-9_-]+/', '', $empresaId) ?? '';
+        if ($empresaId === '') {
+            throw new RuntimeException('empresaId inválido para storage.');
+        }
+
+        $root = realpath(self::root()) ?: self::root();
+        if (! is_dir($root)) {
+            mkdir($root, 0750, true);
+            $root = realpath($root) ?: $root;
+        }
+
+        return rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $empresaId;
+    }
+
+    /**
+     * Real disk usage of `{STORAGE_ROOT}/{empresaId}/…` (recursive file sizes).
+     * Prefers `du -sb` when available; falls back to RecursiveDirectoryIterator.
+     */
+    public static function empresaDiskBytes(string $empresaId): int
+    {
+        try {
+            $dir = self::empresaDir($empresaId);
+        } catch (RuntimeException) {
+            return 0;
+        }
+
+        if (! is_dir($dir)) {
+            return 0;
+        }
+
+        $du = self::duBytes($dir);
+        if ($du !== null) {
+            return $du;
+        }
+
+        return self::walkDirectoryBytes($dir);
+    }
+
+    private static function duBytes(string $dir): ?int
+    {
+        if (! function_exists('exec')) {
+            return null;
+        }
+
+        $escaped = escapeshellarg($dir);
+        $out     = [];
+        $code    = 1;
+        @exec('du -sb ' . $escaped . ' 2>/dev/null', $out, $code);
+        if ($code !== 0 || $out === []) {
+            return null;
+        }
+
+        $line = trim((string) $out[0]);
+        if (! preg_match('/^(\d+)/', $line, $m)) {
+            return null;
+        }
+
+        return (int) $m[1];
+    }
+
+    private static function walkDirectoryBytes(string $dir): int
+    {
+        $total = 0;
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS)
+            );
+            foreach ($iterator as $file) {
+                if ($file->isFile()) {
+                    $total += (int) $file->getSize();
+                }
+            }
+        } catch (\Throwable) {
+            return $total;
+        }
+
+        return $total;
+    }
+
+    /**
      * Move blob from one empresa folder to another, keeping documentoId + filename.
      * Path layout: {empresaId}/{documentoId}/{filename}
      *

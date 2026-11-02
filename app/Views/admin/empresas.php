@@ -4,7 +4,7 @@
 
 <section class="banner">
     <h2>Admin central · Empresas y planes</h2>
-    <p>Asigna planes manualmente. Tipo (b) FREE hasta 3 usuarios / 10 GB; tipo (a) siempre Plan de pago. Sin pasarela aún.</p>
+    <p>Asigna planes manualmente. El uso de disco mide la carpeta real de cada empresa bajo STORAGE_ROOT. Tipo (b) FREE hasta 3 usuarios / 10 GB; tipo (a) siempre Plan de pago.</p>
 </section>
 
 <nav class="admin-subnav" aria-label="Admin central">
@@ -31,7 +31,7 @@
                 <th>Tipo</th>
                 <th>Plan / estado</th>
                 <th>Usuarios</th>
-                <th>Almacenamiento</th>
+                <th>Disco vs plan</th>
                 <th>Asignar plan</th>
             </tr>
             </thead>
@@ -70,11 +70,16 @@
                         <?php endif; ?>
                     </td>
                     <td>
-                        <?= esc(\App\Libraries\PlanEntitlement::formatBytes((int) $snap['storage_used_bytes'])) ?>
+                        <strong>Disco:</strong>
+                        <?= esc(\App\Libraries\PlanEntitlement::formatBytes((int) ($snap['disk_used_bytes'] ?? 0))) ?>
                         /
                         <?= $storLimit === null ? '∞' : esc(\App\Libraries\PlanEntitlement::formatBytes((int) $storLimit)) ?>
+                        <br><small class="muted">
+                            BD (docs): <?= esc(\App\Libraries\PlanEntitlement::formatBytes((int) ($snap['db_storage_bytes'] ?? 0))) ?>
+                            · Facturable: <?= esc(\App\Libraries\PlanEntitlement::formatBytes((int) $snap['storage_used_bytes'])) ?>
+                        </small>
                         <?php if (! $snap['storage_ok']): ?>
-                            <br><small class="text-danger">Límite</small>
+                            <br><small class="text-danger">Sobre el límite del plan</small>
                         <?php endif; ?>
                     </td>
                     <td>
