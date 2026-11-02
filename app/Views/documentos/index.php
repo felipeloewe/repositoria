@@ -2,9 +2,11 @@
 
 <?= $this->section('content') ?>
 
+<?php use App\Libraries\DocumentLifecycle; ?>
+
 <section class="banner">
     <h2>Repositorio documental</h2>
-    <p>Documentos ligados a <strong>Departamentos</strong>; alcance opcional por sucursal. ACL por rol de membresía.</p>
+    <p>Documentos ligados a <strong>Departamentos</strong>; tipo borrador u oficial define ciclo, versiones o control de cambios.</p>
 </section>
 
 <?php if (! empty($success)): ?>
@@ -14,9 +16,16 @@
     <div class="alert alert-error"><?= esc($error) ?></div>
 <?php endif; ?>
 
+<?php if (! empty($canManageTipos)): ?>
+<div class="admin-subnav">
+    <a href="<?= site_url('documentos') ?>" class="active">Documentos</a>
+    <a href="<?= site_url('documentos/tipos') ?>">Tipos</a>
+</div>
+<?php endif; ?>
+
 <div class="card section-card">
     <h3>Filtros</h3>
-    <form method="get" action="<?= site_url('documentos') ?>" class="form-row" style="grid-template-columns:1fr 1fr 1fr auto">
+    <form method="get" action="<?= site_url('documentos') ?>" class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr auto">
         <div>
             <label for="f_depto">Departamento</label>
             <select id="f_depto" name="departamento_id">
@@ -48,6 +57,28 @@
             </select>
         </div>
         <div>
+            <label for="f_tipo">Tipo</label>
+            <select id="f_tipo" name="tipo_id">
+                <option value="">Todos</option>
+                <?php foreach ($tipos as $t): ?>
+                    <option value="<?= esc($t['id']) ?>" <?= ($filters['tipo_id'] ?? '') === $t['id'] ? 'selected' : '' ?>>
+                        <?= esc($t['nombre']) ?> (<?= esc(DocumentLifecycle::labelModalidad($t['modalidad'])) ?>)
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div>
+            <label for="f_estado">Estado</label>
+            <select id="f_estado" name="estado">
+                <option value="">Todos</option>
+                <?php foreach ($estados as $e): ?>
+                    <option value="<?= esc($e) ?>" <?= ($filters['estado'] ?? '') === $e ? 'selected' : '' ?>>
+                        <?= esc(DocumentLifecycle::labelEstado($e)) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div>
             <label>&nbsp;</label>
             <button class="btn btn-primary btn-sm" type="submit">Filtrar</button>
         </div>
@@ -61,6 +92,14 @@
         <?= csrf_field() ?>
         <label for="up_titulo">Título</label>
         <input id="up_titulo" type="text" name="titulo" required>
+        <label for="up_tipo">Tipo</label>
+        <select id="up_tipo" name="tipo_id" required>
+            <?php foreach ($tiposActivos as $t): ?>
+                <option value="<?= esc($t['id']) ?>">
+                    <?= esc($t['nombre']) ?> — <?= esc(DocumentLifecycle::labelModalidad($t['modalidad'])) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
         <label for="up_sec">Sección</label>
         <select id="up_sec" name="seccion_id" required>
             <?php foreach ($uploadableSections as $s): ?>
@@ -72,6 +111,8 @@
         <button class="btn btn-primary" type="submit">Subir</button>
     </form>
 </div>
+<?php elseif (! empty($canManageTipos) && empty($tiposActivos)): ?>
+<div class="alert alert-info">Crea al menos un <a href="<?= site_url('documentos/tipos') ?>">tipo de documento</a> activo para poder subir archivos.</div>
 <?php endif; ?>
 
 <?php if (! empty($canManageSections)): ?>
@@ -122,31 +163,65 @@
         <thead>
             <tr>
                 <th>Título</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th>Versión / Término</th>
                 <th>Departamento</th>
-                <th>Ámbito</th>
-                <th>Sección</th>
-                <th>Tamaño</th>
                 <th></th>
             </tr>
         </thead>
         <tbody>
         <?php foreach ($docs as $doc): ?>
+            <?php
+                $tipo = $doc['tipo'] ?? null;
+                $estado = (string) ($doc['estado'] ?? DocumentLifecycle::BORRADOR);
+                $esOficial = DocumentLifecycle::isOficial($tipo);
+            ?>
             <tr>
                 <td>
-                    <strong><?= esc($doc['titulo']) ?></strong><br>
+                    <a href="<?= site_url('documentos/' . $doc['id']) ?>"><strong><?= esc($doc['titulo']) ?></strong></a><br>
                     <span class="muted" style="font-size:.8rem"><?= esc($doc['nombre_archivo'] ?? '') ?></span>
+                    <?php if (! empty($doc['vencido'])): ?>
+                        <span class="tag tag-vencido">Vencido</span>
+                    <?php elseif (! empty($doc['por_vencer'])): ?>
+                        <span class="tag tag-alerta">Por vencer</span>
+                    <?php endif; ?>
                 </td>
-                <td><?= esc($doc['depto_nombre']) ?></td>
                 <td>
+                    <?php if ($tipo): ?>
+                        <?= esc($tipo['nombre']) ?><br>
+                        <span class="tag <?= $esOficial ? 'tag-oficial' : 'tag-borrador-tipo' ?>">
+                            <?= esc(DocumentLifecycle::labelModalidad($tipo['modalidad'])) ?>
+                        </span>
+                    <?php else: ?>
+                        <span class="muted">—</span>
+                    <?php endif; ?>
+                </td>
+                <td>
+                    <span class="tag <?= esc(DocumentLifecycle::cssEstado($estado)) ?>">
+                        <?= esc(DocumentLifecycle::labelEstado($estado)) ?>
+                    </span>
+                </td>
+                <td class="muted">
+                    <?php if ($esOficial): ?>
+                        v<?= (int) ($doc['version_actual'] ?? 1) ?>
+                        <?php if (! empty($doc['vence_at'])): ?>
+                            <br>Vence <?= esc($doc['vence_at']) ?>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <?= ! empty($doc['fecha_termino']) ? 'Término ' . esc($doc['fecha_termino']) : 'Sin término' ?>
+                    <?php endif; ?>
+                </td>
+                <td>
+                    <?= esc($doc['depto_nombre']) ?><br>
                     <?php if ($doc['sucursal_nombre']): ?>
                         <span class="tag"><?= esc($doc['sucursal_nombre']) ?></span>
                     <?php else: ?>
                         <span class="tag">Nivel depto</span>
                     <?php endif; ?>
                 </td>
-                <td><?= esc($doc['seccion_nombre']) ?></td>
-                <td class="muted"><?= number_format((int) ($doc['tamano_bytes'] ?? 0) / 1024, 1) ?> KB</td>
                 <td style="white-space:nowrap">
+                    <a class="btn btn-ghost btn-sm" href="<?= site_url('documentos/' . $doc['id']) ?>">Abrir</a>
                     <a class="btn btn-ghost btn-sm" href="<?= site_url('documentos/' . $doc['id'] . '/download') ?>">Descargar</a>
                     <?php if (! empty($doc['can_delete'])): ?>
                         <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/delete') ?>" style="display:inline" onsubmit="return confirm('¿Eliminar documento?')">
@@ -187,9 +262,9 @@
 <div class="card section-card">
     <h3>ACL (resumen)</h3>
     <ul class="muted">
-        <li><strong>Master</strong> — ve y sube todo en la empresa.</li>
-        <li><strong>Jefe de Sucursal</strong> — ve su sucursal + docs a nivel de su departamento; sube solo en secciones de su sucursal.</li>
-        <li><strong>Externos</strong> — solo documentos con autorización explícita.</li>
+        <li><strong>Master</strong> — ve y sube todo; gestiona tipos; publica vigente y archiva.</li>
+        <li><strong>Jefe de Sucursal</strong> — ve su sucursal + docs a nivel de su departamento; sube y avanza estados previos a vigente.</li>
+        <li><strong>Externos</strong> — solo documentos con autorización explícita (lectura).</li>
     </ul>
 </div>
 
