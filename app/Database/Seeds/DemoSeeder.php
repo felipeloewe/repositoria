@@ -24,6 +24,7 @@ class DemoSeeder extends Seeder
         // Clean slate (order matters for FKs)
         $this->db->query('SET FOREIGN_KEY_CHECKS=0');
         foreach ([
+            'promocion_sucursal_auditoria',
             'canal_paquete_auditoria', 'canal_paquete_documentos', 'canal_paquetes',
             'fiscalizacion_auditoria', 'fiscalizacion_documentos', 'fiscalizacion_solicitudes',
             'documento_autorizaciones', 'documentos', 'documento_secciones',
@@ -76,15 +77,18 @@ class DemoSeeder extends Seeder
         $this->db->table('sucursales')->insertBatch([
             [
                 'id' => $sucNorte, 'empresa_id' => $empresaDemo, 'departamento_id' => $deptoOps,
-                'nombre' => 'Sucursal Norte', 'codigo' => 'NTE', 'activa' => 1, 'created_at' => $now, 'updated_at' => $now,
+                'nombre' => 'Sucursal Norte', 'codigo' => 'NTE', 'activa' => 1, 'estado' => 'ACTIVA',
+                'created_at' => $now, 'updated_at' => $now,
             ],
             [
                 'id' => $sucSur, 'empresa_id' => $empresaDemo, 'departamento_id' => $deptoOps,
-                'nombre' => 'Sucursal Sur', 'codigo' => 'SUR', 'activa' => 1, 'created_at' => $now, 'updated_at' => $now,
+                'nombre' => 'Sucursal Sur', 'codigo' => 'SUR', 'activa' => 1, 'estado' => 'ACTIVA',
+                'created_at' => $now, 'updated_at' => $now,
             ],
             [
                 'id' => $sucBeta, 'empresa_id' => $empresaBeta, 'departamento_id' => $deptoBeta,
-                'nombre' => 'Casa Matriz', 'codigo' => 'CM', 'activa' => 1, 'created_at' => $now, 'updated_at' => $now,
+                'nombre' => 'Casa Matriz', 'codigo' => 'CM', 'activa' => 1, 'estado' => 'ACTIVA',
+                'created_at' => $now, 'updated_at' => $now,
             ],
         ]);
 
@@ -111,10 +115,11 @@ class DemoSeeder extends Seeder
         ];
 
         $userRows = [];
-        foreach ($users as $u) {
+        foreach ($users as $key => $u) {
             $userRows[] = [
                 'id' => $u['id'], 'email' => $u['email'], 'nombre' => $u['nombre'],
                 'rut' => null, 'password_hash' => $hash, 'activo' => 1,
+                'es_admin_central' => $key === 'admin' ? 1 : 0,
                 'created_at' => $now, 'updated_at' => $now,
             ];
         }

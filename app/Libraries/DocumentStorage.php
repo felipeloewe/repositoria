@@ -99,4 +99,55 @@ final class DocumentStorage
             // ignore missing / invalid
         }
     }
+
+    /**
+     * Move blob from one empresa folder to another, keeping documentoId + filename.
+     * Path layout: {empresaId}/{documentoId}/{filename}
+     *
+     * @return string New ruta_relativa
+     */
+    public static function relocateToEmpresa(string $rutaRelativa, string $nuevaEmpresaId, string $documentoId): string
+    {
+        $rutaRelativa = str_replace(['\\', "\0"], ['/', ''], $rutaRelativa);
+        $rutaRelativa = ltrim($rutaRelativa, '/');
+        $parts        = explode('/', $rutaRelativa);
+        $filename     = $parts === [] ? 'archivo.bin' : (string) end($parts);
+        $safe         = preg_replace('/[^a-zA-Z0-9._-]+/', '_', $filename) ?: 'archivo.bin';
+        $newRel       = $nuevaEmpresaId . '/' . $documentoId . '/' . $safe;
+
+        if ($rutaRelativa === '' || $rutaRelativa === 'pending') {
+            return $newRel;
+        }
+
+        if ($rutaRelativa === $newRel) {
+            return $newRel;
+        }
+
+        $from = self::absolutePath($rutaRelativa);
+        if (! is_file($from)) {
+            // DB row may exist without blob (seed edge); still update path.
+            return $newRel;
+        }
+
+        $to = self::absolutePath($newRel);
+        if (! @rename($from, $to)) {
+            $bytes = file_get_contents($from);
+            if ($bytes === false || file_put_contents($to, $bytes) === false) {
+                throw new RuntimeException('No se pudo mover el archivo de documento.');
+            }
+            @unlink($from);
+        }
+
+        // Best-effort cleanup of empty old dirs
+        $oldDocDir = dirname($from);
+        if (is_dir($oldDocDir) && count(array_diff(scandir($oldDocDir) ?: [], ['.', '..'])) === 0) {
+            @rmdir($oldDocDir);
+            $oldEmpDir = dirname($oldDocDir);
+            if (is_dir($oldEmpDir) && count(array_diff(scandir($oldEmpDir) ?: [], ['.', '..'])) === 0) {
+                @rmdir($oldEmpDir);
+            }
+        }
+
+        return $newRel;
+    }
 }
