@@ -56,6 +56,12 @@
             <div>
                 <label for="adm_nombre">Nombre admin</label>
                 <input id="adm_nombre" type="text" name="admin_nombre" required maxlength="191">
+                <label for="adm_alias">Alias admin</label>
+                <input id="adm_alias" type="text" name="admin_alias" required maxlength="64" placeholder="ana.admin">
+                <label for="adm_cargo">Cargo</label>
+                <input id="adm_cargo" type="text" name="admin_cargo" maxlength="191" placeholder="Opcional">
+                <label for="adm_rut">RUT admin</label>
+                <input id="adm_rut" type="text" name="admin_rut" maxlength="32" placeholder="Opcional">
                 <label for="adm_email">Email admin</label>
                 <input id="adm_email" type="email" name="admin_email" required maxlength="191">
                 <label for="adm_password">Contraseña admin</label>

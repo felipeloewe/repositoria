@@ -27,6 +27,7 @@ final class EmpresaOnboarding
     /**
      * @param array{
      *   nombre: string,
+     *   alias?: ?string,
      *   slug?: ?string,
      *   rut?: ?string,
      *   tipo?: string,
@@ -34,6 +35,9 @@ final class EmpresaOnboarding
      *   admin_nombre: string,
      *   admin_email: string,
      *   admin_password: string,
+     *   admin_alias: string,
+     *   admin_cargo?: ?string,
+     *   admin_rut?: ?string,
      *   create_defaults?: bool
      * } $input
      *
@@ -52,7 +56,7 @@ final class EmpresaOnboarding
         helper('id');
 
         $nombre = trim((string) ($input['nombre'] ?? ''));
-        // UI label: Alias (DB column remains slug). Accept alias or slug keys.
+        // Empresa Alias → DB slug. Accept alias or slug keys.
         $aliasIn = trim((string) ($input['alias'] ?? $input['slug'] ?? ''));
         $rut     = trim((string) ($input['rut'] ?? '')) ?: null;
         $tipo    = (string) ($input['tipo'] ?? PlanEntitlement::TIPO_B);
@@ -63,6 +67,9 @@ final class EmpresaOnboarding
         $adminNombre = trim((string) ($input['admin_nombre'] ?? ''));
         $adminEmail  = strtolower(trim((string) ($input['admin_email'] ?? '')));
         $adminPass   = (string) ($input['admin_password'] ?? '');
+        $adminAlias  = trim((string) ($input['admin_alias'] ?? ''));
+        $adminCargo  = trim((string) ($input['admin_cargo'] ?? '')) ?: null;
+        $adminRut    = trim((string) ($input['admin_rut'] ?? '')) ?: null;
         $createDefs  = ($input['create_defaults'] ?? true) !== false;
 
         if ($nombre === '') {
@@ -80,6 +87,8 @@ final class EmpresaOnboarding
         if (strlen($adminPass) < 6) {
             throw new RuntimeException('La contraseña del administrador debe tener al menos 6 caracteres.');
         }
+
+        $userAlias = $this->normalizeRequiredUserAlias($adminAlias);
 
         $existingUser = model(UsuarioModel::class)->findByEmail($adminEmail);
         if ($existingUser !== null) {
@@ -164,6 +173,9 @@ final class EmpresaOnboarding
                 'id'               => $usuarioId,
                 'email'            => $adminEmail,
                 'nombre'           => $adminNombre,
+                'alias'            => $userAlias,
+                'cargo'            => $adminCargo,
+                'rut'              => $adminRut,
                 'password_hash'    => password_hash($adminPass, PASSWORD_DEFAULT),
                 'activo'           => 1,
                 'es_admin_central' => 0,
@@ -267,32 +279,63 @@ final class EmpresaOnboarding
     }
 
     /**
-     * Normalize user Alias → slug; required + unique (no auto-suffix).
+     * Normalize empresa Alias → empresas.slug; required + unique (no auto-suffix).
      */
     public function normalizeRequiredAlias(string $alias): string
     {
         $alias = trim($alias);
         if ($alias === '') {
-            throw new RuntimeException('El Alias es obligatorio.');
+            throw new RuntimeException('El Alias de la empresa es obligatorio.');
         }
 
         if (! preg_match('/[a-zA-Z0-9]/', $alias)) {
             throw new RuntimeException(
-                'El Alias no es válido. Usa letras, números o guiones (ej. servicios-andes).'
+                'El Alias de la empresa no es válido. Usa letras, números o guiones (ej. servicios-andes).'
             );
         }
 
         $slug = PromoverSucursalService::slugify($alias);
         if ($slug === '' || ! preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug)) {
             throw new RuntimeException(
-                'El Alias no es válido. Usa letras, números o guiones (ej. servicios-andes).'
+                'El Alias de la empresa no es válido. Usa letras, números o guiones (ej. servicios-andes).'
             );
         }
 
         if (model(EmpresaModel::class)->where('slug', $slug)->countAllResults() > 0) {
-            throw new RuntimeException('Ese Alias ya está en uso. Elige otro.');
+            throw new RuntimeException('Ese Alias de empresa ya está en uso. Elige otro.');
         }
 
         return $slug;
+    }
+
+    /**
+     * Normalize user Alias → usuarios.alias; required + unique.
+     */
+    public function normalizeRequiredUserAlias(string $alias): string
+    {
+        $alias = trim($alias);
+        if ($alias === '') {
+            throw new RuntimeException('El Alias del administrador es obligatorio.');
+        }
+
+        $normalized = strtolower($alias);
+        $normalized = preg_replace('/[^a-z0-9._-]+/', '-', $normalized) ?? '';
+        $normalized = trim($normalized, '.-_');
+
+        if ($normalized === '' || ! preg_match('/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/', $normalized)) {
+            throw new RuntimeException(
+                'El Alias del administrador no es válido. Usa letras, números, puntos, guiones o guion bajo (ej. ana.admin).'
+            );
+        }
+
+        if (strlen($normalized) > 64) {
+            throw new RuntimeException('El Alias del administrador es demasiado largo (máx. 64).');
+        }
+
+        if (model(UsuarioModel::class)->findByAlias($normalized) !== null) {
+            throw new RuntimeException('Ese Alias de usuario ya está en uso. Elige otro.');
+        }
+
+        return $normalized;
     }
 }

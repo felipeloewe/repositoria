@@ -23,7 +23,7 @@
         <p class="lead">
             Empresa: <strong><?= esc($draft['nombre'] ?? '') ?></strong>
             <?php if (! empty($draft['slug'])): ?>
-                · Alias <code><?= esc($draft['slug']) ?></code>
+                · Alias empresa <code><?= esc($draft['slug']) ?></code>
             <?php endif; ?>
         </p>
 
@@ -43,9 +43,25 @@
                    value="<?= esc($old['nombre'] ?? '') ?>" autocomplete="name"
                    placeholder="Nombre completo">
 
+            <label for="user_alias">Alias</label>
+            <input id="user_alias" type="text" name="admin_alias" required maxlength="64"
+                   value="<?= esc($old['admin_alias'] ?? '') ?>" autocomplete="username"
+                   placeholder="ana.admin">
+            <p class="hint" style="margin-top:-.5rem;margin-bottom:1rem">Identificador único de usuario. Obligatorio.</p>
+
+            <label for="cargo">Cargo</label>
+            <input id="cargo" type="text" name="admin_cargo" maxlength="191"
+                   value="<?= esc($old['admin_cargo'] ?? '') ?>"
+                   placeholder="Gerente general (opcional)">
+
+            <label for="admin_rut">RUT</label>
+            <input id="admin_rut" type="text" name="admin_rut" maxlength="32"
+                   value="<?= esc($old['admin_rut'] ?? '') ?>"
+                   placeholder="12.345.678-9 (opcional)">
+
             <label for="email">Correo</label>
             <input id="email" type="email" name="email" required maxlength="191"
-                   value="<?= esc($old['email'] ?? '') ?>" autocomplete="username"
+                   value="<?= esc($old['email'] ?? '') ?>" autocomplete="email"
                    placeholder="admin@tuempresa.cl">
 
             <label for="password">Contraseña</label>
