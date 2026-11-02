@@ -5,6 +5,9 @@
 <?php if (! empty($notice)): ?>
     <div class="alert alert-info"><?= esc($notice) ?></div>
 <?php endif; ?>
+<?php if ($flash = session()->getFlashdata('success')): ?>
+    <div class="alert alert-ok"><?= esc($flash) ?></div>
+<?php endif; ?>
 <?php if ($flash = session()->getFlashdata('error')): ?>
     <div class="alert alert-error"><?= esc($flash) ?></div>
 <?php endif; ?>

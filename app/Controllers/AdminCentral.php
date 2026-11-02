@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Libraries\EmpresaOnboarding;
 use App\Libraries\MembershipAuth;
 use App\Libraries\PlanEntitlement;
 use App\Libraries\PromoverSucursalService;
 use App\Models\PlanModel;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -97,6 +99,49 @@ class AdminCentral extends BaseController
             $plan['codigo'] ?? $planId,
             $updated['nombre'] ?? $empresaId,
             $updated['subscription_status'] ?? '—'
+        );
+
+        return redirect()->to('/admin/empresas')->with('success', $msg);
+    }
+
+    /** Alta empresa + primer Administrador Master (Admin central). */
+    public function crearEmpresa()
+    {
+        $memb = $this->requireAdminCentral();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $tipo    = trim((string) $this->request->getPost('tipo')) ?: PlanEntitlement::TIPO_B;
+        $planId  = trim((string) $this->request->getPost('plan_id')) ?: null;
+        $payload = [
+            'nombre'         => (string) $this->request->getPost('nombre'),
+            'slug'           => (string) $this->request->getPost('slug'),
+            'rut'            => (string) $this->request->getPost('rut'),
+            'tipo'           => $tipo,
+            'plan_id'        => $tipo === PlanEntitlement::TIPO_A ? $planId : null,
+            'admin_nombre'   => (string) $this->request->getPost('admin_nombre'),
+            'admin_email'    => (string) $this->request->getPost('admin_email'),
+            'admin_password' => (string) $this->request->getPost('admin_password'),
+        ];
+
+        try {
+            $result = (new EmpresaOnboarding())->createEmpresaWithAdmin($payload);
+        } catch (RuntimeException $e) {
+            return redirect()->to('/admin/empresas')->with('error', $e->getMessage());
+        } catch (Throwable $e) {
+            log_message('error', 'AdminCentral crearEmpresa: {msg}', ['msg' => $e->getMessage()]);
+
+            return redirect()->to('/admin/empresas')->with('error', 'No se pudo crear la empresa.');
+        }
+
+        $planLabel = $result['plan_codigo'] ?? ($result['tipo'] === 'a' ? 'sin plan (requires_plan)' : '—');
+        $msg       = sprintf(
+            'Empresa creada (%s) tipo (%s), plan %s. Admin Master: %s.',
+            $result['empresa_id'],
+            $result['tipo'],
+            $planLabel,
+            trim((string) $this->request->getPost('admin_email'))
         );
 
         return redirect()->to('/admin/empresas')->with('success', $msg);

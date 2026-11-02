@@ -37,6 +37,10 @@
             <button class="btn btn-primary" type="submit">Ingresar</button>
         </form>
 
+        <p class="auth-alt">
+            ¿Nueva empresa? <a href="<?= site_url('registro') ?>">Inicia FREE</a>
+        </p>
+
         <div class="demo-hint">
             Seed: <code>admin@repositoria.local</code> / <code>demo123</code><br>
             Multi-empresa: <code>multi@repositoria.local</code>

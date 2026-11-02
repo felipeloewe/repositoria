@@ -13,6 +13,13 @@ $routes->get('login/empresa', 'Auth::selectEmpresa');
 $routes->post('login/empresa', 'Auth::chooseEmpresa');
 $routes->get('logout', 'Auth::logout');
 
+// Self-serve alta empresa FREE + admin Master
+$routes->get('registro', 'Registro::index');
+$routes->post('registro/empresa', 'Registro::storeEmpresa');
+$routes->get('registro/admin', 'Registro::admin');
+$routes->post('registro/admin', 'Registro::storeAdmin');
+$routes->get('registro/cancelar', 'Registro::cancel');
+
 // Fase 3 webhook (no session auth; optional shared secret)
 $routes->post('api/webhooks/imap-mail', 'Webhook::imapMail');
 
@@ -31,6 +38,7 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     // Admin central — empresas/planes + promoción filial (b) → empresa (a)
     $routes->get('admin/empresas', 'AdminCentral::empresas');
     $routes->post('admin/empresas/asignar-plan', 'AdminCentral::assignPlan');
+    $routes->post('admin/empresas/crear', 'AdminCentral::crearEmpresa');
     $routes->get('admin/promociones', 'AdminCentral::index');
     $routes->post('admin/promociones/promover', 'AdminCentral::promover');
 
