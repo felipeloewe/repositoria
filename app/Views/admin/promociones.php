@@ -38,8 +38,8 @@
             </select>
             <label for="nombre">Nombre nueva empresa (opcional)</label>
             <input id="nombre" type="text" name="nombre" placeholder="Default: nombre de la sucursal">
-            <label for="slug">Slug (opcional)</label>
-            <input id="slug" type="text" name="slug" placeholder="Default: slugify del nombre">
+            <label for="slug">Alias (opcional)</label>
+            <input id="slug" type="text" name="slug" placeholder="Default: desde el nombre">
             <button class="btn btn-primary" type="submit">Promover a empresa</button>
         </form>
     <?php endif; ?>

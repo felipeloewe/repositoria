@@ -52,9 +52,10 @@ final class EmpresaOnboarding
         helper('id');
 
         $nombre = trim((string) ($input['nombre'] ?? ''));
-        $slugIn = trim((string) ($input['slug'] ?? ''));
-        $rut    = trim((string) ($input['rut'] ?? '')) ?: null;
-        $tipo   = (string) ($input['tipo'] ?? PlanEntitlement::TIPO_B);
+        // UI label: Alias (DB column remains slug). Accept alias or slug keys.
+        $aliasIn = trim((string) ($input['alias'] ?? $input['slug'] ?? ''));
+        $rut     = trim((string) ($input['rut'] ?? '')) ?: null;
+        $tipo    = (string) ($input['tipo'] ?? PlanEntitlement::TIPO_B);
         if ($tipo !== PlanEntitlement::TIPO_A && $tipo !== PlanEntitlement::TIPO_B) {
             throw new RuntimeException('Tipo de empresa inválido (usa a o b).');
         }
@@ -67,6 +68,9 @@ final class EmpresaOnboarding
         if ($nombre === '') {
             throw new RuntimeException('El nombre de la empresa es obligatorio.');
         }
+
+        $slug = $this->normalizeRequiredAlias($aliasIn);
+
         if ($adminNombre === '' || $adminEmail === '') {
             throw new RuntimeException('Nombre y correo del administrador son obligatorios.');
         }
@@ -83,8 +87,6 @@ final class EmpresaOnboarding
                 'Ese correo ya está registrado. Ingresa con tu cuenta o usa otro correo para el administrador.'
             );
         }
-
-        $slug = $this->uniqueSlug($slugIn !== '' ? $slugIn : PromoverSucursalService::slugify($nombre));
 
         $planId     = null;
         $planCodigo = null;
@@ -235,20 +237,21 @@ final class EmpresaOnboarding
 
     /**
      * Validate empresa draft fields (step 1) without writing.
+     * Alias (slug) is required and must be unique.
      *
      * @return array{nombre: string, slug: string, rut: ?string}
      */
-    public function validateEmpresaDraft(string $nombre, ?string $slug = null, ?string $rut = null): array
+    public function validateEmpresaDraft(string $nombre, ?string $alias = null, ?string $rut = null): array
     {
-        $nombre = trim($nombre);
-        $slugIn = trim((string) $slug);
-        $rut    = trim((string) $rut) ?: null;
+        $nombre  = trim($nombre);
+        $aliasIn = trim((string) $alias);
+        $rut     = trim((string) $rut) ?: null;
 
         if ($nombre === '') {
             throw new RuntimeException('El nombre de la empresa es obligatorio.');
         }
 
-        $slug = $this->uniqueSlug($slugIn !== '' ? $slugIn : PromoverSucursalService::slugify($nombre));
+        $slug = $this->normalizeRequiredAlias($aliasIn);
 
         // Ensure FREE exists for self-serve
         $free = model(PlanModel::class)->findByCodigo(PlanEntitlement::CODIGO_FREE);
@@ -263,19 +266,31 @@ final class EmpresaOnboarding
         ];
     }
 
-    private function uniqueSlug(string $base): string
+    /**
+     * Normalize user Alias → slug; required + unique (no auto-suffix).
+     */
+    public function normalizeRequiredAlias(string $alias): string
     {
-        $base = PromoverSucursalService::slugify($base);
-        $slug = $base;
-        $i    = 2;
+        $alias = trim($alias);
+        if ($alias === '') {
+            throw new RuntimeException('El Alias es obligatorio.');
+        }
 
-        while (model(EmpresaModel::class)->where('slug', $slug)->countAllResults() > 0) {
-            $slug = $base . '-' . $i;
-            $i++;
-            if ($i > 500) {
-                $slug = $base . '-' . substr(new_id(), -8);
-                break;
-            }
+        if (! preg_match('/[a-zA-Z0-9]/', $alias)) {
+            throw new RuntimeException(
+                'El Alias no es válido. Usa letras, números o guiones (ej. servicios-andes).'
+            );
+        }
+
+        $slug = PromoverSucursalService::slugify($alias);
+        if ($slug === '' || ! preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug)) {
+            throw new RuntimeException(
+                'El Alias no es válido. Usa letras, números o guiones (ej. servicios-andes).'
+            );
+        }
+
+        if (model(EmpresaModel::class)->where('slug', $slug)->countAllResults() > 0) {
+            throw new RuntimeException('Ese Alias ya está en uso. Elige otro.');
         }
 
         return $slug;

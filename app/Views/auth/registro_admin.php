@@ -23,7 +23,7 @@
         <p class="lead">
             Empresa: <strong><?= esc($draft['nombre'] ?? '') ?></strong>
             <?php if (! empty($draft['slug'])): ?>
-                · <code><?= esc($draft['slug']) ?></code>
+                · Alias <code><?= esc($draft['slug']) ?></code>
             <?php endif; ?>
         </p>
 
