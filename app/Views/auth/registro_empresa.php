@@ -38,14 +38,15 @@
                    value="<?= esc($old['nombre'] ?? '') ?>" autocomplete="organization"
                    placeholder="Ej. Servicios Andes SpA">
 
+            <label for="alias">Alias</label>
+            <input id="alias" type="text" name="alias" required maxlength="191"
+                   value="<?= esc($old['alias'] ?? $old['slug'] ?? '') ?>"
+                   placeholder="servicios-andes" autocomplete="off">
+            <p class="hint" style="margin-top:-.5rem;margin-bottom:1rem">Identificador único (letras, números o guiones). Obligatorio.</p>
+
             <label for="rut">RUT (opcional)</label>
             <input id="rut" type="text" name="rut" maxlength="32"
                    value="<?= esc($old['rut'] ?? '') ?>" placeholder="76.123.456-7">
-
-            <label for="slug">Slug URL (opcional)</label>
-            <input id="slug" type="text" name="slug" maxlength="191"
-                   value="<?= esc($old['slug'] ?? '') ?>" placeholder="servicios-andes">
-            <p class="hint" style="margin-top:-.5rem;margin-bottom:1rem">Si lo dejas vacío, se genera desde el nombre.</p>
 
             <button class="btn btn-primary" type="submit">Continuar</button>
         </form>

@@ -43,7 +43,7 @@ final class EmpresaOnboardingTest extends CIUnitTestCase
 
         $result = $svc->createEmpresaWithAdmin([
             'nombre'         => 'Nueva Filial SpA',
-            'slug'           => 'nueva-filial',
+            'alias'          => 'nueva-filial',
             'tipo'           => 'b',
             'admin_nombre'   => 'Ana Admin',
             'admin_email'    => 'ana@nueva.local',
@@ -74,6 +74,7 @@ final class EmpresaOnboardingTest extends CIUnitTestCase
 
         $result = $svc->createEmpresaWithAdmin([
             'nombre'         => 'Multi Corp',
+            'alias'          => 'multi-corp',
             'tipo'           => 'a',
             'admin_nombre'   => 'Boss',
             'admin_email'    => 'boss@multi.local',
@@ -105,9 +106,50 @@ final class EmpresaOnboardingTest extends CIUnitTestCase
         $this->expectExceptionMessageMatches('/ya está registrado/');
         (new EmpresaOnboarding())->createEmpresaWithAdmin([
             'nombre'         => 'Dup Co',
+            'alias'          => 'dup-co',
             'tipo'           => 'b',
             'admin_nombre'   => 'X',
             'admin_email'    => 'taken@test.local',
+            'admin_password' => 'secret12',
+        ]);
+    }
+
+    public function testRejectsMissingAlias(): void
+    {
+        $this->seedFreePlan();
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessageMatches('/Alias es obligatorio/');
+        (new EmpresaOnboarding())->createEmpresaWithAdmin([
+            'nombre'         => 'Sin Alias',
+            'alias'          => '',
+            'tipo'           => 'b',
+            'admin_nombre'   => 'Ana',
+            'admin_email'    => 'ana2@nueva.local',
+            'admin_password' => 'secret12',
+        ]);
+    }
+
+    public function testRejectsDuplicateAlias(): void
+    {
+        $this->seedFreePlan();
+        $svc = new EmpresaOnboarding();
+        $svc->createEmpresaWithAdmin([
+            'nombre'         => 'Primera',
+            'alias'          => 'mi-alias',
+            'tipo'           => 'b',
+            'admin_nombre'   => 'A',
+            'admin_email'    => 'a@primera.local',
+            'admin_password' => 'secret12',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessageMatches('/Alias ya está en uso/');
+        $svc->createEmpresaWithAdmin([
+            'nombre'         => 'Segunda',
+            'alias'          => 'mi-alias',
+            'tipo'           => 'b',
+            'admin_nombre'   => 'B',
+            'admin_email'    => 'b@segunda.local',
             'admin_password' => 'secret12',
         ]);
     }

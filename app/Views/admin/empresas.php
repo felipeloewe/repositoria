@@ -28,8 +28,8 @@
             <div>
                 <label for="emp_nombre">Nombre empresa</label>
                 <input id="emp_nombre" type="text" name="nombre" required maxlength="191">
-                <label for="emp_slug">Slug (opcional)</label>
-                <input id="emp_slug" type="text" name="slug" maxlength="191">
+                <label for="emp_alias">Alias</label>
+                <input id="emp_alias" type="text" name="alias" required maxlength="191" placeholder="servicios-andes">
                 <label for="emp_rut">RUT (opcional)</label>
                 <input id="emp_rut" type="text" name="rut" maxlength="32">
                 <label for="emp_tipo">Tipo</label>
@@ -92,7 +92,7 @@
                 <tr>
                     <td>
                         <strong><?= esc($e['nombre']) ?></strong>
-                        <br><code><?= esc($e['slug']) ?></code>
+                        <br><small>Alias</small> <code><?= esc($e['slug']) ?></code>
                     </td>
                     <td>
                         <?php if (($e['tipo'] ?? '') === 'a'): ?>

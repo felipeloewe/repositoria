@@ -39,15 +39,15 @@ class Registro extends BaseController
         }
 
         $nombre = (string) $this->request->getPost('nombre');
-        $slug   = (string) $this->request->getPost('slug');
+        $alias  = (string) ($this->request->getPost('alias') ?: $this->request->getPost('slug'));
         $rut    = (string) $this->request->getPost('rut');
 
         try {
-            $draft = (new EmpresaOnboarding())->validateEmpresaDraft($nombre, $slug, $rut);
+            $draft = (new EmpresaOnboarding())->validateEmpresaDraft($nombre, $alias, $rut);
         } catch (RuntimeException $e) {
             return redirect()->to('/registro')->with('error', $e->getMessage())->with('old', [
                 'nombre' => $nombre,
-                'slug'   => $slug,
+                'alias'  => $alias,
                 'rut'    => $rut,
             ]);
         }

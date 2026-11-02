@@ -114,9 +114,10 @@ class AdminCentral extends BaseController
 
         $tipo    = trim((string) $this->request->getPost('tipo')) ?: PlanEntitlement::TIPO_B;
         $planId  = trim((string) $this->request->getPost('plan_id')) ?: null;
+        $alias   = (string) ($this->request->getPost('alias') ?: $this->request->getPost('slug'));
         $payload = [
             'nombre'         => (string) $this->request->getPost('nombre'),
-            'slug'           => (string) $this->request->getPost('slug'),
+            'alias'          => $alias,
             'rut'            => (string) $this->request->getPost('rut'),
             'tipo'           => $tipo,
             'plan_id'        => $tipo === PlanEntitlement::TIPO_A ? $planId : null,
