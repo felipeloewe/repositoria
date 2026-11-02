@@ -16,5 +16,7 @@ class EmpresaModel extends Model
     protected $allowedFields    = [
         'id', 'nombre', 'slug', 'rut', 'activa',
         'promoted_from_sucursal_id', 'origen_empresa_id',
+        'tipo', 'plan_id', 'subscription_status',
+        'seats_limit', 'storage_limit_bytes',
     ];
 }

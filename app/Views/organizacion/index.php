@@ -14,6 +14,70 @@
     <div class="alert alert-error"><?= esc($error) ?></div>
 <?php endif; ?>
 
+<?php if (! empty($planSnap)): ?>
+<div class="card section-card">
+    <h3>Plan y cupos</h3>
+    <p class="hint">
+        Tipo <?= esc(($planSnap['empresa']['tipo'] ?? 'b') === 'a' ? '(a) multiempresa' : '(b) filial') ?>
+        · Plan <?= esc($planSnap['plan']['codigo'] ?? '—') ?>
+        · Estado <?= esc($planSnap['empresa']['subscription_status'] ?? '—') ?>
+        · Usuarios <?= (int) $planSnap['seats_used'] ?>/<?= $planSnap['seats_limit'] === null ? '∞' : (int) $planSnap['seats_limit'] ?>
+        · Disco <?= esc(\App\Libraries\PlanEntitlement::formatBytes((int) ($planSnap['disk_used_bytes'] ?? 0))) ?>
+        / <?= $planSnap['storage_limit_bytes'] === null ? '∞' : esc(\App\Libraries\PlanEntitlement::formatBytes((int) $planSnap['storage_limit_bytes'])) ?>
+        <br>BD docs: <?= esc(\App\Libraries\PlanEntitlement::formatBytes((int) ($planSnap['db_storage_bytes'] ?? 0))) ?>
+        · Facturable: <?= esc(\App\Libraries\PlanEntitlement::formatBytes((int) $planSnap['storage_used_bytes'])) ?>
+    </p>
+</div>
+<?php endif; ?>
+
+<div class="stack-forms">
+    <div class="card">
+        <h3>Agregar usuario</h3>
+        <form method="post" action="<?= site_url('organizacion/membresia') ?>">
+            <?= csrf_field() ?>
+            <label for="user_email">Email</label>
+            <input id="user_email" type="email" name="email" required>
+            <label for="user_nombre">Nombre</label>
+            <input id="user_nombre" type="text" name="nombre" required>
+            <label for="user_password">Contraseña (solo usuarios nuevos)</label>
+            <input id="user_password" type="password" name="password" autocomplete="new-password">
+            <label for="user_rol">Rol</label>
+            <select id="user_rol" name="rol" required>
+                <?php foreach ($roles as $rol): ?>
+                    <option value="<?= esc($rol) ?>"><?= esc(\App\Libraries\Roles::label($rol)) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <label for="user_suc">Sucursal (si Jefe)</label>
+            <select id="user_suc" name="sucursal_id">
+                <option value="">—</option>
+                <?php foreach ($sucursales as $s): ?>
+                    <option value="<?= esc($s['id']) ?>"><?= esc($s['nombre']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <button class="btn btn-primary" type="submit">Agregar usuario</button>
+        </form>
+    </div>
+    <div class="card">
+        <h3>Miembros activos</h3>
+        <?php if (empty($miembros)): ?>
+            <p class="hint">Sin membresías.</p>
+        <?php else: ?>
+            <table class="table">
+                <thead><tr><th>Nombre</th><th>Rol</th><th>Sucursal</th></tr></thead>
+                <tbody>
+                <?php foreach ($miembros as $m): ?>
+                    <tr>
+                        <td><?= esc($m['usuario_nombre']) ?><br><small><?= esc($m['usuario_email']) ?></small></td>
+                        <td><?= esc(\App\Libraries\Roles::label($m['rol'])) ?></td>
+                        <td><?= esc($m['sucursal_nombre'] ?? '—') ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    </div>
+</div>
+
 <div class="stack-forms">
     <div class="card">
         <h3>Nuevo departamento</h3>

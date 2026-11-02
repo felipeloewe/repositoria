@@ -4,8 +4,13 @@
 
 <section class="banner">
     <h2>Admin central · Promover filial</h2>
-    <p>Convierte una Sucursal/Filial (modo b) en Empresa tenant propia (modo a): remapea docs/ACL/membresías y mueve blobs bajo STORAGE_ROOT.</p>
+    <p>Convierte una Sucursal/Filial (modo b) en Empresa tenant propia (modo a): remapea docs/ACL/membresías y mueve blobs bajo STORAGE_ROOT. La nueva empresa queda tipo (a) y requiere Plan de pago.</p>
 </section>
+
+<nav class="admin-subnav" aria-label="Admin central">
+    <a href="<?= site_url('admin/empresas') ?>">Empresas</a>
+    <a class="active" href="<?= site_url('admin/promociones') ?>">Promover filial</a>
+</nav>
 
 <?php if (! empty($success)): ?>
     <div class="alert alert-ok"><?= esc($success) ?></div>

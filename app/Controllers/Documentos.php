@@ -7,7 +7,9 @@ namespace App\Controllers;
 use App\Libraries\DocumentAcl;
 use App\Libraries\DocumentStorage;
 use App\Libraries\MembershipAuth;
+use App\Libraries\PlanEntitlement;
 use App\Libraries\Roles;
+use RuntimeException;
 use App\Models\DepartamentoModel;
 use App\Models\DocumentoAutorizacionModel;
 use App\Models\DocumentoModel;
@@ -246,6 +248,12 @@ class Documentos extends BaseController
             'departamento_id' => $seccion['departamento_id'],
         ])) {
             return redirect()->to('/documentos')->with('error', 'Sin permiso para subir en esta sección.');
+        }
+
+        try {
+            (new PlanEntitlement())->assertCanUpload($memb['empresa_id'], (int) $file->getSize());
+        } catch (RuntimeException $e) {
+            return redirect()->to('/documentos')->with('error', $e->getMessage());
         }
 
         $docId   = new_id();

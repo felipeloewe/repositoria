@@ -26,8 +26,11 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('organizacion/sucursal', 'Organizacion::storeSucursal');
     $routes->post('organizacion/actividad', 'Organizacion::storeActividad');
     $routes->post('organizacion/tema', 'Organizacion::storeTema');
+    $routes->post('organizacion/membresia', 'Organizacion::storeMembresia');
 
-    // Admin central — promoción filial (b) → empresa (a)
+    // Admin central — empresas/planes + promoción filial (b) → empresa (a)
+    $routes->get('admin/empresas', 'AdminCentral::empresas');
+    $routes->post('admin/empresas/asignar-plan', 'AdminCentral::assignPlan');
     $routes->get('admin/promociones', 'AdminCentral::index');
     $routes->post('admin/promociones/promover', 'AdminCentral::promover');
 

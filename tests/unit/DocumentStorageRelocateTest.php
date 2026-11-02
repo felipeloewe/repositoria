@@ -55,6 +55,17 @@ final class DocumentStorageRelocateTest extends CIUnitTestCase
         );
     }
 
+    public function testEmpresaDiskBytesSumsFolder(): void
+    {
+        $empresaId = 'emp-disk';
+        DocumentStorage::save($empresaId, 'd1', 'a.txt', str_repeat('a', 100));
+        DocumentStorage::save($empresaId, 'd2', 'b.txt', str_repeat('b', 50));
+
+        $bytes = DocumentStorage::empresaDiskBytes($empresaId);
+        $this->assertGreaterThanOrEqual(150, $bytes);
+        $this->assertSame(0, DocumentStorage::empresaDiskBytes('emp-missing'));
+    }
+
     private function rmTree(string $dir): void
     {
         if (! is_dir($dir)) {

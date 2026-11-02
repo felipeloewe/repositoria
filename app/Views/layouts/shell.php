@@ -31,7 +31,7 @@
                 <a href="<?= site_url('organizacion') ?>" class="<?= ($title ?? '') === 'Organización' ? 'active' : '' ?>">Organización</a>
             <?php endif; ?>
             <?php if (! empty($memb['es_admin_central'])): ?>
-                <a href="<?= site_url('admin/promociones') ?>" class="<?= ($title ?? '') === 'Admin central' ? 'active' : '' ?>">Admin central</a>
+                <a href="<?= site_url('admin/empresas') ?>" class="<?= ($title ?? '') === 'Admin central' ? 'active' : '' ?>">Admin central</a>
             <?php endif; ?>
             <a href="<?= site_url('logout') ?>">Salir</a>
         </nav>

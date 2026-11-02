@@ -87,6 +87,8 @@ final class PromoverSucursalService
             $nuevaDeptoId      = new_id();
             $nuevaSucursalId   = new_id();
 
+            $comercial = PlanEntitlement::defaultsForPromotedTipoA();
+
             $this->db->table('empresas')->insert([
                 'id'                        => $nuevaEmpresaId,
                 'nombre'                    => $nombre,
@@ -95,6 +97,11 @@ final class PromoverSucursalService
                 'activa'                    => 1,
                 'promoted_from_sucursal_id' => $sucursalId,
                 'origen_empresa_id'         => $origenEmpresaId,
+                'tipo'                      => $comercial['tipo'],
+                'plan_id'                   => $comercial['plan_id'],
+                'subscription_status'       => $comercial['subscription_status'],
+                'seats_limit'               => $comercial['seats_limit'],
+                'storage_limit_bytes'       => $comercial['storage_limit_bytes'],
                 'created_at'                => $now,
                 'updated_at'                => $now,
             ]);

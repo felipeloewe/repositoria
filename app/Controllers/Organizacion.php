@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Libraries\MembershipAuth;
+use App\Libraries\PlanEntitlement;
 use App\Libraries\Roles;
 use App\Models\ActividadModel;
 use App\Models\DepartamentoModel;
+use App\Models\MembresiaModel;
 use App\Models\SucursalModel;
 use App\Models\TemaInteresModel;
+use App\Models\UsuarioModel;
+use RuntimeException;
+use Throwable;
 
 /**
  * Fase 1 — Organización CRUD (Master): Departamentos, Sucursales, Actividades, Temas.
@@ -66,6 +71,18 @@ class Organizacion extends BaseController
             $deptoMap[$d['id']] = $d['nombre'];
         }
 
+        $miembros = db_connect()->table('membresias m')
+            ->select('m.*, u.nombre AS usuario_nombre, u.email AS usuario_email, s.nombre AS sucursal_nombre')
+            ->join('usuarios u', 'u.id = m.usuario_id')
+            ->join('sucursales s', 's.id = m.sucursal_id', 'left')
+            ->where('m.empresa_id', $empresaId)
+            ->where('m.activa', 1)
+            ->orderBy('u.nombre', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        $planSnap = (new PlanEntitlement())->snapshot($empresaId);
+
         return view('organizacion/index', [
             'title'       => 'Organización',
             'memb'        => $memb,
@@ -74,9 +91,105 @@ class Organizacion extends BaseController
             'actividades' => $actividades,
             'temas'       => $temas,
             'deptoMap'    => $deptoMap,
+            'miembros'    => $miembros,
+            'roles'       => Roles::ALL,
+            'planSnap'    => $planSnap,
             'success'     => session()->getFlashdata('success'),
             'error'       => session()->getFlashdata('error'),
         ]);
+    }
+
+    public function storeMembresia()
+    {
+        $memb = $this->requireMaster();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        helper('id');
+
+        $email    = strtolower(trim((string) $this->request->getPost('email')));
+        $nombre   = trim((string) $this->request->getPost('nombre'));
+        $rol      = trim((string) $this->request->getPost('rol'));
+        $sucursal = trim((string) $this->request->getPost('sucursal_id')) ?: null;
+        $password = (string) $this->request->getPost('password');
+
+        if ($email === '' || $nombre === '' || ! in_array($rol, Roles::ALL, true)) {
+            return redirect()->to('/organizacion')->with('error', 'Datos de usuario incompletos o rol inválido.');
+        }
+
+        if ($rol === Roles::JEFE_SUCURSAL && ($sucursal === null || $sucursal === '')) {
+            return redirect()->to('/organizacion')->with('error', 'Jefe de Sucursal requiere una sucursal.');
+        }
+
+        if ($sucursal !== null) {
+            $sucRow = model(SucursalModel::class)
+                ->where('id', $sucursal)
+                ->where('empresa_id', $memb['empresa_id'])
+                ->first();
+            if ($sucRow === null) {
+                return redirect()->to('/organizacion')->with('error', 'Sucursal no válida para esta empresa.');
+            }
+        }
+
+        try {
+            (new PlanEntitlement())->assertCanAddUser($memb['empresa_id']);
+        } catch (RuntimeException $e) {
+            return redirect()->to('/organizacion')->with('error', $e->getMessage());
+        }
+
+        $usuarios = model(UsuarioModel::class);
+        $user     = $usuarios->findByEmail($email);
+
+        try {
+            if ($user === null) {
+                if (strlen($password) < 6) {
+                    return redirect()->to('/organizacion')->with('error', 'Para un usuario nuevo indica una contraseña (mín. 6 caracteres).');
+                }
+                $userId = new_id();
+                $usuarios->insert([
+                    'id'               => $userId,
+                    'email'            => $email,
+                    'nombre'           => $nombre,
+                    'password_hash'    => password_hash($password, PASSWORD_DEFAULT),
+                    'activo'           => 1,
+                    'es_admin_central' => 0,
+                ]);
+            } else {
+                $userId = $user['id'];
+                $exists = model(MembresiaModel::class)
+                    ->where('empresa_id', $memb['empresa_id'])
+                    ->where('usuario_id', $userId)
+                    ->first();
+                if ($exists !== null) {
+                    if ((int) ($exists['activa'] ?? 0) === 1) {
+                        return redirect()->to('/organizacion')->with('error', 'Ese usuario ya tiene membresía en esta empresa.');
+                    }
+                    model(MembresiaModel::class)->update($exists['id'], [
+                        'rol'         => $rol,
+                        'sucursal_id' => $rol === Roles::JEFE_SUCURSAL ? $sucursal : null,
+                        'activa'      => 1,
+                    ]);
+
+                    return redirect()->to('/organizacion')->with('success', 'Membresía reactivada.');
+                }
+            }
+
+            model(MembresiaModel::class)->insert([
+                'id'          => new_id(),
+                'empresa_id'  => $memb['empresa_id'],
+                'usuario_id'  => $userId,
+                'rol'         => $rol,
+                'sucursal_id' => $rol === Roles::JEFE_SUCURSAL ? $sucursal : null,
+                'activa'      => 1,
+            ]);
+        } catch (Throwable $e) {
+            log_message('error', 'storeMembresia failed: {msg}', ['msg' => $e->getMessage()]);
+
+            return redirect()->to('/organizacion')->with('error', 'No se pudo crear la membresía.');
+        }
+
+        return redirect()->to('/organizacion')->with('success', 'Usuario agregado a la empresa.');
     }
 
     public function storeDepartamento()
