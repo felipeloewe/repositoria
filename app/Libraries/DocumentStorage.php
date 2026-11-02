@@ -185,6 +185,83 @@ final class DocumentStorage
     }
 
     /**
+     * ¿La ruta relativa ya está bajo {empresaId}/archivados/ ?
+     */
+    public static function isUnderArchivados(string $rutaRelativa, string $empresaId): bool
+    {
+        $rutaRelativa = ltrim(str_replace(['\\', "\0"], ['/', ''], $rutaRelativa), '/');
+        $prefix       = $empresaId . '/archivados/';
+
+        return $rutaRelativa !== '' && str_starts_with($rutaRelativa, $prefix);
+    }
+
+    /**
+     * Mueve un blob a `{empresaId}/archivados/{documentoId}/…`.
+     * Conserva subruta relativa al documento (p.ej. v2/archivo.pdf).
+     *
+     * @return string Nueva ruta_relativa
+     */
+    public static function moveToArchivados(string $rutaRelativa, string $empresaId, string $documentoId): string
+    {
+        $rutaRelativa = ltrim(str_replace(['\\', "\0"], ['/', ''], $rutaRelativa), '/');
+        if ($rutaRelativa === '' || $rutaRelativa === 'pending') {
+            return $empresaId . '/archivados/' . $documentoId . '/pendiente.bin';
+        }
+        if (self::isUnderArchivados($rutaRelativa, $empresaId)) {
+            return $rutaRelativa;
+        }
+
+        // Conservar cola tras empresaId/documentoId/… o solo filename
+        $parts = explode('/', $rutaRelativa);
+        $tail  = $parts === [] ? 'archivo.bin' : (string) end($parts);
+        // Si la ruta era empresaId/docId/sub/… tomar desde docId
+        $idx = array_search($documentoId, $parts, true);
+        if ($idx !== false) {
+            $tailParts = array_slice($parts, (int) $idx + 1);
+            $tail      = $tailParts === [] ? $tail : implode('/', $tailParts);
+        }
+        $safeTail = preg_replace('#\.\./#', '', $tail) ?: 'archivo.bin';
+        $newRel   = $empresaId . '/archivados/' . $documentoId . '/' . ltrim($safeTail, '/');
+
+        try {
+            $from = self::absolutePath($rutaRelativa);
+        } catch (RuntimeException) {
+            return $newRel;
+        }
+        if (! is_file($from)) {
+            return $newRel;
+        }
+
+        $to = self::absolutePath($newRel);
+        if (! @rename($from, $to)) {
+            $bytes = file_get_contents($from);
+            if ($bytes === false || file_put_contents($to, $bytes) === false) {
+                throw new RuntimeException('No se pudo mover el archivo a archivados/.');
+            }
+            @unlink($from);
+        }
+
+        self::cleanupEmptyParents(dirname($from));
+
+        return $newRel;
+    }
+
+    private static function cleanupEmptyParents(string $dir): void
+    {
+        for ($i = 0; $i < 4; $i++) {
+            if (! is_dir($dir)) {
+                return;
+            }
+            $items = array_diff(scandir($dir) ?: [], ['.', '..']);
+            if ($items !== []) {
+                return;
+            }
+            @rmdir($dir);
+            $dir = dirname($dir);
+        }
+    }
+
+    /**
      * Move blob from one empresa folder to another, keeping documentoId + filename.
      * Path layout: {empresaId}/{documentoId}/{filename}
      *
