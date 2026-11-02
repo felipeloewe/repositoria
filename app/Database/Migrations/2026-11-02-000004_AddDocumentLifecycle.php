@@ -42,7 +42,9 @@ class AddDocumentLifecycle extends Migration
             'estado' => [
                 'type'       => 'VARCHAR',
                 'constraint' => 32,
-                'default'    => 'BORRADOR',
+                // Ciclo provisional (oficiales): EN_ELABORACION|PUBLICADO|ARCHIVADO
+                // Los nombres Borrador/En revisión/… son TIPOS, no estados.
+                'default'    => 'EN_ELABORACION',
                 'after'      => 'tipo_id',
             ],
             'version_actual' => [

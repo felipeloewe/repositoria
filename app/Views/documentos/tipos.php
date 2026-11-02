@@ -4,7 +4,7 @@
 
 <section class="banner">
     <h2>Tipos de documento</h2>
-    <p>Cada tipo es <strong>borrador</strong> (control de cambios + fecha término) u <strong>oficial</strong> (ciclo de vida, versiones y vencimientos).</p>
+    <p>Catálogo de <strong>tipos</strong> (p. ej. Borrador, En revisión, Vigente…). Cada tipo tiene modalidad <strong>borrador</strong> (cambios + fecha término) u <strong>oficial</strong> (ciclo, versiones, vencimientos). Esos nombres son tipos, no estados del ciclo.</p>
 </section>
 
 <?php if (! empty($success)): ?>
@@ -30,13 +30,13 @@
             </div>
             <div>
                 <label for="t_codigo">Código</label>
-                <input id="t_codigo" type="text" name="codigo" required placeholder="POLITICA">
+                <input id="t_codigo" type="text" name="codigo" required placeholder="VIGENTE">
             </div>
             <div>
                 <label for="t_mod">Modalidad</label>
                 <select id="t_mod" name="modalidad" required>
-                    <option value="oficial">Oficial</option>
-                    <option value="borrador">Borrador</option>
+                    <option value="oficial">Oficial (ciclo + versiones + vencimiento)</option>
+                    <option value="borrador">Borrador (cambios + fecha término)</option>
                 </select>
             </div>
             <div>

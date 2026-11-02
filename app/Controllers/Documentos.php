@@ -353,7 +353,7 @@ class Documentos extends BaseController
 
         $siguientes = [];
         if ($oficial) {
-            foreach (DocumentLifecycle::siguientes((string) ($doc['estado'] ?? DocumentLifecycle::BORRADOR)) as $e) {
+            foreach (DocumentLifecycle::siguientes((string) ($doc['estado'] ?? DocumentLifecycle::EN_ELABORACION)) as $e) {
                 if (DocumentLifecycle::puedeActorTransicionar($memb, $e)) {
                     $siguientes[] = $e;
                 }
@@ -503,7 +503,7 @@ class Documentos extends BaseController
             'sucursal_id'     => $seccion['sucursal_id'],
             'seccion_id'      => $seccion['id'],
             'tipo_id'         => $tipo['id'],
-            'estado'          => DocumentLifecycle::BORRADOR,
+            'estado'          => DocumentLifecycle::EN_ELABORACION,
             'version_actual'  => 1,
             'titulo'          => $titulo,
             'nombre_archivo'  => $file->getClientName(),
@@ -533,8 +533,8 @@ class Documentos extends BaseController
 
         $doc = $docs->find($docId);
         if ($doc !== null) {
-            $this->registrarEstado($memb, $docId, null, DocumentLifecycle::BORRADOR, 'Alta del documento');
             if (DocumentLifecycle::isOficial($tipo)) {
+                $this->registrarEstado($memb, $docId, null, DocumentLifecycle::EN_ELABORACION, 'Alta del documento');
                 $this->registrarVersionInicial($memb, $doc);
             } else {
                 helper('id');
@@ -580,7 +580,7 @@ class Documentos extends BaseController
 
         $hasta = strtoupper(trim((string) $this->request->getPost('estado')));
         $nota  = trim((string) $this->request->getPost('nota')) ?: null;
-        $desde = (string) ($doc['estado'] ?? DocumentLifecycle::BORRADOR);
+        $desde = DocumentLifecycle::normalizarEstado($doc['estado'] ?? null);
 
         if (! DocumentLifecycle::puedeTransicionar($desde, $hasta)) {
             return redirect()->to('/documentos/' . $id)->with('error', 'Transición no permitida.');
@@ -627,10 +627,10 @@ class Documentos extends BaseController
         }
 
         $estado = (string) ($doc['estado'] ?? '');
-        if (! in_array($estado, [DocumentLifecycle::APROBADO, DocumentLifecycle::VIGENTE], true)) {
+        if (! DocumentLifecycle::puedeVersionar($estado)) {
             return redirect()->to('/documentos/' . $id)->with(
                 'error',
-                'Solo se puede versionar en Aprobado o Vigente.'
+                'Solo se puede versionar en En elaboración o Publicado.'
             );
         }
 

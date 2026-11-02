@@ -232,9 +232,11 @@ input:focus, select:focus {
 .tag-borrador-tipo { background: #f1f5f9; color: #334155; }
 .tag-alerta { background: #fef3c7; color: #92400e; margin-left: .25rem; }
 .tag-vencido { background: #fee2e2; color: #991b1b; margin-left: .25rem; }
-.estado-borrador { background: #f1f5f9; color: #475569; }
-.estado-revision { background: #e0e7ff; color: #3730a3; }
-.estado-aprobado { background: #cffafe; color: #155e75; }
+.estado-elaboracion { background: #e0e7ff; color: #3730a3; }
+.estado-publicado { background: #d1fae5; color: #065f46; }
+.estado-archivado { background: #e2e8f0; color: #64748b; }
+/* aliases legado (por si quedan clases en caché) */
+.estado-borrador, .estado-revision, .estado-aprobado { background: #e0e7ff; color: #3730a3; }
 .estado-vigente { background: #d1fae5; color: #065f46; }
 .estado-obsoleto { background: #e2e8f0; color: #64748b; }
 

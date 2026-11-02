@@ -214,30 +214,20 @@ class DemoSeeder extends Seeder
             ],
         ]);
 
-        $tipoPolitica = new_id();
-        $tipoMinuta   = new_id();
-        $tipoContrato = new_id();
-
-        $this->db->table('documento_tipos')->insertBatch([
-            [
-                'id' => $tipoPolitica, 'empresa_id' => $empresaDemo,
-                'nombre' => 'Política', 'codigo' => 'POLITICA', 'modalidad' => 'oficial',
-                'descripcion' => 'Normas y políticas oficiales con vigencia.',
+        // Catálogo de tipos = los cinco nombres de Felipe (NO son estados del ciclo).
+        $tipoIds = [];
+        $tipoRows = [];
+        foreach (\App\Libraries\DocumentLifecycle::catalogoTiposSemilla() as $t) {
+            $tid = new_id();
+            $tipoIds[$t['codigo']] = $tid;
+            $tipoRows[] = [
+                'id' => $tid, 'empresa_id' => $empresaDemo,
+                'nombre' => $t['nombre'], 'codigo' => $t['codigo'], 'modalidad' => $t['modalidad'],
+                'descripcion' => $t['descripcion'],
                 'activo' => 1, 'created_at' => $now, 'updated_at' => $now,
-            ],
-            [
-                'id' => $tipoContrato, 'empresa_id' => $empresaDemo,
-                'nombre' => 'Contrato / liquidación', 'codigo' => 'CONTRATO', 'modalidad' => 'oficial',
-                'descripcion' => 'Documentos oficiales operativos.',
-                'activo' => 1, 'created_at' => $now, 'updated_at' => $now,
-            ],
-            [
-                'id' => $tipoMinuta, 'empresa_id' => $empresaDemo,
-                'nombre' => 'Minuta / borrador', 'codigo' => 'MINUTA', 'modalidad' => 'borrador',
-                'descripcion' => 'Borradores con control de cambios y fecha término.',
-                'activo' => 1, 'created_at' => $now, 'updated_at' => $now,
-            ],
-        ]);
+            ];
+        }
+        $this->db->table('documento_tipos')->insertBatch($tipoRows);
 
         $docManual = new_id();
         $docLiqNorte = new_id();
@@ -253,25 +243,25 @@ class DemoSeeder extends Seeder
                 'departamento_id' => $deptoOps,
                 'seccion_id' => $secOpsGeneral,
                 'sucursal_id' => null,
-                'tipo_id' => $tipoPolitica,
-                'estado' => 'EN_REVISION',
+                'tipo_id' => $tipoIds['EN_REVISION'],
+                'estado' => 'EN_ELABORACION', // ciclo provisional (tipo ≠ estado)
                 'version_actual' => 1,
                 'vence_at' => null,
                 'alerta_dias' => null,
-                'fecha_termino' => null,
+                'fecha_termino' => date('Y-m-d', strtotime('+21 days')),
                 'titulo' => 'Manual de operaciones — nivel departamento',
                 'filename' => 'manual-operaciones.txt',
                 'body' => "Documento a nivel departamento Operaciones.\nVisible a Master y a Jefes de sucursales de Operaciones.\n",
                 'authorize' => [],
-                'oficial' => true,
+                'oficial' => false, // tipo EN_REVISION seed = modalidad borrador
             ],
             [
                 'id' => $docLiqNorte,
                 'departamento_id' => $deptoOps,
                 'seccion_id' => $secOpsNorte,
                 'sucursal_id' => $sucNorte,
-                'tipo_id' => $tipoContrato,
-                'estado' => 'APROBADO',
+                'tipo_id' => $tipoIds['APROBADO'],
+                'estado' => 'EN_ELABORACION',
                 'version_actual' => 1,
                 'vence_at' => null,
                 'alerta_dias' => 15,
@@ -287,15 +277,15 @@ class DemoSeeder extends Seeder
                 'departamento_id' => $deptoOps,
                 'seccion_id' => $secOpsSur,
                 'sucursal_id' => $sucSur,
-                'tipo_id' => $tipoContrato,
-                'estado' => 'VIGENTE',
+                'tipo_id' => $tipoIds['VIGENTE'],
+                'estado' => 'PUBLICADO',
                 'version_actual' => 2,
                 'vence_at' => $vencePronto,
                 'alerta_dias' => 30,
                 'fecha_termino' => null,
                 'titulo' => 'Contrato proveedor Sur',
                 'filename' => 'contrato-sur-v2.txt',
-                'body' => "Contrato Sucursal Sur — versión 2 vigente.\nAutorizado a Abogado.\n",
+                'body' => "Contrato Sucursal Sur — versión 2 publicada.\nAutorizado a Abogado.\n",
                 'authorize' => [$users['abogado']['id']],
                 'oficial' => true,
                 'prev_version' => [
@@ -309,8 +299,8 @@ class DemoSeeder extends Seeder
                 'departamento_id' => $deptoAdmin,
                 'seccion_id' => $secAdminCorp,
                 'sucursal_id' => null,
-                'tipo_id' => $tipoPolitica,
-                'estado' => 'VIGENTE',
+                'tipo_id' => $tipoIds['VIGENTE'],
+                'estado' => 'PUBLICADO',
                 'version_actual' => 1,
                 'vence_at' => date('Y-m-d', strtotime('+180 days')),
                 'alerta_dias' => 30,
@@ -326,8 +316,8 @@ class DemoSeeder extends Seeder
                 'departamento_id' => $deptoOps,
                 'seccion_id' => $secOpsGeneral,
                 'sucursal_id' => null,
-                'tipo_id' => $tipoMinuta,
-                'estado' => 'BORRADOR',
+                'tipo_id' => $tipoIds['BORRADOR'],
+                'estado' => 'EN_ELABORACION', // ignorado en UI (modalidad borrador)
                 'version_actual' => 1,
                 'vence_at' => null,
                 'alerta_dias' => null,
@@ -377,25 +367,18 @@ class DemoSeeder extends Seeder
             if (! empty($d['oficial'])) {
                 $this->db->table('documento_estado_historial')->insert([
                     'id' => new_id(), 'empresa_id' => $empresaDemo, 'documento_id' => $d['id'],
-                    'estado_desde' => null, 'estado_hasta' => 'BORRADOR',
+                    'estado_desde' => null, 'estado_hasta' => 'EN_ELABORACION',
                     'actor_id' => $users['admin']['id'], 'nota' => 'Alta (seed)', 'created_at' => $now,
                 ]);
-                if ($d['estado'] !== 'BORRADOR') {
+                if ($d['estado'] !== 'EN_ELABORACION') {
                     $this->db->table('documento_estado_historial')->insert([
                         'id' => new_id(), 'empresa_id' => $empresaDemo, 'documento_id' => $d['id'],
-                        'estado_desde' => 'BORRADOR', 'estado_hasta' => $d['estado'],
+                        'estado_desde' => 'EN_ELABORACION', 'estado_hasta' => $d['estado'],
                         'actor_id' => $users['admin']['id'], 'nota' => 'Seed demo', 'created_at' => $now,
                     ]);
                 }
 
                 if (! empty($d['prev_version'])) {
-                    $prev = DocumentStorage::save(
-                        $empresaDemo,
-                        $d['id'] . '-v1',
-                        $d['prev_version']['filename'],
-                        $d['prev_version']['body']
-                    );
-                    // Store under versioned path for clarity
                     $v1rel = $empresaDemo . '/' . $d['id'] . '/v1/' . $d['prev_version']['filename'];
                     $v1full = DocumentStorage::absolutePath($v1rel);
                     file_put_contents($v1full, $d['prev_version']['body']);
@@ -415,7 +398,6 @@ class DemoSeeder extends Seeder
                         'notas' => 'Actualización contractual', 'creado_por_id' => $users['admin']['id'],
                         'created_at' => $now,
                     ]);
-                    unset($prev);
                 } else {
                     $this->db->table('documento_versiones')->insert([
                         'id' => new_id(), 'empresa_id' => $empresaDemo, 'documento_id' => $d['id'],

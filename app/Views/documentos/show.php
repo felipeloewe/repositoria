@@ -4,7 +4,7 @@
 
 <?php
 use App\Libraries\DocumentLifecycle;
-$estado = (string) ($doc['estado'] ?? DocumentLifecycle::BORRADOR);
+$estado = DocumentLifecycle::normalizarEstado($doc['estado'] ?? null);
 ?>
 
 <section class="banner">
@@ -32,20 +32,20 @@ $estado = (string) ($doc['estado'] ?? DocumentLifecycle::BORRADOR);
 <div class="card section-card">
     <h3>Resumen</h3>
     <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));align-items:start">
-        <div>
-            <label>Estado</label>
-            <div>
-                <span class="tag <?= esc(DocumentLifecycle::cssEstado($estado)) ?>">
-                    <?= esc(DocumentLifecycle::labelEstado($estado)) ?>
-                </span>
-                <?php if (! empty($vencido)): ?>
-                    <span class="tag tag-vencido">Vencido</span>
-                <?php elseif (! empty($porVencer)): ?>
-                    <span class="tag tag-alerta">Por vencer</span>
-                <?php endif; ?>
-            </div>
-        </div>
         <?php if ($oficial): ?>
+            <div>
+                <label>Estado del ciclo</label>
+                <div>
+                    <span class="tag <?= esc(DocumentLifecycle::cssEstado($estado)) ?>">
+                        <?= esc(DocumentLifecycle::labelEstado($estado)) ?>
+                    </span>
+                    <?php if (! empty($vencido)): ?>
+                        <span class="tag tag-vencido">Vencido</span>
+                    <?php elseif (! empty($porVencer)): ?>
+                        <span class="tag tag-alerta">Por vencer</span>
+                    <?php endif; ?>
+                </div>
+            </div>
             <div>
                 <label>Versión actual</label>
                 <div><strong>v<?= (int) ($doc['version_actual'] ?? 1) ?></strong></div>
@@ -98,7 +98,7 @@ $estado = (string) ($doc['estado'] ?? DocumentLifecycle::BORRADOR);
             </div>
         </form>
         <p class="muted" style="margin:.75rem 0 0;font-size:.85rem">
-            Publicar (Vigente) y archivar (Obsoleto) requieren rol Master.
+            Publicar y archivar requieren rol Master. Estados del ciclo son provisionales (distintos del catálogo de tipos).
         </p>
     </div>
     <?php endif; ?>
@@ -128,7 +128,7 @@ $estado = (string) ($doc['estado'] ?? DocumentLifecycle::BORRADOR);
     </div>
     <?php endif; ?>
 
-    <?php if (! empty($canMutate) && in_array($estado, [DocumentLifecycle::APROBADO, DocumentLifecycle::VIGENTE], true)): ?>
+    <?php if (! empty($canMutate) && DocumentLifecycle::puedeVersionar($estado)): ?>
     <div class="card section-card">
         <h3>Nueva versión</h3>
         <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/version') ?>" enctype="multipart/form-data">

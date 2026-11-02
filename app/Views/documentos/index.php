@@ -6,7 +6,7 @@
 
 <section class="banner">
     <h2>Repositorio documental</h2>
-    <p>Documentos ligados a <strong>Departamentos</strong>; tipo borrador u oficial define ciclo, versiones o control de cambios.</p>
+    <p>Documentos ligados a <strong>Departamentos</strong>. El <strong>tipo</strong> (catálogo) y su modalidad borrador/oficial definen ciclo, versiones o control de cambios.</p>
 </section>
 
 <?php if (! empty($success)): ?>
@@ -68,7 +68,7 @@
             </select>
         </div>
         <div>
-            <label for="f_estado">Estado</label>
+            <label for="f_estado">Estado ciclo</label>
             <select id="f_estado" name="estado">
                 <option value="">Todos</option>
                 <?php foreach ($estados as $e): ?>
@@ -164,7 +164,7 @@
             <tr>
                 <th>Título</th>
                 <th>Tipo</th>
-                <th>Estado</th>
+                <th>Estado ciclo</th>
                 <th>Versión / Término</th>
                 <th>Departamento</th>
                 <th></th>
@@ -174,7 +174,7 @@
         <?php foreach ($docs as $doc): ?>
             <?php
                 $tipo = $doc['tipo'] ?? null;
-                $estado = (string) ($doc['estado'] ?? DocumentLifecycle::BORRADOR);
+                $estado = DocumentLifecycle::normalizarEstado($doc['estado'] ?? null);
                 $esOficial = DocumentLifecycle::isOficial($tipo);
             ?>
             <tr>
@@ -198,9 +198,13 @@
                     <?php endif; ?>
                 </td>
                 <td>
-                    <span class="tag <?= esc(DocumentLifecycle::cssEstado($estado)) ?>">
-                        <?= esc(DocumentLifecycle::labelEstado($estado)) ?>
-                    </span>
+                    <?php if ($esOficial): ?>
+                        <span class="tag <?= esc(DocumentLifecycle::cssEstado($estado)) ?>">
+                            <?= esc(DocumentLifecycle::labelEstado($estado)) ?>
+                        </span>
+                    <?php else: ?>
+                        <span class="muted">—</span>
+                    <?php endif; ?>
                 </td>
                 <td class="muted">
                     <?php if ($esOficial): ?>
@@ -262,8 +266,8 @@
 <div class="card section-card">
     <h3>ACL (resumen)</h3>
     <ul class="muted">
-        <li><strong>Master</strong> — ve y sube todo; gestiona tipos; publica vigente y archiva.</li>
-        <li><strong>Jefe de Sucursal</strong> — ve su sucursal + docs a nivel de su departamento; sube y avanza estados previos a vigente.</li>
+        <li><strong>Master</strong> — ve y sube todo; gestiona tipos; publica y archiva docs oficiales.</li>
+        <li><strong>Jefe de Sucursal</strong> — ve su sucursal + docs a nivel de su departamento; sube y puede devolver a elaboración.</li>
         <li><strong>Externos</strong> — solo documentos con autorización explícita (lectura).</li>
     </ul>
 </div>
