@@ -228,6 +228,26 @@ input:focus, select:focus {
   display: inline-block; background: var(--blue-100); color: var(--blue-900);
   border-radius: 999px; padding: .15rem .55rem; font-size: .75rem; font-weight: 700;
 }
+.tag-oficial { background: #dbeafe; color: #1e3a8a; }
+.tag-borrador-tipo { background: #f1f5f9; color: #334155; }
+.tag-alerta { background: #fef3c7; color: #92400e; margin-left: .25rem; }
+.tag-vencido { background: #fee2e2; color: #991b1b; margin-left: .25rem; }
+.estado-elaboracion { background: #e0e7ff; color: #3730a3; }
+.estado-publicado, .estado-vigente { background: #d1fae5; color: #065f46; }
+.estado-vencido-ciclo { background: #fef3c7; color: #92400e; }
+.estado-renovado { background: #e0f2fe; color: #075985; }
+.estado-archivado, .estado-obsoleto { background: #e2e8f0; color: #64748b; }
+.estado-borrador, .estado-revision, .estado-aprobado { background: #e0e7ff; color: #3730a3; }
+.cadena-list { list-style: none; padding: 0; margin: 0; }
+.cadena-list li {
+  display: flex; flex-wrap: wrap; gap: .4rem; align-items: center;
+  padding: .55rem .35rem; border-bottom: 1px solid #e8eef8;
+}
+.cadena-list li.cadena-actual { background: var(--blue-100); border-radius: .5rem; padding-left: .6rem; }
+.cabecera-dl { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem 1.25rem; margin: 0; }
+.cabecera-dl dt { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 700; }
+.cabecera-dl dd { margin: .15rem 0 0; }
+
 
 .form-row {
   display: grid;

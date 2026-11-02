@@ -22,7 +22,11 @@
         </div>
         <nav class="nav">
             <a href="<?= site_url('dashboard') ?>" class="<?= ($title ?? '') === 'Inicio' ? 'active' : '' ?>">Inicio</a>
-            <a href="<?= site_url('documentos') ?>" class="<?= ($title ?? '') === 'Documentos' ? 'active' : '' ?>">Documentos</a>
+            <a href="<?= site_url('documentos') ?>" class="<?= in_array(($title ?? ''), ['Documentos', 'Tipos de documento'], true) ? 'active' : '' ?>">Documentos</a>
+            <?php if (\App\Libraries\Roles::isMaster($memb['rol'])): ?>
+                <a href="<?= site_url('documentos/tipos') ?>" class="<?= ($title ?? '') === 'Tipos de documento' ? 'active' : '' ?>" style="padding-left:1.35rem;font-size:.9rem">Tipos</a>
+            <?php endif; ?>
+
             <a href="<?= site_url('correo') ?>" class="<?= ($title ?? '') === 'Correo' ? 'active' : '' ?>">Correo</a>
             <?php if (\App\Libraries\FlujosAcl::canBrowseFlujos($memb)): ?>
                 <a href="<?= site_url('flujos') ?>" class="<?= ($title ?? '') === 'Flujos' ? 'active' : '' ?>">Flujos</a>

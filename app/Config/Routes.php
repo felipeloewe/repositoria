@@ -46,7 +46,19 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('documentos/seccion', 'Documentos::storeSeccion');
     $routes->post('documentos/upload', 'Documentos::upload');
     $routes->post('documentos/authorize', 'Documentos::authorize');
+    $routes->get('documentos/tipos', 'TiposDocumento::index');
+    $routes->post('documentos/tipos', 'TiposDocumento::store');
+    $routes->post('documentos/tipos/(:segment)/toggle', 'TiposDocumento::toggle/$1');
+    $routes->get('documentos/(:segment)', 'Documentos::show/$1');
     $routes->get('documentos/(:segment)/download', 'Documentos::download/$1');
+    $routes->get('documentos/(:segment)/versiones/(:segment)/download', 'Documentos::downloadVersion/$1/$2');
+    $routes->post('documentos/(:segment)/estado', 'Documentos::transition/$1');
+    $routes->post('documentos/(:segment)/version', 'Documentos::newVersion/$1');
+    $routes->post('documentos/(:segment)/vencimiento', 'Documentos::setVencimiento/$1');
+    $routes->post('documentos/(:segment)/cabecera', 'Documentos::setCabecera/$1');
+    $routes->post('documentos/(:segment)/termino', 'Documentos::setTermino/$1');
+    $routes->post('documentos/(:segment)/cambio', 'Documentos::addCambio/$1');
+    $routes->post('documentos/(:segment)/renovar', 'Documentos::renovar/$1');
     $routes->post('documentos/(:segment)/delete', 'Documentos::delete/$1');
 
     // Fase 3 — Correo
