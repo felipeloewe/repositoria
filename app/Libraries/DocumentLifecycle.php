@@ -5,47 +5,51 @@ declare(strict_types=1);
 namespace App\Libraries;
 
 /**
- * Modalidad de tipo (borrador|oficial) + ciclo de vida provisional de oficiales.
+ * Modalidad de tipo + ciclo de vida con hilo de renovación.
  *
- * Los nombres «Borrador / En revisión / Aprobado… / Vigente… / Obsoleto…» son
- * TIPOS de documento (catálogo), no estados. Estados oficiales = tríada provisional
- * hasta que Felipe confirme el ciclo definitivo.
+ * Tipos de catálogo (Borrador, En revisión, …, Vigente, Obsoleto) ≠ estados.
+ * Tipo Vigente → modalidad oficial; oficiales viven en un hilo de renovación.
+ * Borradores también versionan archivo.
  */
 final class DocumentLifecycle
 {
     public const MODALIDAD_BORRADOR = 'borrador';
     public const MODALIDAD_OFICIAL  = 'oficial';
 
-    /** Catálogo semilla de tipos (códigos). */
     public const TIPO_CODIGO_BORRADOR    = 'BORRADOR';
     public const TIPO_CODIGO_EN_REVISION = 'EN_REVISION';
     public const TIPO_CODIGO_APROBADO    = 'APROBADO';
     public const TIPO_CODIGO_VIGENTE     = 'VIGENTE';
     public const TIPO_CODIGO_OBSOLETO    = 'OBSOLETO';
 
-    /**
-     * Estados provisionales del ciclo (oficiales) — NO reutilizar etiquetas del catálogo de tipos.
-     */
+    /** Estados del ciclo (oficiales / hilo de renovación). */
     public const EN_ELABORACION = 'EN_ELABORACION';
-    public const PUBLICADO      = 'PUBLICADO';
+    public const VIGENTE        = 'VIGENTE';
+    public const VENCIDO        = 'VENCIDO';
+    public const RENOVADO       = 'RENOVADO';
     public const ARCHIVADO      = 'ARCHIVADO';
+
+    /** @deprecated Use VIGENTE — alias del MVP Publicado */
+    public const PUBLICADO = self::VIGENTE;
 
     public const ESTADOS = [
         self::EN_ELABORACION,
-        self::PUBLICADO,
+        self::VIGENTE,
+        self::VENCIDO,
+        self::RENOVADO,
         self::ARCHIVADO,
     ];
 
     /** @var array<string, list<string>> */
     private const TRANSICIONES = [
-        self::EN_ELABORACION => [self::PUBLICADO],
-        self::PUBLICADO      => [self::EN_ELABORACION, self::ARCHIVADO],
+        self::EN_ELABORACION => [self::VIGENTE, self::ARCHIVADO],
+        self::VIGENTE        => [self::VENCIDO, self::ARCHIVADO, self::EN_ELABORACION],
+        self::VENCIDO        => [self::ARCHIVADO],
+        self::RENOVADO       => [self::ARCHIVADO],
         self::ARCHIVADO      => [],
     ];
 
     /**
-     * Catálogo semilla: nombre, código, modalidad sugerida.
-     *
      * @return list<array{nombre: string, codigo: string, modalidad: string, descripcion: string}>
      */
     public static function catalogoTiposSemilla(): array
@@ -55,48 +59,44 @@ final class DocumentLifecycle
                 'nombre'      => 'Borrador',
                 'codigo'      => self::TIPO_CODIGO_BORRADOR,
                 'modalidad'   => self::MODALIDAD_BORRADOR,
-                'descripcion' => 'Tipo borrador: control de cambios y fecha de término.',
+                'descripcion' => 'Borrador: versiones, control de cambios y fecha término.',
             ],
             [
                 'nombre'      => 'En revisión',
                 'codigo'      => self::TIPO_CODIGO_EN_REVISION,
                 'modalidad'   => self::MODALIDAD_BORRADOR,
-                'descripcion' => 'Tipo en revisión (modalidad borrador en seed).',
+                'descripcion' => 'En revisión (modalidad borrador en seed).',
             ],
             [
                 'nombre'      => 'Aprobado (en firmas)',
                 'codigo'      => self::TIPO_CODIGO_APROBADO,
                 'modalidad'   => self::MODALIDAD_OFICIAL,
-                'descripcion' => 'Tipo aprobado en firmas (modalidad oficial en seed).',
+                'descripcion' => 'Aprobado en firmas (modalidad oficial en seed).',
             ],
             [
                 'nombre'      => 'Vigente (oficial)',
                 'codigo'      => self::TIPO_CODIGO_VIGENTE,
                 'modalidad'   => self::MODALIDAD_OFICIAL,
-                'descripcion' => 'Tipo vigente oficial: ciclo, versiones y vencimientos.',
+                'descripcion' => 'Vigente oficial: hilo de renovación, versiones y vencimientos.',
             ],
             [
                 'nombre'      => 'Obsoleto / Archivado',
                 'codigo'      => self::TIPO_CODIGO_OBSOLETO,
                 'modalidad'   => self::MODALIDAD_OFICIAL,
-                'descripcion' => 'Tipo obsoleto/archivado (modalidad oficial en seed).',
+                'descripcion' => 'Obsoleto/archivado (modalidad oficial en seed).',
             ],
         ];
     }
 
     public static function labelEstado(string $estado): string
     {
-        return match ($estado) {
+        return match (self::normalizarEstado($estado)) {
             self::EN_ELABORACION => 'En elaboración',
-            self::PUBLICADO      => 'Publicado',
+            self::VIGENTE        => 'Vigente',
+            self::VENCIDO        => 'Vencido',
+            self::RENOVADO       => 'Renovado',
             self::ARCHIVADO      => 'Archivado',
-            // Legado (MVP previo que confundió tipos con estados)
-            'BORRADOR'    => 'En elaboración',
-            'EN_REVISION' => 'En elaboración',
-            'APROBADO'    => 'En elaboración',
-            'VIGENTE'     => 'Publicado',
-            'OBSOLETO'    => 'Archivado',
-            default       => $estado,
+            default              => $estado,
         };
     }
 
@@ -119,17 +119,14 @@ final class DocumentLifecycle
         return ($tipo['modalidad'] ?? '') === self::MODALIDAD_BORRADOR;
     }
 
-    /**
-     * Normaliza estados legados del MVP anterior hacia la tríada provisional.
-     */
     public static function normalizarEstado(?string $estado): string
     {
         $estado = (string) $estado;
 
         return match ($estado) {
-            self::EN_ELABORACION, self::PUBLICADO, self::ARCHIVADO => $estado,
+            self::EN_ELABORACION, self::VIGENTE, self::VENCIDO, self::RENOVADO, self::ARCHIVADO => $estado,
+            'PUBLICADO' => self::VIGENTE,
             'BORRADOR', 'EN_REVISION', 'APROBADO', '' => self::EN_ELABORACION,
-            'VIGENTE'  => self::PUBLICADO,
             'OBSOLETO' => self::ARCHIVADO,
             default    => self::EN_ELABORACION,
         };
@@ -140,9 +137,7 @@ final class DocumentLifecycle
      */
     public static function siguientes(string $estado): array
     {
-        $estado = self::normalizarEstado($estado);
-
-        return self::TRANSICIONES[$estado] ?? [];
+        return self::TRANSICIONES[self::normalizarEstado($estado)] ?? [];
     }
 
     public static function puedeTransicionar(string $desde, string $hasta): bool
@@ -150,28 +145,23 @@ final class DocumentLifecycle
         return in_array($hasta, self::siguientes($desde), true);
     }
 
-    /**
-     * Master publica (→ PUBLICADO) y archiva (→ ARCHIVADO).
-     */
     public static function puedeActorTransicionar(array $memb, string $hasta): bool
     {
         if (! Roles::canUploadDocs($memb['rol'])) {
             return false;
         }
 
-        if (in_array($hasta, [self::PUBLICADO, self::ARCHIVADO], true)) {
+        // Publicar a vigente, marcar vencido, renovado o archivar → Master
+        if (in_array($hasta, [self::VIGENTE, self::VENCIDO, self::RENOVADO, self::ARCHIVADO], true)) {
             return Roles::isMaster($memb['rol']);
         }
 
         return true;
     }
 
-    /**
-     * Stub de alerta: publicado y dentro de la ventana alerta_dias antes de vence_at.
-     */
     public static function estaPorVencer(array $doc): bool
     {
-        if (self::normalizarEstado($doc['estado'] ?? null) !== self::PUBLICADO) {
+        if (self::normalizarEstado($doc['estado'] ?? null) !== self::VIGENTE) {
             return false;
         }
         $vence = $doc['vence_at'] ?? null;
@@ -197,7 +187,11 @@ final class DocumentLifecycle
 
     public static function estaVencido(array $doc): bool
     {
-        if (self::normalizarEstado($doc['estado'] ?? null) !== self::PUBLICADO) {
+        $estado = self::normalizarEstado($doc['estado'] ?? null);
+        if ($estado === self::VENCIDO) {
+            return true;
+        }
+        if ($estado !== self::VIGENTE) {
             return false;
         }
         $vence = $doc['vence_at'] ?? null;
@@ -214,15 +208,29 @@ final class DocumentLifecycle
     {
         return match (self::normalizarEstado($estado)) {
             self::EN_ELABORACION => 'estado-elaboracion',
-            self::PUBLICADO      => 'estado-publicado',
+            self::VIGENTE        => 'estado-publicado',
+            self::VENCIDO        => 'estado-vencido-ciclo',
+            self::RENOVADO       => 'estado-renovado',
             self::ARCHIVADO      => 'estado-archivado',
             default              => 'estado-elaboracion',
         };
     }
 
-    /** Estados en los que se permite subir nueva versión (oficial). */
     public static function puedeVersionar(string $estado): bool
     {
-        return in_array(self::normalizarEstado($estado), [self::EN_ELABORACION, self::PUBLICADO], true);
+        // Ambas modalidades versionan; estados terminales no
+        $e = self::normalizarEstado($estado);
+
+        return ! in_array($e, [self::ARCHIVADO, self::RENOVADO], true);
+    }
+
+    public static function puedeRenovar(array $doc, ?array $tipo): bool
+    {
+        if (! self::isOficial($tipo)) {
+            return false;
+        }
+        $e = self::normalizarEstado($doc['estado'] ?? null);
+
+        return in_array($e, [self::VIGENTE, self::VENCIDO], true);
     }
 }

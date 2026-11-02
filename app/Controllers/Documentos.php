@@ -306,18 +306,20 @@ class Documentos extends BaseController
         $tipo = $this->tipoOf($doc['tipo_id'] ?? null);
         $oficial = DocumentLifecycle::isOficial($tipo);
 
+        // Stub auto: si pasó vence_at y sigue VIGENTE → marcar VENCIDO
+        $doc = $this->marcarVencidoSiCorresponde($memb, $doc, $oficial);
+
         $historial = [];
-        $versiones = [];
-        $cambios   = [];
+        $versiones = model(DocumentoVersionModel::class)
+            ->where('documento_id', $id)
+            ->orderBy('version_num', 'DESC')
+            ->findAll();
+        $cambios = [];
 
         if ($oficial) {
             $historial = model(DocumentoEstadoHistorialModel::class)
                 ->where('documento_id', $id)
                 ->orderBy('created_at', 'DESC')
-                ->findAll();
-            $versiones = model(DocumentoVersionModel::class)
-                ->where('documento_id', $id)
-                ->orderBy('version_num', 'DESC')
                 ->findAll();
         } else {
             $cambios = model(DocumentoCambioModel::class)
@@ -325,6 +327,8 @@ class Documentos extends BaseController
                 ->orderBy('created_at', 'DESC')
                 ->findAll();
         }
+
+        $cadena = $this->cargarCadena($doc);
 
         $actorIds = [];
         foreach (array_merge($historial, $versiones, $cambios) as $row) {
@@ -366,25 +370,27 @@ class Documentos extends BaseController
         ]);
 
         return view('documentos/show', [
-            'title'       => 'Documentos',
-            'memb'        => $memb,
-            'doc'         => $doc,
-            'tipo'        => $tipo,
-            'oficial'     => $oficial,
-            'historial'   => $historial,
-            'versiones'   => $versiones,
-            'cambios'     => $cambios,
-            'actorMap'    => $actorMap,
-            'deptoNombre' => $deptos['nombre'] ?? '—',
+            'title'         => 'Documentos',
+            'memb'          => $memb,
+            'doc'           => $doc,
+            'tipo'          => $tipo,
+            'oficial'       => $oficial,
+            'historial'     => $historial,
+            'versiones'     => $versiones,
+            'cambios'       => $cambios,
+            'cadena'        => $cadena,
+            'actorMap'      => $actorMap,
+            'deptoNombre'   => $deptos['nombre'] ?? '—',
             'seccionNombre' => $sec['nombre'] ?? '—',
-            'siguientes'  => $siguientes,
-            'canMutate'   => $canMutate,
-            'canDelete'   => DocumentAcl::canDelete($memb, $loaded['aclDoc']),
-            'isMaster'    => Roles::isMaster($memb['rol']),
-            'porVencer'   => DocumentLifecycle::estaPorVencer($doc),
-            'vencido'     => DocumentLifecycle::estaVencido($doc),
-            'success'     => session()->getFlashdata('success'),
-            'error'       => session()->getFlashdata('error'),
+            'siguientes'    => $siguientes,
+            'canMutate'     => $canMutate,
+            'canRenovar'    => $canMutate && DocumentLifecycle::puedeRenovar($doc, $tipo),
+            'canDelete'     => DocumentAcl::canDelete($memb, $loaded['aclDoc']),
+            'isMaster'      => Roles::isMaster($memb['rol']),
+            'porVencer'     => DocumentLifecycle::estaPorVencer($doc),
+            'vencido'       => DocumentLifecycle::estaVencido($doc),
+            'success'       => session()->getFlashdata('success'),
+            'error'         => session()->getFlashdata('error'),
         ]);
     }
 
@@ -448,6 +454,7 @@ class Documentos extends BaseController
         $seccionId = (string) $this->request->getPost('seccion_id');
         $tipoId    = (string) $this->request->getPost('tipo_id');
         $file      = $this->request->getFile('archivo');
+        $cabecera  = $this->readCabeceraFromRequest();
 
         if ($titulo === '' || $seccionId === '' || $tipoId === '') {
             return redirect()->to('/documentos')->with('error', 'Título, tipo y sección son obligatorios.');
@@ -497,20 +504,27 @@ class Documentos extends BaseController
 
         $docs = model(DocumentoModel::class);
         $docs->insert([
-            'id'              => $docId,
-            'empresa_id'      => $memb['empresa_id'],
-            'departamento_id' => $seccion['departamento_id'],
-            'sucursal_id'     => $seccion['sucursal_id'],
-            'seccion_id'      => $seccion['id'],
-            'tipo_id'         => $tipo['id'],
-            'estado'          => DocumentLifecycle::EN_ELABORACION,
-            'version_actual'  => 1,
-            'titulo'          => $titulo,
-            'nombre_archivo'  => $file->getClientName(),
-            'ruta_relativa'   => 'pending',
-            'mime'            => $file->getMimeType() ?: 'application/octet-stream',
-            'tamano_bytes'    => $file->getSize(),
-            'subido_por_id'   => $memb['usuario_id'],
+            'id'                    => $docId,
+            'empresa_id'            => $memb['empresa_id'],
+            'departamento_id'       => $seccion['departamento_id'],
+            'sucursal_id'           => $seccion['sucursal_id'],
+            'seccion_id'            => $seccion['id'],
+            'tipo_id'               => $tipo['id'],
+            'estado'                => DocumentLifecycle::EN_ELABORACION,
+            'version_actual'        => 1,
+            'cadena_id'             => $docId,
+            'cabecera_partes'       => $cabecera['cabecera_partes'],
+            'cabecera_asunto'       => $cabecera['cabecera_asunto'],
+            'cabecera_inicio'       => $cabecera['cabecera_inicio'],
+            'cabecera_termino'      => $cabecera['cabecera_termino'],
+            'cabecera_autorizantes' => $cabecera['cabecera_autorizantes'],
+            'fecha_termino'         => $cabecera['cabecera_termino'],
+            'titulo'                => $titulo,
+            'nombre_archivo'        => $file->getClientName(),
+            'ruta_relativa'         => 'pending',
+            'mime'                  => $file->getMimeType() ?: 'application/octet-stream',
+            'tamano_bytes'          => $file->getSize(),
+            'subido_por_id'         => $memb['usuario_id'],
         ]);
 
         try {
@@ -533,9 +547,9 @@ class Documentos extends BaseController
 
         $doc = $docs->find($docId);
         if ($doc !== null) {
+            $this->registrarVersionInicial($memb, $doc);
             if (DocumentLifecycle::isOficial($tipo)) {
                 $this->registrarEstado($memb, $docId, null, DocumentLifecycle::EN_ELABORACION, 'Alta del documento');
-                $this->registrarVersionInicial($memb, $doc);
             } else {
                 helper('id');
                 model(DocumentoCambioModel::class)->insert([
@@ -615,9 +629,6 @@ class Documentos extends BaseController
 
         $doc  = $loaded['doc'];
         $tipo = $this->tipoOf($doc['tipo_id'] ?? null);
-        if (! DocumentLifecycle::isOficial($tipo)) {
-            return redirect()->to('/documentos/' . $id)->with('error', 'El versionamiento aplica solo a tipos oficiales.');
-        }
 
         if (! DocumentAcl::canUpload($memb, [
             'sucursal_id'     => $doc['sucursal_id'],
@@ -627,10 +638,10 @@ class Documentos extends BaseController
         }
 
         $estado = (string) ($doc['estado'] ?? '');
-        if (! DocumentLifecycle::puedeVersionar($estado)) {
+        if (DocumentLifecycle::isOficial($tipo) && ! DocumentLifecycle::puedeVersionar($estado)) {
             return redirect()->to('/documentos/' . $id)->with(
                 'error',
-                'Solo se puede versionar en En elaboración o Publicado.'
+                'No se puede versionar un documento renovado o archivado.'
             );
         }
 
@@ -717,6 +728,20 @@ class Documentos extends BaseController
             log_message('error', 'New version failed: {msg}', ['msg' => $e->getMessage()]);
 
             return redirect()->to('/documentos/' . $id)->with('error', 'No se pudo guardar la nueva versión.');
+        }
+
+        $tipo = $this->tipoOf($doc['tipo_id'] ?? null);
+        if (DocumentLifecycle::isBorradorTipo($tipo)) {
+            helper('id');
+            model(DocumentoCambioModel::class)->insert([
+                'id'           => new_id(),
+                'empresa_id'   => $memb['empresa_id'],
+                'documento_id' => $id,
+                'actor_id'     => $memb['usuario_id'],
+                'resumen'      => 'Nueva versión v' . $newNum,
+                'detalle'      => $notas,
+                'created_at'   => date('Y-m-d H:i:s'),
+            ]);
         }
 
         return redirect()->to('/documentos/' . $id)->with('success', 'Versión v' . $newNum . ' publicada.');
@@ -810,7 +835,7 @@ class Documentos extends BaseController
         $doc  = $loaded['doc'];
         $tipo = $this->tipoOf($doc['tipo_id'] ?? null);
         if (! DocumentLifecycle::isBorradorTipo($tipo)) {
-            return redirect()->to('/documentos/' . $id)->with('error', 'Fecha de término solo para tipos borrador.');
+            return redirect()->to('/documentos/' . $id)->with('error', 'Fecha de término solo para tipos borrador (usa cabecera en oficiales).');
         }
 
         if (! DocumentAcl::canUpload($memb, [
@@ -821,9 +846,153 @@ class Documentos extends BaseController
         }
 
         $termino = trim((string) $this->request->getPost('fecha_termino')) ?: null;
-        model(DocumentoModel::class)->update($id, ['fecha_termino' => $termino]);
+        model(DocumentoModel::class)->update($id, [
+            'fecha_termino'    => $termino,
+            'cabecera_termino' => $termino,
+        ]);
 
         return redirect()->to('/documentos/' . $id)->with('success', 'Fecha de término actualizada.');
+    }
+
+    public function setCabecera(string $id)
+    {
+        $memb = $this->requireMemb();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $loaded = $this->loadDocForAcl($memb, $id);
+        if (! is_array($loaded) || ! isset($loaded['doc'])) {
+            return $loaded;
+        }
+
+        $doc = $loaded['doc'];
+        if (! DocumentAcl::canUpload($memb, [
+            'sucursal_id'     => $doc['sucursal_id'],
+            'departamento_id' => $doc['departamento_id'],
+        ])) {
+            return redirect()->to('/documentos/' . $id)->with('error', 'Sin permiso.');
+        }
+
+        $cab = $this->readCabeceraFromRequest();
+        model(DocumentoModel::class)->update($id, [
+            'cabecera_partes'       => $cab['cabecera_partes'],
+            'cabecera_asunto'       => $cab['cabecera_asunto'],
+            'cabecera_inicio'       => $cab['cabecera_inicio'],
+            'cabecera_termino'      => $cab['cabecera_termino'],
+            'cabecera_autorizantes' => $cab['cabecera_autorizantes'],
+            'fecha_termino'         => $cab['cabecera_termino'],
+        ]);
+
+        return redirect()->to('/documentos/' . $id)->with('success', 'Cabecera actualizada.');
+    }
+
+    public function renovar(string $id)
+    {
+        $memb = $this->requireMemb();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $loaded = $this->loadDocForAcl($memb, $id);
+        if (! is_array($loaded) || ! isset($loaded['doc'])) {
+            return $loaded;
+        }
+
+        $doc  = $loaded['doc'];
+        $tipo = $this->tipoOf($doc['tipo_id'] ?? null);
+        if (! DocumentLifecycle::puedeRenovar($doc, $tipo)) {
+            return redirect()->to('/documentos/' . $id)->with('error', 'Solo se renuevan documentos oficiales vigentes o vencidos.');
+        }
+
+        if (! DocumentAcl::canUpload($memb, [
+            'sucursal_id'     => $doc['sucursal_id'],
+            'departamento_id' => $doc['departamento_id'],
+        ])) {
+            return redirect()->to('/documentos/' . $id)->with('error', 'Sin permiso para renovar.');
+        }
+
+        // ¿Ya tiene hijo de renovación?
+        $hijoExistente = model(DocumentoModel::class)
+            ->where('renueva_de_id', $id)
+            ->where('empresa_id', $memb['empresa_id'])
+            ->first();
+        if ($hijoExistente !== null) {
+            return redirect()->to('/documentos/' . $hijoExistente['id'])
+                ->with('success', 'Ya existe una renovación de este documento.');
+        }
+
+        helper('id');
+        $nuevoId   = new_id();
+        $cadenaId  = $doc['cadena_id'] ?: $doc['id'];
+        $publicar  = (string) $this->request->getPost('publicar') === '1';
+        $anios     = max(1, (int) ($this->request->getPost('anios_vigencia') ?: 1));
+        $nuevoVence = null;
+        if (! empty($doc['vence_at'])) {
+            $base = strtotime((string) $doc['vence_at']);
+            if ($base !== false) {
+                $nuevoVence = date('Y-m-d', strtotime('+' . $anios . ' year', $base));
+            }
+        } else {
+            $nuevoVence = date('Y-m-d', strtotime('+' . $anios . ' year'));
+        }
+
+        $estadoHijo = $publicar ? DocumentLifecycle::VIGENTE : DocumentLifecycle::EN_ELABORACION;
+
+        model(DocumentoModel::class)->insert([
+            'id'                    => $nuevoId,
+            'empresa_id'            => $memb['empresa_id'],
+            'departamento_id'       => $doc['departamento_id'],
+            'sucursal_id'           => $doc['sucursal_id'],
+            'seccion_id'            => $doc['seccion_id'],
+            'tipo_id'               => $doc['tipo_id'],
+            'estado'                => $estadoHijo,
+            'version_actual'        => 1,
+            'vence_at'              => $nuevoVence,
+            'alerta_dias'           => $doc['alerta_dias'] ?? 30,
+            'renueva_de_id'         => $id,
+            'cadena_id'             => $cadenaId,
+            'cabecera_partes'       => $doc['cabecera_partes'] ?? null,
+            'cabecera_asunto'       => $doc['cabecera_asunto'] ?? null,
+            'cabecera_inicio'       => $doc['cabecera_inicio'] ?? null,
+            'cabecera_termino'      => $nuevoVence,
+            'cabecera_autorizantes' => $doc['cabecera_autorizantes'] ?? null,
+            'fecha_termino'         => $nuevoVence,
+            'titulo'                => $doc['titulo'],
+            'nombre_archivo'        => $doc['nombre_archivo'],
+            'ruta_relativa'         => $doc['ruta_relativa'],
+            'mime'                  => $doc['mime'],
+            'tamano_bytes'          => $doc['tamano_bytes'],
+            'subido_por_id'         => $memb['usuario_id'],
+        ]);
+
+        // Snapshot v1 del hijo (misma ruta hasta que suban archivo nuevo)
+        model(DocumentoVersionModel::class)->insert([
+            'id'             => new_id(),
+            'empresa_id'     => $memb['empresa_id'],
+            'documento_id'   => $nuevoId,
+            'version_num'    => 1,
+            'nombre_archivo' => $doc['nombre_archivo'],
+            'ruta_relativa'  => $doc['ruta_relativa'],
+            'mime'           => $doc['mime'],
+            'tamano_bytes'   => $doc['tamano_bytes'],
+            'notas'          => 'Renovación desde ' . $id,
+            'creado_por_id'  => $memb['usuario_id'],
+            'created_at'     => date('Y-m-d H:i:s'),
+        ]);
+
+        $desdePadre = DocumentLifecycle::normalizarEstado($doc['estado'] ?? null);
+        model(DocumentoModel::class)->update($id, [
+            'estado'      => DocumentLifecycle::RENOVADO,
+            'notas_ciclo' => 'Renovado → ' . $nuevoId,
+        ]);
+        $this->registrarEstado($memb, $id, $desdePadre, DocumentLifecycle::RENOVADO, 'Renovación → ' . $nuevoId);
+        $this->registrarEstado($memb, $nuevoId, null, $estadoHijo, 'Alta por renovación de ' . $id);
+
+        return redirect()->to('/documentos/' . $nuevoId)->with(
+            'success',
+            'Renovación creada (vence ' . ($nuevoVence ?? '—') . ').'
+        );
     }
 
     public function addCambio(string $id)
@@ -971,6 +1140,81 @@ class Documentos extends BaseController
         }
 
         return redirect()->to('/documentos')->with('success', 'Autorización registrada.');
+    }
+
+    /**
+     * @return array{cabecera_partes: ?string, cabecera_asunto: ?string, cabecera_inicio: ?string, cabecera_termino: ?string, cabecera_autorizantes: ?string}
+     */
+    private function readCabeceraFromRequest(): array
+    {
+        return [
+            'cabecera_partes'       => trim((string) $this->request->getPost('cabecera_partes')) ?: null,
+            'cabecera_asunto'       => trim((string) $this->request->getPost('cabecera_asunto')) ?: null,
+            'cabecera_inicio'       => trim((string) $this->request->getPost('cabecera_inicio')) ?: null,
+            'cabecera_termino'      => trim((string) $this->request->getPost('cabecera_termino')) ?: null,
+            'cabecera_autorizantes' => trim((string) $this->request->getPost('cabecera_autorizantes')) ?: null,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $doc
+     * @return array<string, mixed>
+     */
+    private function marcarVencidoSiCorresponde(array $memb, array $doc, bool $oficial): array
+    {
+        if (! $oficial) {
+            return $doc;
+        }
+        if (DocumentLifecycle::normalizarEstado($doc['estado'] ?? null) !== DocumentLifecycle::VIGENTE) {
+            return $doc;
+        }
+        if (! DocumentLifecycle::estaVencido($doc)) {
+            return $doc;
+        }
+
+        model(DocumentoModel::class)->update($doc['id'], [
+            'estado'      => DocumentLifecycle::VENCIDO,
+            'notas_ciclo' => 'Vencimiento automático (stub al abrir detalle)',
+        ]);
+        $this->registrarEstado(
+            $memb,
+            (string) $doc['id'],
+            DocumentLifecycle::VIGENTE,
+            DocumentLifecycle::VENCIDO,
+            'Vencimiento automático (stub)'
+        );
+        $doc['estado'] = DocumentLifecycle::VENCIDO;
+
+        return $doc;
+    }
+
+    /**
+     * Cadena de renovación ordenada (raíz → … → actual → hijos).
+     *
+     * @param array<string, mixed> $doc
+     * @return list<array<string, mixed>>
+     */
+    private function cargarCadena(array $doc): array
+    {
+        $cadenaId = $doc['cadena_id'] ?? null;
+        if ($cadenaId === null || $cadenaId === '') {
+            $cadenaId = $doc['id'];
+        }
+
+        $rows = model(DocumentoModel::class)
+            ->where('empresa_id', $doc['empresa_id'])
+            ->groupStart()
+                ->where('cadena_id', $cadenaId)
+                ->orWhere('id', $cadenaId)
+            ->groupEnd()
+            ->orderBy('created_at', 'ASC')
+            ->findAll();
+
+        if ($rows === []) {
+            return [$doc];
+        }
+
+        return $rows;
     }
 
     /**

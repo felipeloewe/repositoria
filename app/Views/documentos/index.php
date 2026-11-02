@@ -6,7 +6,7 @@
 
 <section class="banner">
     <h2>Repositorio documental</h2>
-    <p>Documentos ligados a <strong>Departamentos</strong>. El <strong>tipo</strong> (catálogo) y su modalidad borrador/oficial definen ciclo, versiones o control de cambios.</p>
+    <p>Documentos ligados a <strong>Departamentos</strong>. Tipo Vigente = oficial con <strong>hilo de renovación</strong>; borradores también versionan. Cabeceras (partes, asunto, fechas, autorizantes) controlan el ciclo.</p>
 </section>
 
 <?php if (! empty($success)): ?>
@@ -106,6 +106,26 @@
                 <option value="<?= esc($s['id']) ?>"><?= esc($s['label']) ?></option>
             <?php endforeach; ?>
         </select>
+        <label for="up_asunto">Asunto (cabecera)</label>
+        <input id="up_asunto" type="text" name="cabecera_asunto" placeholder="Opcional">
+        <div class="form-row" style="grid-template-columns:1fr 1fr">
+            <div>
+                <label for="up_partes">Partes</label>
+                <input id="up_partes" type="text" name="cabecera_partes">
+            </div>
+            <div>
+                <label for="up_auth">Autorizantes</label>
+                <input id="up_auth" type="text" name="cabecera_autorizantes">
+            </div>
+            <div>
+                <label for="up_inicio">Inicio</label>
+                <input id="up_inicio" type="date" name="cabecera_inicio">
+            </div>
+            <div>
+                <label for="up_termino">Término</label>
+                <input id="up_termino" type="date" name="cabecera_termino">
+            </div>
+        </div>
         <label for="up_file">Archivo (máx. 15 MB)</label>
         <input id="up_file" type="file" name="archivo" required style="margin-bottom:1rem">
         <button class="btn btn-primary" type="submit">Subir</button>
@@ -212,8 +232,15 @@
                         <?php if (! empty($doc['vence_at'])): ?>
                             <br>Vence <?= esc($doc['vence_at']) ?>
                         <?php endif; ?>
+                        <?php if (! empty($doc['renueva_de_id']) || (! empty($doc['cadena_id']) && $doc['cadena_id'] !== $doc['id'])): ?>
+                            <br><span class="tag tag-oficial">Hilo</span>
+                        <?php endif; ?>
                     <?php else: ?>
-                        <?= ! empty($doc['fecha_termino']) ? 'Término ' . esc($doc['fecha_termino']) : 'Sin término' ?>
+                        v<?= (int) ($doc['version_actual'] ?? 1) ?>
+                        <?php
+                            $term = $doc['cabecera_termino'] ?? $doc['fecha_termino'] ?? null;
+                        ?>
+                        <?= $term ? '<br>Término ' . esc($term) : '' ?>
                     <?php endif; ?>
                 </td>
                 <td>

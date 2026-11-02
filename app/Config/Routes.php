@@ -55,8 +55,10 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('documentos/(:segment)/estado', 'Documentos::transition/$1');
     $routes->post('documentos/(:segment)/version', 'Documentos::newVersion/$1');
     $routes->post('documentos/(:segment)/vencimiento', 'Documentos::setVencimiento/$1');
+    $routes->post('documentos/(:segment)/cabecera', 'Documentos::setCabecera/$1');
     $routes->post('documentos/(:segment)/termino', 'Documentos::setTermino/$1');
     $routes->post('documentos/(:segment)/cambio', 'Documentos::addCambio/$1');
+    $routes->post('documentos/(:segment)/renovar', 'Documentos::renovar/$1');
     $routes->post('documentos/(:segment)/delete', 'Documentos::delete/$1');
 
     // Fase 3 — Correo

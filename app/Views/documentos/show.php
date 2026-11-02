@@ -5,6 +5,7 @@
 <?php
 use App\Libraries\DocumentLifecycle;
 $estado = DocumentLifecycle::normalizarEstado($doc['estado'] ?? null);
+$cadena = $cadena ?? [];
 ?>
 
 <section class="banner">
@@ -47,10 +48,6 @@ $estado = DocumentLifecycle::normalizarEstado($doc['estado'] ?? null);
                 </div>
             </div>
             <div>
-                <label>Versión actual</label>
-                <div><strong>v<?= (int) ($doc['version_actual'] ?? 1) ?></strong></div>
-            </div>
-            <div>
                 <label>Vence</label>
                 <div><?= esc($doc['vence_at'] ?? '—') ?></div>
             </div>
@@ -58,12 +55,11 @@ $estado = DocumentLifecycle::normalizarEstado($doc['estado'] ?? null);
                 <label>Alerta (días)</label>
                 <div><?= esc($doc['alerta_dias'] ?? '—') ?></div>
             </div>
-        <?php else: ?>
-            <div>
-                <label>Fecha término</label>
-                <div><?= esc($doc['fecha_termino'] ?? '—') ?></div>
-            </div>
         <?php endif; ?>
+        <div>
+            <label>Versión actual</label>
+            <div><strong>v<?= (int) ($doc['version_actual'] ?? 1) ?></strong></div>
+        </div>
         <div>
             <label>Archivo</label>
             <div class="muted" style="font-size:.85rem"><?= esc($doc['nombre_archivo'] ?? '') ?></div>
@@ -72,7 +68,90 @@ $estado = DocumentLifecycle::normalizarEstado($doc['estado'] ?? null);
     </div>
 </div>
 
+<div class="card section-card">
+    <h3>Cabecera</h3>
+    <?php if (! empty($canMutate)): ?>
+    <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/cabecera') ?>">
+        <?= csrf_field() ?>
+        <div class="form-row" style="grid-template-columns:1fr 1fr;align-items:end">
+            <div>
+                <label for="cab_asunto">Asunto</label>
+                <input id="cab_asunto" type="text" name="cabecera_asunto" value="<?= esc($doc['cabecera_asunto'] ?? '') ?>">
+            </div>
+            <div>
+                <label for="cab_partes">Partes</label>
+                <input id="cab_partes" type="text" name="cabecera_partes" value="<?= esc($doc['cabecera_partes'] ?? '') ?>">
+            </div>
+            <div>
+                <label for="cab_inicio">Inicio</label>
+                <input id="cab_inicio" type="date" name="cabecera_inicio" value="<?= esc($doc['cabecera_inicio'] ?? '') ?>">
+            </div>
+            <div>
+                <label for="cab_termino">Término</label>
+                <input id="cab_termino" type="date" name="cabecera_termino" value="<?= esc($doc['cabecera_termino'] ?? $doc['fecha_termino'] ?? '') ?>">
+            </div>
+        </div>
+        <label for="cab_auth">Autorizantes</label>
+        <input id="cab_auth" type="text" name="cabecera_autorizantes" value="<?= esc($doc['cabecera_autorizantes'] ?? '') ?>" placeholder="Nombres o roles que autorizan">
+        <button class="btn btn-primary btn-sm" type="submit" style="margin-top:.75rem">Guardar cabecera</button>
+    </form>
+    <?php else: ?>
+        <dl class="cabecera-dl">
+            <div><dt>Asunto</dt><dd><?= esc($doc['cabecera_asunto'] ?? '—') ?></dd></div>
+            <div><dt>Partes</dt><dd><?= esc($doc['cabecera_partes'] ?? '—') ?></dd></div>
+            <div><dt>Inicio</dt><dd><?= esc($doc['cabecera_inicio'] ?? '—') ?></dd></div>
+            <div><dt>Término</dt><dd><?= esc($doc['cabecera_termino'] ?? $doc['fecha_termino'] ?? '—') ?></dd></div>
+            <div><dt>Autorizantes</dt><dd><?= esc($doc['cabecera_autorizantes'] ?? '—') ?></dd></div>
+        </dl>
+    <?php endif; ?>
+</div>
+
 <?php if ($oficial): ?>
+
+    <?php if (count($cadena) > 0): ?>
+    <div class="card section-card">
+        <h3>Hilo de renovación</h3>
+        <p class="muted" style="margin-top:0">Cadena completa (como un hilo de correo): cada vencimiento abre el siguiente Vigente.</p>
+        <ol class="cadena-list">
+            <?php foreach ($cadena as $i => $c): ?>
+                <?php $cEstado = DocumentLifecycle::normalizarEstado($c['estado'] ?? null); ?>
+                <li class="<?= $c['id'] === $doc['id'] ? 'cadena-actual' : '' ?>">
+                    <a href="<?= site_url('documentos/' . $c['id']) ?>">
+                        #<?= $i + 1 ?> · <?= esc($c['titulo']) ?>
+                    </a>
+                    <span class="tag <?= esc(DocumentLifecycle::cssEstado($cEstado)) ?>">
+                        <?= esc(DocumentLifecycle::labelEstado($cEstado)) ?>
+                    </span>
+                    <?php if (! empty($c['vence_at'])): ?>
+                        <span class="muted">vence <?= esc($c['vence_at']) ?></span>
+                    <?php endif; ?>
+                    <?php if ($c['id'] === $doc['id']): ?>
+                        <span class="tag tag-oficial">Este doc</span>
+                    <?php endif; ?>
+                </li>
+            <?php endforeach; ?>
+        </ol>
+        <?php if (! empty($canRenovar)): ?>
+        <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/renovar') ?>" class="form-row" style="grid-template-columns:auto auto 1fr;align-items:end;margin-top:1rem">
+            <?= csrf_field() ?>
+            <div>
+                <label for="anios">Años de vigencia del nuevo</label>
+                <input id="anios" type="number" min="1" name="anios_vigencia" value="1" style="width:5rem">
+            </div>
+            <div>
+                <label for="pub">Estado inicial</label>
+                <select id="pub" name="publicar">
+                    <option value="0">En elaboración</option>
+                    <option value="1">Vigente de inmediato</option>
+                </select>
+            </div>
+            <div>
+                <button class="btn btn-primary btn-sm" type="submit">Renovar (crear siguiente en el hilo)</button>
+            </div>
+        </form>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
 
     <?php if (! empty($canMutate) && $siguientes !== []): ?>
     <div class="card section-card">
@@ -98,7 +177,7 @@ $estado = DocumentLifecycle::normalizarEstado($doc['estado'] ?? null);
             </div>
         </form>
         <p class="muted" style="margin:.75rem 0 0;font-size:.85rem">
-            Publicar y archivar requieren rol Master. Estados del ciclo son provisionales (distintos del catálogo de tipos).
+            Publicar (Vigente), marcar vencido y archivar requieren Master. Preferir «Renovar» para el hilo.
         </p>
     </div>
     <?php endif; ?>
@@ -123,112 +202,14 @@ $estado = DocumentLifecycle::normalizarEstado($doc['estado'] ?? null);
             </div>
         </form>
         <p class="muted" style="margin:.75rem 0 0;font-size:.85rem">
-            Stub: la alerta se muestra en UI (badge «Por vencer»); el envío por correo queda para una fase posterior.
+            Stub: al abrir el detalle, si ya pasó la fecha y estaba Vigente → pasa a Vencido. Correo/cron después.
         </p>
     </div>
     <?php endif; ?>
 
-    <?php if (! empty($canMutate) && DocumentLifecycle::puedeVersionar($estado)): ?>
-    <div class="card section-card">
-        <h3>Nueva versión</h3>
-        <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/version') ?>" enctype="multipart/form-data">
-            <?= csrf_field() ?>
-            <label for="ver_file">Archivo</label>
-            <input id="ver_file" type="file" name="archivo" required style="margin-bottom:.75rem">
-            <label for="ver_notas">Notas del cambio</label>
-            <input id="ver_notas" type="text" name="notas" placeholder="Qué cambió en esta versión">
-            <button class="btn btn-primary" type="submit" style="margin-top:.75rem">Publicar versión</button>
-        </form>
-    </div>
-    <?php endif; ?>
-
-    <div class="card section-card">
-        <h3>Historial de versiones</h3>
-        <?php if ($versiones === []): ?>
-            <p class="muted">Sin versiones registradas.</p>
-        <?php else: ?>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Versión</th>
-                    <th>Archivo</th>
-                    <th>Notas</th>
-                    <th>Por</th>
-                    <th>Fecha</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php foreach ($versiones as $v): ?>
-                <tr>
-                    <td><strong>v<?= (int) $v['version_num'] ?></strong>
-                        <?php if ((int) $v['version_num'] === (int) ($doc['version_actual'] ?? 0)): ?>
-                            <span class="tag tag-vigente">Actual</span>
-                        <?php endif; ?>
-                    </td>
-                    <td class="muted"><?= esc($v['nombre_archivo'] ?? '') ?></td>
-                    <td><?= esc($v['notas'] ?? '—') ?></td>
-                    <td><?= esc($actorMap[$v['creado_por_id'] ?? ''] ?? '—') ?></td>
-                    <td class="muted"><?= esc($v['created_at'] ?? '') ?></td>
-                    <td>
-                        <a class="btn btn-ghost btn-sm" href="<?= site_url('documentos/' . $doc['id'] . '/versiones/' . $v['id'] . '/download') ?>">Descargar</a>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-        <?php endif; ?>
-    </div>
-
-    <div class="card section-card">
-        <h3>Historial de estados</h3>
-        <?php if ($historial === []): ?>
-            <p class="muted">Sin transiciones registradas.</p>
-        <?php else: ?>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>De</th>
-                    <th>A</th>
-                    <th>Nota</th>
-                    <th>Actor</th>
-                    <th>Fecha</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php foreach ($historial as $h): ?>
-                <tr>
-                    <td><?= $h['estado_desde'] ? esc(DocumentLifecycle::labelEstado($h['estado_desde'])) : '—' ?></td>
-                    <td><?= esc(DocumentLifecycle::labelEstado($h['estado_hasta'])) ?></td>
-                    <td><?= esc($h['nota'] ?? '—') ?></td>
-                    <td><?= esc($actorMap[$h['actor_id'] ?? ''] ?? '—') ?></td>
-                    <td class="muted"><?= esc($h['created_at'] ?? '') ?></td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-        <?php endif; ?>
-    </div>
-
 <?php else: ?>
 
     <?php if (! empty($canMutate)): ?>
-    <div class="card section-card">
-        <h3>Fecha de término</h3>
-        <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/termino') ?>">
-            <?= csrf_field() ?>
-            <div class="form-row" style="grid-template-columns:1fr auto;align-items:end">
-                <div>
-                    <label for="fecha_termino">Fin del borrador</label>
-                    <input id="fecha_termino" type="date" name="fecha_termino" value="<?= esc($doc['fecha_termino'] ?? '') ?>">
-                </div>
-                <div>
-                    <button class="btn btn-primary btn-sm" type="submit">Guardar</button>
-                </div>
-            </div>
-        </form>
-    </div>
-
     <div class="card section-card">
         <h3>Registrar cambio</h3>
         <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/cambio') ?>">
@@ -270,14 +251,90 @@ $estado = DocumentLifecycle::normalizarEstado($doc['estado'] ?? null);
         <?php endif; ?>
     </div>
 
-    <div class="card section-card">
-        <h3>Modalidad borrador</h3>
-        <p class="muted">
-            Este tipo no usa ciclo de vida oficial, versionamiento ni vencimientos.
-            Solo control de cambios y fecha de término.
-        </p>
-    </div>
+<?php endif; ?>
 
+<?php if (! empty($canMutate) && DocumentLifecycle::puedeVersionar($estado)): ?>
+<div class="card section-card">
+    <h3>Nueva versión</h3>
+    <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/version') ?>" enctype="multipart/form-data">
+        <?= csrf_field() ?>
+        <label for="ver_file">Archivo</label>
+        <input id="ver_file" type="file" name="archivo" required style="margin-bottom:.75rem">
+        <label for="ver_notas">Notas del cambio</label>
+        <input id="ver_notas" type="text" name="notas" placeholder="Qué cambió en esta versión">
+        <button class="btn btn-primary" type="submit" style="margin-top:.75rem">Publicar versión</button>
+    </form>
+</div>
+<?php endif; ?>
+
+<div class="card section-card">
+    <h3>Historial de versiones</h3>
+    <?php if ($versiones === []): ?>
+        <p class="muted">Sin versiones registradas.</p>
+    <?php else: ?>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Versión</th>
+                <th>Archivo</th>
+                <th>Notas</th>
+                <th>Por</th>
+                <th>Fecha</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($versiones as $v): ?>
+            <tr>
+                <td><strong>v<?= (int) $v['version_num'] ?></strong>
+                    <?php if ((int) $v['version_num'] === (int) ($doc['version_actual'] ?? 0)): ?>
+                        <span class="tag tag-oficial">Actual</span>
+                    <?php endif; ?>
+                </td>
+                <td class="muted"><?= esc($v['nombre_archivo'] ?? '') ?></td>
+                <td><?= esc($v['notas'] ?? '—') ?></td>
+                <td><?= esc($actorMap[$v['creado_por_id'] ?? ''] ?? '—') ?></td>
+                <td class="muted"><?= esc($v['created_at'] ?? '') ?></td>
+                <td>
+                    <a class="btn btn-ghost btn-sm" href="<?= site_url('documentos/' . $doc['id'] . '/versiones/' . $v['id'] . '/download') ?>">Descargar</a>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+    <?php endif; ?>
+</div>
+
+<?php if ($oficial): ?>
+<div class="card section-card">
+    <h3>Historial de estados</h3>
+    <?php if ($historial === []): ?>
+        <p class="muted">Sin transiciones registradas.</p>
+    <?php else: ?>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>De</th>
+                <th>A</th>
+                <th>Nota</th>
+                <th>Actor</th>
+                <th>Fecha</th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($historial as $h): ?>
+            <tr>
+                <td><?= $h['estado_desde'] ? esc(DocumentLifecycle::labelEstado($h['estado_desde'])) : '—' ?></td>
+                <td><?= esc(DocumentLifecycle::labelEstado($h['estado_hasta'])) ?></td>
+                <td><?= esc($h['nota'] ?? '—') ?></td>
+                <td><?= esc($actorMap[$h['actor_id'] ?? ''] ?? '—') ?></td>
+                <td class="muted"><?= esc($h['created_at'] ?? '') ?></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+    <?php endif; ?>
+</div>
 <?php endif; ?>
 
 <?= $this->endSection() ?>
