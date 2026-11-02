@@ -83,6 +83,23 @@ final class MembershipAuth
         return ['ok' => true, 'notice' => $notice];
     }
 
+    /**
+     * Establish session after signup / admin-created tenant (no password re-check).
+     */
+    public function establish(string $usuarioId, string $membresiaId): array
+    {
+        $memb = model(MembresiaModel::class)->findActive($membresiaId);
+        if ($memb === null || $memb['usuario_id'] !== $usuarioId) {
+            return ['ok' => false, 'error' => 'Membresía no válida.'];
+        }
+
+        $session = session();
+        $session->set(self::SESSION_USER, $usuarioId);
+        $session->set(self::SESSION_MEMB, $membresiaId);
+
+        return ['ok' => true];
+    }
+
     public function logout(): void
     {
         session()->remove([self::SESSION_USER, self::SESSION_MEMB, self::SESSION_NOTICE]);

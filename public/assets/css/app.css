@@ -45,6 +45,42 @@ a:hover { text-decoration: underline; }
   padding: 2rem;
   border: 1px solid rgba(26, 109, 255, 0.08);
 }
+.auth-card--wide { width: min(520px, 100%); }
+.auth-alt {
+  margin: 1.1rem 0 0;
+  text-align: center;
+  font-size: .9rem;
+  color: var(--muted);
+}
+.signup-steps {
+  list-style: none;
+  display: flex;
+  gap: .5rem;
+  padding: 0;
+  margin: 0 0 1.15rem;
+}
+.signup-steps li {
+  flex: 1;
+  text-align: center;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--blue-50);
+  border-radius: 999px;
+  padding: .45rem .6rem;
+  border: 1px solid transparent;
+}
+.signup-steps li.is-active {
+  color: var(--blue-900);
+  background: var(--blue-100);
+  border-color: rgba(26, 109, 255, .2);
+}
+.signup-steps li.is-done {
+  color: #047857;
+  background: #ecfdf5;
+}
 .brand {
   display: flex;
   align-items: center;

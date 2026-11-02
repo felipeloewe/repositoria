@@ -32,29 +32,43 @@
 
 <div class="stack-forms">
     <div class="card">
-        <h3>Agregar usuario</h3>
+        <h3>Agregar usuario a la organización</h3>
+        <p class="hint">Como Administrador Master puedes crear membresías en esta empresa. El límite de cupos lo define el plan.</p>
+        <?php
+        $seatsFull = ! empty($planSnap)
+            && $planSnap['seats_limit'] !== null
+            && (int) $planSnap['seats_used'] >= (int) $planSnap['seats_limit'];
+        $blocked = ! empty($planSnap) && (empty($planSnap['can_operate']) || $seatsFull);
+        ?>
+        <?php if ($blocked): ?>
+            <div class="alert alert-error">
+                No puedes agregar más usuarios ahora
+                (<?= (int) ($planSnap['seats_used'] ?? 0) ?>/<?= $planSnap['seats_limit'] === null ? '∞' : (int) $planSnap['seats_limit'] ?>).
+                Amplía el Plan con el Administrador central o libera una membresía.
+            </div>
+        <?php endif; ?>
         <form method="post" action="<?= site_url('organizacion/membresia') ?>">
             <?= csrf_field() ?>
             <label for="user_email">Email</label>
-            <input id="user_email" type="email" name="email" required>
+            <input id="user_email" type="email" name="email" required <?= $blocked ? 'disabled' : '' ?>>
             <label for="user_nombre">Nombre</label>
-            <input id="user_nombre" type="text" name="nombre" required>
+            <input id="user_nombre" type="text" name="nombre" required <?= $blocked ? 'disabled' : '' ?>>
             <label for="user_password">Contraseña (solo usuarios nuevos)</label>
-            <input id="user_password" type="password" name="password" autocomplete="new-password">
+            <input id="user_password" type="password" name="password" autocomplete="new-password" <?= $blocked ? 'disabled' : '' ?>>
             <label for="user_rol">Rol</label>
-            <select id="user_rol" name="rol" required>
+            <select id="user_rol" name="rol" required <?= $blocked ? 'disabled' : '' ?>>
                 <?php foreach ($roles as $rol): ?>
                     <option value="<?= esc($rol) ?>"><?= esc(\App\Libraries\Roles::label($rol)) ?></option>
                 <?php endforeach; ?>
             </select>
             <label for="user_suc">Sucursal (si Jefe)</label>
-            <select id="user_suc" name="sucursal_id">
+            <select id="user_suc" name="sucursal_id" <?= $blocked ? 'disabled' : '' ?>>
                 <option value="">—</option>
                 <?php foreach ($sucursales as $s): ?>
                     <option value="<?= esc($s['id']) ?>"><?= esc($s['nombre']) ?></option>
                 <?php endforeach; ?>
             </select>
-            <button class="btn btn-primary" type="submit">Agregar usuario</button>
+            <button class="btn btn-primary" type="submit" <?= $blocked ? 'disabled' : '' ?>>Agregar usuario</button>
         </form>
     </div>
     <div class="card">
