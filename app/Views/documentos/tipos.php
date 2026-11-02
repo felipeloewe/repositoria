@@ -4,7 +4,11 @@
 
 <section class="banner">
     <h2>Tipos de documento</h2>
-    <p>Catálogo de <strong>tipos</strong> (p. ej. Borrador, Vigente…). Modalidad <strong>borrador</strong> = versiones + cambios + término; <strong>oficial</strong> (Vigente) = hilo de renovación + versiones + vencimientos. Los nombres del catálogo no son estados del ciclo.</p>
+    <p>
+        Catálogo bloqueado: <strong>Borrador</strong>, <strong>En revisión</strong>, <strong>Aprobado (en firmas)</strong>, <strong>Vigente (oficial)</strong>, <strong>Obsoleto / Archivado</strong>.
+        Modalidad <strong>borrador</strong> = versiones + cambios + término; <strong>oficial</strong> = hilo de renovación + versiones + vencimientos.
+        Estos nombres son <em>tipos</em>, no estados del ciclo (En elaboración → Vigente → Vencido → Renovado/Archivado).
+    </p>
 </section>
 
 <?php if (! empty($success)): ?>
@@ -52,8 +56,9 @@
 
 <div class="card section-card">
     <h3>Tipos (<?= count($tipos) ?>)</h3>
+    <p class="muted" style="margin-top:-.5rem">Seed demo incluye los cinco tipos de Felipe. Puedes crear más con la modalidad que corresponda.</p>
     <?php if ($tipos === []): ?>
-        <p class="muted">Aún no hay tipos. Crea al menos uno oficial y uno borrador.</p>
+        <p class="muted">Aún no hay tipos. Crea al menos uno oficial y uno borrador (o re-ejecuta el seed).</p>
     <?php else: ?>
     <table class="table">
         <thead>

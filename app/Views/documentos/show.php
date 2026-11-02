@@ -177,7 +177,7 @@ $cadena = $cadena ?? [];
             </div>
         </form>
         <p class="muted" style="margin:.75rem 0 0;font-size:.85rem">
-            Publicar (Vigente), marcar vencido y archivar requieren Master. Preferir «Renovar» para el hilo.
+            Estados confirmados: En elaboración → Vigente → Vencido → Renovado/Archivado. Publicar/archivar/renovar: Master (o ACL de carga según acción). Preferir «Renovar» para el hilo.
         </p>
     </div>
     <?php endif; ?>

@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Libraries;
 
 /**
- * Modalidad de tipo + ciclo de vida con hilo de renovación.
+ * Modalidad de tipo + ciclo de vida con hilo de renovación (modelo Felipe bloqueado).
  *
- * Tipos de catálogo (Borrador, En revisión, …, Vigente, Obsoleto) ≠ estados.
- * Tipo Vigente → modalidad oficial; oficiales viven en un hilo de renovación.
- * Borradores también versionan archivo.
+ * Tipos de catálogo (Borrador, En revisión, Aprobado en firmas, Vigente oficial,
+ * Obsoleto/Archivado) ≠ estados del ciclo.
+ * Estados: En elaboración → Vigente → Vencido → Renovado/Archivado.
+ * Tipo Vigente → modalidad oficial + hilo de renovación; borradores también versionan.
  */
 final class DocumentLifecycle
 {
@@ -28,9 +29,6 @@ final class DocumentLifecycle
     public const VENCIDO        = 'VENCIDO';
     public const RENOVADO       = 'RENOVADO';
     public const ARCHIVADO      = 'ARCHIVADO';
-
-    /** @deprecated Use VIGENTE — alias del MVP Publicado */
-    public const PUBLICADO = self::VIGENTE;
 
     public const ESTADOS = [
         self::EN_ELABORACION,
@@ -125,6 +123,7 @@ final class DocumentLifecycle
 
         return match ($estado) {
             self::EN_ELABORACION, self::VIGENTE, self::VENCIDO, self::RENOVADO, self::ARCHIVADO => $estado,
+            // Legado MVP temprano
             'PUBLICADO' => self::VIGENTE,
             'BORRADOR', 'EN_REVISION', 'APROBADO', '' => self::EN_ELABORACION,
             'OBSOLETO' => self::ARCHIVADO,
