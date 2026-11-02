@@ -13,6 +13,7 @@ El prototipo Next.js (rama `cursor/scaffold-repositoria-e946` / PR #1) queda com
 - **Fase 2:** repositorio documental ligado a Departamentos — secciones, upload/download en disco (`STORAGE_ROOT`), ACL
 - **Fase 3:** Correo vía imap-mail (`IMAP_MAIL_BASE_URL`) + mock offline; guardar adjunto/certificado PDF → Documentos
 - **Fase 4:** fiscalización (Master aprueba antes de envío) + canales seguros + auditoría
+- **Promoción (b)→(a):** Admin central / spark `repositoria:promover-sucursal` — crea Empresa desde Sucursal/Filial, remapea docs/ACL/membresías y mueve blobs
 - Migraciones + seed demo
 
 ## Jerarquía e identidad
@@ -48,6 +49,20 @@ El prototipo Next.js (rama `cursor/scaffold-repositoria-e946` / PR #1) queda com
 
 - `/flujos/fiscalizacion` — solicitar → Master aprueba/rechaza → registrar envío (solo si APROBADA) + auditoría
 - `/flujos/canales` — paquetes Master → externos; descarga + revocación + auditoría
+
+## Promoción filial (b) → empresa (a)
+
+Operación reiterable de **Administrador central** (`usuarios.es_admin_central`):
+
+```bash
+# UI
+# /admin/promociones  (seed: admin@repositoria.local)
+
+# CLI
+php spark repositoria:promover-sucursal <sucursalId> --nombre="Nueva Empresa" --actor=<usuarioId>
+```
+
+MVP: remapea secciones/docs con `sucursal_id` de la filial, mueve archivos `{STORAGE_ROOT}/{empresaId}/{documentoId}/…`, crea membresías en el nuevo tenant, archiva la sucursal origen (`estado=PROMOVIDA`) y escribe `promocion_sucursal_auditoria`. No incluye billing ni landing.
 
 ## Setup local
 

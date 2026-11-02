@@ -27,6 +27,10 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('organizacion/actividad', 'Organizacion::storeActividad');
     $routes->post('organizacion/tema', 'Organizacion::storeTema');
 
+    // Admin central — promoción filial (b) → empresa (a)
+    $routes->get('admin/promociones', 'AdminCentral::index');
+    $routes->post('admin/promociones/promover', 'AdminCentral::promover');
+
     $routes->get('documentos', 'Documentos::index');
     $routes->post('documentos/seccion', 'Documentos::storeSeccion');
     $routes->post('documentos/upload', 'Documentos::upload');

@@ -13,5 +13,8 @@ class EmpresaModel extends Model
     protected $useAutoIncrement = false;
     protected $returnType       = 'array';
     protected $useTimestamps    = true;
-    protected $allowedFields    = ['id', 'nombre', 'slug', 'rut', 'activa'];
+    protected $allowedFields    = [
+        'id', 'nombre', 'slug', 'rut', 'activa',
+        'promoted_from_sucursal_id', 'origen_empresa_id',
+    ];
 }

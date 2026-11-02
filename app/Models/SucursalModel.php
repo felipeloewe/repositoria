@@ -13,5 +13,8 @@ class SucursalModel extends Model
     protected $useAutoIncrement = false;
     protected $returnType       = 'array';
     protected $useTimestamps    = true;
-    protected $allowedFields    = ['id', 'empresa_id', 'departamento_id', 'nombre', 'codigo', 'activa'];
+    protected $allowedFields    = [
+        'id', 'empresa_id', 'departamento_id', 'nombre', 'codigo', 'activa',
+        'estado', 'promoted_to_empresa_id', 'promoted_at',
+    ];
 }
