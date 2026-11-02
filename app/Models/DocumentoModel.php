@@ -19,6 +19,7 @@ class DocumentoModel extends Model
         'tipo_id', 'estado', 'version_actual', 'vence_at', 'alerta_dias', 'fecha_termino', 'notas_ciclo',
         'renueva_de_id', 'cadena_id',
         'cabecera_partes', 'cabecera_asunto', 'cabecera_inicio', 'cabecera_termino', 'cabecera_autorizantes',
+        'archivado_at', 'archivado_por_id', 'blob_eliminado_at',
         'titulo', 'nombre_archivo', 'ruta_relativa', 'mime', 'tamano_bytes', 'subido_por_id',
     ];
 }

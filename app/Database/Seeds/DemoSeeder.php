@@ -28,6 +28,7 @@ class DemoSeeder extends Seeder
             'promocion_sucursal_auditoria',
             'canal_paquete_auditoria', 'canal_paquete_documentos', 'canal_paquetes',
             'fiscalizacion_auditoria', 'fiscalizacion_documentos', 'fiscalizacion_solicitudes',
+            'documento_archivo_respaldos',
             'documento_cambios', 'documento_estado_historial', 'documento_versiones',
             'documento_autorizaciones', 'documentos', 'documento_tipos', 'documento_secciones',
             'membresias', 'temas_interes', 'actividades', 'sucursales',

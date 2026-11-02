@@ -22,9 +22,11 @@
         </div>
         <nav class="nav">
             <a href="<?= site_url('dashboard') ?>" class="<?= ($title ?? '') === 'Inicio' ? 'active' : '' ?>">Inicio</a>
-            <a href="<?= site_url('documentos') ?>" class="<?= in_array(($title ?? ''), ['Documentos', 'Tipos de documento'], true) ? 'active' : '' ?>">Documentos</a>
+            <a href="<?= site_url('documentos') ?>" class="<?= in_array(($title ?? ''), ['Documentos', 'Tipos de documento', 'Archivados', 'Respaldo archivados'], true) ? 'active' : '' ?>">Documentos</a>
             <?php if (\App\Libraries\Roles::isMaster($memb['rol'])): ?>
                 <a href="<?= site_url('documentos/tipos') ?>" class="<?= ($title ?? '') === 'Tipos de documento' ? 'active' : '' ?>" style="padding-left:1.35rem;font-size:.9rem">Tipos</a>
+                <a href="<?= site_url('documentos/archivados') ?>" class="<?= ($title ?? '') === 'Archivados' ? 'active' : '' ?>" style="padding-left:1.35rem;font-size:.9rem">Archivados</a>
+                <a href="<?= site_url('documentos/archivados/respaldo') ?>" class="<?= ($title ?? '') === 'Respaldo archivados' ? 'active' : '' ?>" style="padding-left:1.35rem;font-size:.9rem">Respaldo</a>
             <?php endif; ?>
 
             <a href="<?= site_url('correo') ?>" class="<?= ($title ?? '') === 'Correo' ? 'active' : '' ?>">Correo</a>

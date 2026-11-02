@@ -106,6 +106,30 @@ $cadena = $cadena ?? [];
     <?php endif; ?>
 </div>
 
+<?php if (! empty($isMaster) && $estado !== DocumentLifecycle::ARCHIVADO): ?>
+<div class="card section-card">
+    <h3>Archivar / desactivar</h3>
+    <p class="muted">Mueve el archivo a <code>{empresa}/archivados/</code> y lo saca del listado activo. Luego puedes respaldarlo en ZIP mensual.</p>
+    <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/archivar') ?>" onsubmit="return confirm('¿Archivar este documento y mover el archivo a archivados/?')">
+        <?= csrf_field() ?>
+        <label for="nota_arch">Nota</label>
+        <input id="nota_arch" type="text" name="nota" value="Archivado por administración">
+        <button class="btn btn-sm" type="submit" style="margin-top:.75rem;background:#fee2e2;color:#991b1b">Archivar documento</button>
+    </form>
+</div>
+<?php elseif ($estado === DocumentLifecycle::ARCHIVADO): ?>
+<div class="alert alert-info">
+    Documento archivado<?= ! empty($doc['archivado_at']) ? ' el ' . esc($doc['archivado_at']) : '' ?>.
+    <?php if (! empty($doc['blob_eliminado_at'])): ?>
+        Blob eliminado tras respaldo ZIP (<?= esc($doc['blob_eliminado_at']) ?>).
+    <?php else: ?>
+        Archivo en disco bajo <code>archivados/</code>.
+        <a href="<?= site_url('documentos/archivados') ?>">Ver listado</a> ·
+        <a href="<?= site_url('documentos/archivados/respaldo') ?>">Respaldo mensual</a>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <?php if ($oficial): ?>
 
     <?php if (count($cadena) > 0): ?>

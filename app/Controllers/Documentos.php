@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Libraries\DocumentAcl;
+use App\Libraries\DocumentArchiveService;
 use App\Libraries\DocumentLifecycle;
 use App\Libraries\DocumentStorage;
 use App\Libraries\MembershipAuth;
@@ -221,6 +222,10 @@ class Documentos extends BaseController
                 continue;
             }
             if ($filterEstado !== '' && ($doc['estado'] ?? '') !== $filterEstado) {
+                continue;
+            }
+            // Archivados viven en /documentos/archivados
+            if ($filterEstado === '' && DocumentLifecycle::normalizarEstado($doc['estado'] ?? null) === DocumentLifecycle::ARCHIVADO) {
                 continue;
             }
             if ($filterAmbito === 'depto' && ($doc['sucursal_id'] !== null && $doc['sucursal_id'] !== '')) {
@@ -603,6 +608,16 @@ class Documentos extends BaseController
             return redirect()->to('/documentos/' . $id)->with('error', 'Solo Master puede publicar o archivar.');
         }
 
+        if ($hasta === DocumentLifecycle::ARCHIVADO) {
+            (new DocumentArchiveService())->archivar($memb, $doc, $nota);
+            $this->registrarEstado($memb, $id, $desde, $hasta, $nota ?? 'Archivado (blob movido a archivados/)');
+
+            return redirect()->to('/documentos/archivados')->with(
+                'success',
+                'Documento archivado. El archivo se movió a la carpeta archivados/.'
+            );
+        }
+
         model(DocumentoModel::class)->update($id, [
             'estado'      => $hasta,
             'notas_ciclo' => $nota,
@@ -612,6 +627,40 @@ class Documentos extends BaseController
         return redirect()->to('/documentos/' . $id)->with(
             'success',
             'Estado actualizado a «' . DocumentLifecycle::labelEstado($hasta) . '».'
+        );
+    }
+
+    /**
+     * Archivar documento (oficial o borrador) + mover blob a archivados/.
+     */
+    public function archivar(string $id)
+    {
+        $memb = $this->requireMemb();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        if (! Roles::isMaster($memb['rol'])) {
+            return redirect()->to('/documentos/' . $id)->with('error', 'Solo Master puede archivar.');
+        }
+
+        $loaded = $this->loadDocForAcl($memb, $id);
+        if (! is_array($loaded) || ! isset($loaded['doc'])) {
+            return $loaded;
+        }
+
+        $doc   = $loaded['doc'];
+        $desde = DocumentLifecycle::normalizarEstado($doc['estado'] ?? null);
+        if ($desde === DocumentLifecycle::ARCHIVADO) {
+            return redirect()->to('/documentos/archivados')->with('success', 'El documento ya estaba archivado.');
+        }
+
+        $nota = trim((string) $this->request->getPost('nota')) ?: 'Archivado por administración';
+        (new DocumentArchiveService())->archivar($memb, $doc, $nota);
+        $this->registrarEstado($memb, $id, $desde, DocumentLifecycle::ARCHIVADO, $nota);
+
+        return redirect()->to('/documentos/archivados')->with(
+            'success',
+            'Documento archivado y movido a {empresa}/archivados/.'
         );
     }
 
