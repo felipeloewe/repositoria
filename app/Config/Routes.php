@@ -40,6 +40,7 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('organizacion/tema', 'Organizacion::storeTema');
     $routes->post('organizacion/membresia', 'Organizacion::storeMembresia');
     $routes->post('organizacion/membresia/socio', 'Organizacion::updateMembresiaSocio');
+    $routes->post('organizacion/recursos-sistema/toggle', 'Organizacion::toggleRecursoSistema');
 
     // Menú Socios — documentos exclusivos (ambito=socio) + formularios
     $routes->get('socios', 'DocumentosSocios::index');

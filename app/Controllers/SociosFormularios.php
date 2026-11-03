@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Libraries\DocumentAcl;
 use App\Libraries\MembershipAuth;
+use App\Libraries\RecursoSistema;
 use App\Libraries\SocioFormService;
 use App\Models\SocioFormCampoModel;
 use App\Models\SocioFormInstanciaModel;
@@ -41,10 +42,7 @@ class SociosFormularios extends BaseController
             return $memb;
         }
 
-        $plantillas = model(SocioFormPlantillaModel::class)
-            ->where('empresa_id', $memb['empresa_id'])
-            ->orderBy('nombre', 'ASC')
-            ->findAll();
+        $plantillas = SocioFormService::plantillasVisibles((string) $memb['empresa_id']);
 
         $instancias = model(SocioFormInstanciaModel::class)
             ->where('empresa_id', $memb['empresa_id'])
@@ -54,6 +52,16 @@ class SociosFormularios extends BaseController
         $plantillaMap = [];
         foreach ($plantillas as $p) {
             $plantillaMap[$p['id']] = $p;
+        }
+        // Ensure instancia plantillas (incl. genéricas) appear in map even if toggled off later.
+        foreach ($instancias as $inst) {
+            $pid = (string) ($inst['plantilla_id'] ?? '');
+            if ($pid !== '' && ! isset($plantillaMap[$pid])) {
+                $row = model(SocioFormPlantillaModel::class)->find($pid);
+                if (is_array($row)) {
+                    $plantillaMap[$pid] = $row;
+                }
+            }
         }
 
         return view('socios/formularios_index', [
@@ -126,10 +134,12 @@ class SociosFormularios extends BaseController
         $campos = SocioFormService::camposOrdenados($id);
         $shares = model(SocioFormShareModel::class)
             ->where('plantilla_id', $id)
+            ->where('empresa_id', $memb['empresa_id'])
             ->orderBy('created_at', 'DESC')
             ->findAll(20);
         $instancias = model(SocioFormInstanciaModel::class)
             ->where('plantilla_id', $id)
+            ->where('empresa_id', $memb['empresa_id'])
             ->orderBy('created_at', 'DESC')
             ->findAll(20);
 
@@ -137,6 +147,7 @@ class SociosFormularios extends BaseController
             'title'      => 'Formularios socios',
             'memb'       => $memb,
             'plantilla'  => $plantilla,
+            'esGenerica' => RecursoSistema::isGenerica($plantilla),
             'campos'     => $campos,
             'shares'     => $shares,
             'instancias' => $instancias,
@@ -157,6 +168,10 @@ class SociosFormularios extends BaseController
         $plantilla = SocioFormService::plantillaOfEmpresa($id, $memb['empresa_id']);
         if ($plantilla === null) {
             return redirect()->to('/socios/formularios')->with('error', 'Plantilla no encontrada.');
+        }
+        if (RecursoSistema::isGenerica($plantilla)) {
+            return redirect()->to('/socios/formularios/' . $id)
+                ->with('error', 'Las plantillas genéricas no se editan aquí. Actívalas/desactívalas en Organización.');
         }
 
         $nombre = trim((string) $this->request->getPost('nombre'));
@@ -184,6 +199,10 @@ class SociosFormularios extends BaseController
         if ($plantilla === null) {
             return redirect()->to('/socios/formularios')->with('error', 'Plantilla no encontrada.');
         }
+        if (RecursoSistema::isGenerica($plantilla)) {
+            return redirect()->to('/socios/formularios/' . $id)
+                ->with('error', 'El on/off de plantillas genéricas lo gestiona el Master en Organización.');
+        }
 
         model(SocioFormPlantillaModel::class)->update($id, [
             'activo' => (int) $plantilla['activo'] === 1 ? 0 : 1,
@@ -202,6 +221,10 @@ class SociosFormularios extends BaseController
         $plantilla = SocioFormService::plantillaOfEmpresa($id, $memb['empresa_id']);
         if ($plantilla === null) {
             return redirect()->to('/socios/formularios')->with('error', 'Plantilla no encontrada.');
+        }
+        if (RecursoSistema::isGenerica($plantilla)) {
+            return redirect()->to('/socios/formularios/' . $id)
+                ->with('error', 'No se pueden agregar campos a plantillas genéricas.');
         }
 
         helper('id');
@@ -254,6 +277,10 @@ class SociosFormularios extends BaseController
         if ($plantilla === null) {
             return redirect()->to('/socios/formularios')->with('error', 'Plantilla no encontrada.');
         }
+        if (RecursoSistema::isGenerica($plantilla)) {
+            return redirect()->to('/socios/formularios/' . $id)
+                ->with('error', 'No se pueden eliminar campos de plantillas genéricas.');
+        }
 
         $campo = model(SocioFormCampoModel::class)->find($campoId);
         if (! is_array($campo) || (string) $campo['plantilla_id'] !== $id) {
@@ -273,7 +300,7 @@ class SociosFormularios extends BaseController
         }
 
         $plantilla = SocioFormService::plantillaOfEmpresa($id, $memb['empresa_id']);
-        if ($plantilla === null || (int) $plantilla['activo'] !== 1) {
+        if ($plantilla === null || ! SocioFormService::plantillaUsable($plantilla, (string) $memb['empresa_id'])) {
             return redirect()->to('/socios/formularios')->with('error', 'Plantilla no disponible.');
         }
 
@@ -299,7 +326,7 @@ class SociosFormularios extends BaseController
         }
 
         $plantilla = SocioFormService::plantillaOfEmpresa($id, $memb['empresa_id']);
-        if ($plantilla === null || (int) $plantilla['activo'] !== 1) {
+        if ($plantilla === null || ! SocioFormService::plantillaUsable($plantilla, (string) $memb['empresa_id'])) {
             return redirect()->to('/socios/formularios')->with('error', 'Plantilla no disponible.');
         }
 
@@ -333,7 +360,8 @@ class SociosFormularios extends BaseController
                 (string) $memb['usuario_id'],
                 null,
                 $post,
-                $files
+                $files,
+                (string) $memb['empresa_id']
             );
         } catch (RuntimeException $e) {
             return redirect()->to('/socios/formularios/' . $id . '/rellenar')->with('error', $e->getMessage());
@@ -351,7 +379,7 @@ class SociosFormularios extends BaseController
         }
 
         $plantilla = SocioFormService::plantillaOfEmpresa($id, $memb['empresa_id']);
-        if ($plantilla === null || (int) $plantilla['activo'] !== 1) {
+        if ($plantilla === null || ! SocioFormService::plantillaUsable($plantilla, (string) $memb['empresa_id'])) {
             return redirect()->to('/socios/formularios')->with('error', 'Plantilla no disponible.');
         }
 

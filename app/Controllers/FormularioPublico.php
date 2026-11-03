@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Libraries\RecursoSistema;
 use App\Libraries\SocioFormService;
 use App\Models\SocioFormPlantillaModel;
 use App\Models\SocioFormShareModel;
@@ -31,6 +32,15 @@ class FormularioPublico extends BaseController
         }
         $plantilla = model(SocioFormPlantillaModel::class)->find($share['plantilla_id']);
         if (! is_array($plantilla) || (int) $plantilla['activo'] !== 1) {
+            return null;
+        }
+        $empresaId = (string) $share['empresa_id'];
+        if (RecursoSistema::isGenerica($plantilla)) {
+            $clave = (string) $plantilla['clave_sistema'];
+            if (! RecursoSistema::isActivo($empresaId, RecursoSistema::TIPO_FORM_PLANTILLA, $clave)) {
+                return null;
+            }
+        } elseif ((string) ($plantilla['empresa_id'] ?? '') !== $empresaId) {
             return null;
         }
 
@@ -155,7 +165,8 @@ class FormularioPublico extends BaseController
                 $actorId,
                 $shareId,
                 $post,
-                $files
+                $files,
+                (string) $share['empresa_id']
             );
         } catch (RuntimeException $e) {
             return redirect()->to('/f/' . $token)->with('error', $e->getMessage());
