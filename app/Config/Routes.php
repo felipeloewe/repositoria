@@ -34,6 +34,11 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('organizacion/actividad', 'Organizacion::storeActividad');
     $routes->post('organizacion/tema', 'Organizacion::storeTema');
     $routes->post('organizacion/membresia', 'Organizacion::storeMembresia');
+    $routes->post('organizacion/membresia/socio', 'Organizacion::updateMembresiaSocio');
+
+    // Menú Socios — documentos exclusivos (ambito=socio)
+    $routes->get('socios', 'DocumentosSocios::index');
+    $routes->post('socios/upload', 'DocumentosSocios::upload');
 
     // Admin central — empresas/planes + promoción filial (b) → empresa (a)
     $routes->get('admin/empresas', 'AdminCentral::empresas');

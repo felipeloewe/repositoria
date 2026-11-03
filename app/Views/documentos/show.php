@@ -27,7 +27,11 @@ $cadena = $cadena ?? [];
 <?php endif; ?>
 
 <div class="admin-subnav">
-    <a href="<?= site_url('documentos') ?>">← Volver al listado</a>
+    <?php if (($doc['ambito'] ?? 'general') === 'socio'): ?>
+        <a href="<?= site_url('socios') ?>">← Volver a Socios</a>
+    <?php else: ?>
+        <a href="<?= site_url('documentos') ?>">← Volver al listado</a>
+    <?php endif; ?>
 </div>
 
 <div class="card section-card">

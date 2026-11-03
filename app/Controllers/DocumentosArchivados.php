@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Libraries\DocumentAcl;
 use App\Libraries\DocumentArchiveService;
 use App\Libraries\DocumentLifecycle;
 use App\Libraries\DocumentStorage;
@@ -46,6 +47,18 @@ class DocumentosArchivados extends BaseController
             ->orderBy('archivado_at', 'DESC')
             ->findAll();
 
+        // Docs socio solo visibles a membresías con es_socio (no mezclar en panel Master general).
+        $docs = array_values(array_filter(
+            $docs,
+            static function (array $d) use ($memb): bool {
+                if (DocumentAcl::normalizeAmbito($d['ambito'] ?? null) !== DocumentAcl::AMBITO_SOCIO) {
+                    return true;
+                }
+
+                return DocumentAcl::isSocio($memb);
+            }
+        ));
+
         $tipos = model(DocumentoTipoModel::class)
             ->where('empresa_id', $memb['empresa_id'])
             ->findAll();
@@ -85,6 +98,7 @@ class DocumentosArchivados extends BaseController
                AND estado = ?
                AND blob_eliminado_at IS NULL
                AND archivado_at IS NOT NULL
+               AND (ambito = 'general' OR ambito IS NULL OR ambito = '')
              GROUP BY DATE_FORMAT(archivado_at, '%Y-%m')
              ORDER BY periodo DESC",
             [$memb['empresa_id'], DocumentLifecycle::ARCHIVADO]

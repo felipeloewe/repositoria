@@ -68,8 +68,29 @@
                     <option value="<?= esc($s['id']) ?>"><?= esc($s['nombre']) ?></option>
                 <?php endforeach; ?>
             </select>
+            <div id="socio-field" class="socio-field" hidden>
+                <label class="check-label" for="user_socio">
+                    <input id="user_socio" type="checkbox" name="es_socio" value="1" <?= $blocked ? 'disabled' : '' ?>>
+                    Socio — activa Menú Socios (documentos exclusivos de socios / representantes legales)
+                </label>
+            </div>
             <button class="btn btn-primary" type="submit" <?= $blocked ? 'disabled' : '' ?>>Agregar usuario</button>
         </form>
+        <script>
+        (function () {
+          var rol = document.getElementById('user_rol');
+          var wrap = document.getElementById('socio-field');
+          var box = document.getElementById('user_socio');
+          if (!rol || !wrap || !box) return;
+          function sync() {
+            var isMaster = rol.value === 'ADMINISTRADOR_MASTER';
+            wrap.hidden = !isMaster;
+            if (!isMaster) box.checked = false;
+          }
+          rol.addEventListener('change', sync);
+          sync();
+        })();
+        </script>
     </div>
     <div class="card">
         <h3>Miembros activos</h3>
@@ -77,13 +98,30 @@
             <p class="hint">Sin membresías.</p>
         <?php else: ?>
             <table class="table">
-                <thead><tr><th>Nombre</th><th>Rol</th><th>Sucursal</th></tr></thead>
+                <thead><tr><th>Nombre</th><th>Rol</th><th>Sucursal</th><th>Socio</th></tr></thead>
                 <tbody>
                 <?php foreach ($miembros as $m): ?>
                     <tr>
                         <td><?= esc($m['usuario_nombre']) ?><br><small><?= esc($m['usuario_email']) ?></small></td>
                         <td><?= esc(\App\Libraries\Roles::label($m['rol'])) ?></td>
                         <td><?= esc($m['sucursal_nombre'] ?? '—') ?></td>
+                        <td>
+                            <?php if (\App\Libraries\Roles::isMaster($m['rol'])): ?>
+                                <form method="post" action="<?= site_url('organizacion/membresia/socio') ?>" style="display:inline">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="membresia_id" value="<?= esc($m['id']) ?>">
+                                    <?php if ((int) ($m['es_socio'] ?? 0) === 1): ?>
+                                        <input type="hidden" name="es_socio" value="0">
+                                        <button class="btn btn-ghost btn-sm" type="submit" title="Desactivar Socio">Sí · quitar</button>
+                                    <?php else: ?>
+                                        <input type="hidden" name="es_socio" value="1">
+                                        <button class="btn btn-primary btn-sm" type="submit" title="Activar Socio">No · activar</button>
+                                    <?php endif; ?>
+                                </form>
+                            <?php else: ?>
+                                <span class="muted">—</span>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

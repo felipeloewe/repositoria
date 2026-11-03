@@ -165,22 +165,23 @@ class DemoSeeder extends Seeder
         }
         $this->db->table('usuarios')->insertBatch($userRows);
 
+        // [usuario, empresa, rol, sucursal, es_socio]
         $membRows = [
-            [$users['admin']['id'], $empresaDemo, Roles::ADMINISTRADOR_MASTER, null],
-            [$users['jefeNorte']['id'], $empresaDemo, Roles::JEFE_SUCURSAL, $sucNorte],
-            [$users['jefeSur']['id'], $empresaDemo, Roles::JEFE_SUCURSAL, $sucSur],
-            [$users['contador']['id'], $empresaDemo, Roles::CONTADOR, null],
-            [$users['abogado']['id'], $empresaDemo, Roles::ABOGADO, null],
-            [$users['prevencionista']['id'], $empresaDemo, Roles::PREVENCIONISTA, null],
-            [$users['multi']['id'], $empresaDemo, Roles::CONTADOR, null],
-            [$users['multi']['id'], $empresaBeta, Roles::ADMINISTRADOR_MASTER, null],
+            [$users['admin']['id'], $empresaDemo, Roles::ADMINISTRADOR_MASTER, null, 1],
+            [$users['jefeNorte']['id'], $empresaDemo, Roles::JEFE_SUCURSAL, $sucNorte, 0],
+            [$users['jefeSur']['id'], $empresaDemo, Roles::JEFE_SUCURSAL, $sucSur, 0],
+            [$users['contador']['id'], $empresaDemo, Roles::CONTADOR, null, 0],
+            [$users['abogado']['id'], $empresaDemo, Roles::ABOGADO, null, 0],
+            [$users['prevencionista']['id'], $empresaDemo, Roles::PREVENCIONISTA, null, 0],
+            [$users['multi']['id'], $empresaDemo, Roles::CONTADOR, null, 0],
+            [$users['multi']['id'], $empresaBeta, Roles::ADMINISTRADOR_MASTER, null, 0],
         ];
 
         $batch = [];
-        foreach ($membRows as [$uid, $eid, $rol, $sid]) {
+        foreach ($membRows as [$uid, $eid, $rol, $sid, $esSocio]) {
             $batch[] = [
                 'id' => new_id(), 'empresa_id' => $eid, 'usuario_id' => $uid,
-                'rol' => $rol, 'sucursal_id' => $sid, 'activa' => 1,
+                'rol' => $rol, 'sucursal_id' => $sid, 'activa' => 1, 'es_socio' => $esSocio,
                 'created_at' => $now, 'updated_at' => $now,
             ];
         }
@@ -417,6 +418,7 @@ class DemoSeeder extends Seeder
                 'departamento_id'       => $d['departamento_id'],
                 'seccion_id'            => $d['seccion_id'],
                 'sucursal_id'           => $d['sucursal_id'],
+                'ambito'                => 'general',
                 'tipo_id'               => $d['tipo_id'],
                 'estado'                => $d['estado'],
                 'version_actual'        => $d['version_actual'],
@@ -510,6 +512,58 @@ class DemoSeeder extends Seeder
                 ]);
             }
         }
+
+        // Documento exclusivo de socios (ambito=socio) — solo visible con es_socio
+        $docSocio = new_id();
+        $socioBody = "Poder de representación legal — uso interno socios.\n";
+        $socioSaved = DocumentStorage::save($empresaDemo, $docSocio, 'poder-representacion.txt', $socioBody, 'socio');
+        $this->db->table('documentos')->insert([
+            'id'                    => $docSocio,
+            'empresa_id'            => $empresaDemo,
+            'departamento_id'       => $deptoOps,
+            'seccion_id'            => null,
+            'sucursal_id'           => null,
+            'ambito'                => 'socio',
+            'tipo_id'               => $tipoIds['VIGENTE'],
+            'estado'                => 'VIGENTE',
+            'version_actual'        => 1,
+            'vence_at'              => $venceFuturo,
+            'alerta_dias'           => 30,
+            'fecha_termino'         => $venceFuturo,
+            'renueva_de_id'         => null,
+            'cadena_id'             => $docSocio,
+            'cabecera_partes'       => 'Socios Empresa Demo',
+            'cabecera_asunto'       => 'Poder de representación',
+            'cabecera_inicio'       => date('Y-m-d', strtotime('-60 days')),
+            'cabecera_termino'      => $venceFuturo,
+            'cabecera_autorizantes' => 'Junta de socios',
+            'titulo'                => 'Poder de representación — socios',
+            'nombre_archivo'        => 'poder-representacion.txt',
+            'ruta_relativa'         => $socioSaved['ruta_relativa'],
+            'mime'                  => 'text/plain',
+            'tamano_bytes'          => $socioSaved['tamano_bytes'],
+            'subido_por_id'         => $users['admin']['id'],
+            'created_at'            => $now,
+            'updated_at'            => $now,
+        ]);
+        $this->db->table('documento_versiones')->insert([
+            'id' => new_id(), 'empresa_id' => $empresaDemo, 'documento_id' => $docSocio,
+            'version_num' => 1, 'nombre_archivo' => 'poder-representacion.txt',
+            'ruta_relativa' => $socioSaved['ruta_relativa'], 'mime' => 'text/plain',
+            'tamano_bytes' => $socioSaved['tamano_bytes'],
+            'notas' => 'Versión inicial (socios)', 'creado_por_id' => $users['admin']['id'],
+            'created_at' => $now,
+        ]);
+        $this->db->table('documento_estado_historial')->insert([
+            'id' => new_id(), 'empresa_id' => $empresaDemo, 'documento_id' => $docSocio,
+            'estado_desde' => null, 'estado_hasta' => 'EN_ELABORACION',
+            'actor_id' => $users['admin']['id'], 'nota' => 'Alta socio (seed)', 'created_at' => $now,
+        ]);
+        $this->db->table('documento_estado_historial')->insert([
+            'id' => new_id(), 'empresa_id' => $empresaDemo, 'documento_id' => $docSocio,
+            'estado_desde' => 'EN_ELABORACION', 'estado_hasta' => 'VIGENTE',
+            'actor_id' => $users['admin']['id'], 'nota' => 'Publicado (seed)', 'created_at' => $now,
+        ]);
 
         // --- Fase 4 demos ---
         if ($this->db->tableExists('fiscalizacion_solicitudes')) {

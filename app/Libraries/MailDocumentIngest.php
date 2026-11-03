@@ -77,6 +77,7 @@ final class MailDocumentIngest
             'departamento_id' => $seccion['departamento_id'],
             'sucursal_id'     => $seccion['sucursal_id'],
             'seccion_id'      => $seccion['id'],
+            'ambito'          => DocumentAcl::AMBITO_GENERAL,
             'titulo'          => $titulo,
             'nombre_archivo'  => $file['filename'],
             'ruta_relativa'   => 'pending',
