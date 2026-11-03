@@ -348,7 +348,7 @@ input:focus, select:focus {
 .content { padding: 1.25rem 1.5rem 2rem; }
 
 .banner {
-  background: linear-gradient(120deg, var(--blue-600), #3b82f6 45%, #60a5fa);
+  background: #3E62A0;
   color: #fff;
   border-radius: var(--radius);
   padding: 1.4rem 1.5rem;
