@@ -4,84 +4,139 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Libraries\EmpresaFormService;
+use App\Libraries\FormEngine;
 use App\Libraries\RecursoSistema;
 use App\Libraries\SocioFormService;
+use App\Models\EmpresaFormPlantillaModel;
+use App\Models\EmpresaFormShareModel;
 use App\Models\SocioFormPlantillaModel;
 use App\Models\SocioFormShareModel;
 use RuntimeException;
 
 /**
- * Fill público de formularios de socios vía /f/{token} + contraseña dinámica.
+ * Fill público de formularios (socios o empresa) vía /f/{token} + contraseña dinámica.
  * Sin login; sesión solo para gate de unlock del share.
  */
 class FormularioPublico extends BaseController
 {
-    private function sessionKey(string $shareId): string
+    private const SCOPE_SOCIO   = 'socio';
+    private const SCOPE_EMPRESA = 'empresa';
+
+    private function sessionKey(string $scope, string $shareId): string
     {
-        return 'socio_form_unlock_' . $shareId;
+        return 'form_unlock_' . $scope . '_' . $shareId;
     }
 
     /**
-     * @return array{share: array<string, mixed>, plantilla: array<string, mixed>}|null
+     * @return array{
+     *   scope: string,
+     *   share: array<string, mixed>,
+     *   plantilla: array<string, mixed>,
+     *   label: string
+     * }|null
      */
     private function resolveShare(string $token): ?array
     {
-        $share = model(SocioFormShareModel::class)->where('token', $token)->first();
-        if (! is_array($share)) {
+        $socio = model(SocioFormShareModel::class)->where('token', $token)->first();
+        if (is_array($socio)) {
+            $plantilla = model(SocioFormPlantillaModel::class)->find($socio['plantilla_id']);
+            if (! is_array($plantilla) || (int) $plantilla['activo'] !== 1) {
+                return null;
+            }
+            $empresaId = (string) $socio['empresa_id'];
+            if (RecursoSistema::isGenerica($plantilla)) {
+                $clave = (string) $plantilla['clave_sistema'];
+                if (! RecursoSistema::isActivo($empresaId, RecursoSistema::TIPO_FORM_PLANTILLA, $clave)) {
+                    return null;
+                }
+            } elseif ((string) ($plantilla['empresa_id'] ?? '') !== $empresaId) {
+                return null;
+            }
+
+            return [
+                'scope'     => self::SCOPE_SOCIO,
+                'share'     => $socio,
+                'plantilla' => $plantilla,
+                'label'     => 'Formulario de socios',
+            ];
+        }
+
+        $empresa = model(EmpresaFormShareModel::class)->where('token', $token)->first();
+        if (! is_array($empresa)) {
             return null;
         }
-        $plantilla = model(SocioFormPlantillaModel::class)->find($share['plantilla_id']);
+        $plantilla = model(EmpresaFormPlantillaModel::class)->find($empresa['plantilla_id']);
         if (! is_array($plantilla) || (int) $plantilla['activo'] !== 1) {
             return null;
         }
-        $empresaId = (string) $share['empresa_id'];
+        $empresaId = (string) $empresa['empresa_id'];
         if (RecursoSistema::isGenerica($plantilla)) {
             $clave = (string) $plantilla['clave_sistema'];
-            if (! RecursoSistema::isActivo($empresaId, RecursoSistema::TIPO_FORM_PLANTILLA, $clave)) {
+            if (! RecursoSistema::isActivo($empresaId, RecursoSistema::TIPO_FORM_PLANTILLA_EMPRESA, $clave)) {
                 return null;
             }
         } elseif ((string) ($plantilla['empresa_id'] ?? '') !== $empresaId) {
             return null;
         }
 
-        return ['share' => $share, 'plantilla' => $plantilla];
+        return [
+            'scope'     => self::SCOPE_EMPRESA,
+            'share'     => $empresa,
+            'plantilla' => $plantilla,
+            'label'     => 'Formulario de empresa',
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function camposFor(string $scope, string $plantillaId): array
+    {
+        return $scope === self::SCOPE_EMPRESA
+            ? EmpresaFormService::camposOrdenados($plantillaId)
+            : SocioFormService::camposOrdenados($plantillaId);
     }
 
     public function gate(string $token)
     {
         $resolved = $this->resolveShare($token);
         if ($resolved === null) {
-            return view('socios/publico_error', [
+            return view('formularios/publico_error', [
                 'title' => 'Formulario',
                 'error' => 'Enlace no válido o plantilla inactiva.',
+                'label' => 'Formulario',
             ]);
         }
 
-        $usable = SocioFormService::shareIsUsable($resolved['share']);
+        $usable = FormEngine::shareIsUsable($resolved['share']);
         if (! $usable['ok']) {
-            return view('socios/publico_error', [
+            return view('formularios/publico_error', [
                 'title' => 'Formulario',
                 'error' => $usable['error'] ?? 'Enlace no disponible.',
+                'label' => $resolved['label'],
             ]);
         }
 
-        $unlocked = (bool) session()->get($this->sessionKey((string) $resolved['share']['id']));
+        $unlocked = (bool) session()->get($this->sessionKey($resolved['scope'], (string) $resolved['share']['id']));
         if (! $unlocked) {
-            return view('socios/publico_unlock', [
+            return view('formularios/publico_unlock', [
                 'title'     => 'Formulario',
                 'token'     => $token,
                 'plantilla' => $resolved['plantilla'],
+                'label'     => $resolved['label'],
                 'error'     => session()->getFlashdata('error'),
             ]);
         }
 
-        $campos = SocioFormService::camposOrdenados((string) $resolved['plantilla']['id']);
+        $campos = $this->camposFor($resolved['scope'], (string) $resolved['plantilla']['id']);
 
-        return view('socios/publico_fill', [
+        return view('formularios/publico_fill', [
             'title'     => 'Formulario',
             'token'     => $token,
             'plantilla' => $resolved['plantilla'],
             'campos'    => $campos,
+            'label'     => $resolved['label'],
             'error'     => session()->getFlashdata('error'),
             'success'   => session()->getFlashdata('success'),
         ]);
@@ -94,7 +149,7 @@ class FormularioPublico extends BaseController
             return redirect()->to('/f/' . $token);
         }
 
-        $usable = SocioFormService::shareIsUsable($resolved['share']);
+        $usable = FormEngine::shareIsUsable($resolved['share']);
         if (! $usable['ok']) {
             return redirect()->to('/f/' . $token)->with('error', $usable['error'] ?? 'No disponible.');
         }
@@ -104,7 +159,7 @@ class FormularioPublico extends BaseController
             return redirect()->to('/f/' . $token)->with('error', 'Contraseña incorrecta.');
         }
 
-        session()->set($this->sessionKey((string) $resolved['share']['id']), true);
+        session()->set($this->sessionKey($resolved['scope'], (string) $resolved['share']['id']), true);
 
         return redirect()->to('/f/' . $token);
     }
@@ -113,31 +168,36 @@ class FormularioPublico extends BaseController
     {
         $resolved = $this->resolveShare($token);
         if ($resolved === null) {
-            return view('socios/publico_error', [
+            return view('formularios/publico_error', [
                 'title' => 'Formulario',
                 'error' => 'Enlace no válido.',
+                'label' => 'Formulario',
             ]);
         }
 
+        $scope     = $resolved['scope'];
         $share     = $resolved['share'];
         $plantilla = $resolved['plantilla'];
         $shareId   = (string) $share['id'];
 
-        if (! session()->get($this->sessionKey($shareId))) {
+        if (! session()->get($this->sessionKey($scope, $shareId))) {
             return redirect()->to('/f/' . $token)->with('error', 'Debes desbloquear el formulario con la contraseña.');
         }
 
-        // Re-read share for race on usos
-        $share = model(SocioFormShareModel::class)->find($shareId);
+        if ($scope === self::SCOPE_EMPRESA) {
+            $share = model(EmpresaFormShareModel::class)->find($shareId);
+        } else {
+            $share = model(SocioFormShareModel::class)->find($shareId);
+        }
         if (! is_array($share)) {
             return redirect()->to('/f/' . $token)->with('error', 'Enlace no válido.');
         }
-        $usable = SocioFormService::shareIsUsable($share);
+        $usable = FormEngine::shareIsUsable($share);
         if (! $usable['ok']) {
             return redirect()->to('/f/' . $token)->with('error', $usable['error'] ?? 'No disponible.');
         }
 
-        $campos = SocioFormService::camposOrdenados((string) $plantilla['id']);
+        $campos = $this->camposFor($scope, (string) $plantilla['id']);
         $titulo = trim((string) $this->request->getPost('titulo'));
         if ($titulo === '') {
             $titulo = (string) $plantilla['nombre'] . ' — ' . date('Y-m-d');
@@ -156,27 +216,43 @@ class FormularioPublico extends BaseController
         $actorId = (string) $share['created_by_id'];
 
         try {
-            (new SocioFormService())->completeFill(
-                $plantilla,
-                $campos,
-                $titulo,
-                SocioFormService::ORIGEN_PUBLICO,
-                null,
-                $actorId,
-                $shareId,
-                $post,
-                $files,
-                (string) $share['empresa_id']
-            );
+            if ($scope === self::SCOPE_EMPRESA) {
+                (new EmpresaFormService())->completeFill(
+                    $plantilla,
+                    $campos,
+                    $titulo,
+                    EmpresaFormService::ORIGEN_PUBLICO,
+                    null,
+                    $actorId,
+                    $shareId,
+                    $post,
+                    $files,
+                    (string) $share['empresa_id']
+                );
+            } else {
+                (new SocioFormService())->completeFill(
+                    $plantilla,
+                    $campos,
+                    $titulo,
+                    SocioFormService::ORIGEN_PUBLICO,
+                    null,
+                    $actorId,
+                    $shareId,
+                    $post,
+                    $files,
+                    (string) $share['empresa_id']
+                );
+            }
         } catch (RuntimeException $e) {
             return redirect()->to('/f/' . $token)->with('error', $e->getMessage());
         }
 
-        session()->remove($this->sessionKey($shareId));
+        session()->remove($this->sessionKey($scope, $shareId));
 
-        return view('socios/publico_done', [
+        return view('formularios/publico_done', [
             'title'     => 'Formulario',
             'plantilla' => $plantilla,
+            'label'     => $resolved['label'],
         ]);
     }
 }

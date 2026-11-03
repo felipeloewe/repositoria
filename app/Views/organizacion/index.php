@@ -16,7 +16,7 @@
 
 <div class="card section-card">
     <h3>Recursos genéricos</h3>
-    <p class="hint">Plantillas y documentos de sistema compartidos por todas las empresas. Activos por defecto; puedes desactivarlos solo para esta empresa. El mismo patrón aplica a futuros documentos genéricos.</p>
+    <p class="hint">Plantillas y documentos de sistema compartidos por todas las empresas. Activos por defecto; puedes desactivarlos solo para esta empresa. Incluye genéricas de <strong>Socios</strong> (<code>form_plantilla</code>) y de <strong>Formulario empresa</strong> (<code>form_plantilla_empresa</code>), independientes entre sí.</p>
     <?php if (empty($recursosSistema)): ?>
         <p class="muted">Sin recursos genéricos publicados.</p>
     <?php else: ?>
@@ -37,7 +37,7 @@
                         <br><span class="muted" style="font-size:.85rem"><?= esc($rec['descripcion']) ?></span>
                         <br><code><?= esc($rec['clave']) ?></code>
                     </td>
-                    <td><?= esc($rec['tipo'] === 'form_plantilla' ? 'Plantilla formulario' : 'Documento') ?></td>
+                    <td><?= esc(\App\Libraries\RecursoSistema::labelTipo((string) $rec['tipo'])) ?></td>
                     <td>
                         <?php if (! empty($rec['activo'])): ?>
                             <span class="tag tag-oficial">Activa</span>

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Libraries\FormEngine;
 use App\Libraries\SocioFormService;
 use CodeIgniter\Test\CIUnitTestCase;
 
@@ -15,6 +16,10 @@ final class SocioFormServiceTest extends CIUnitTestCase
         $this->assertSame('nombre_completo', SocioFormService::slugifyClave('Nombre completo'));
         $this->assertSame('fecha_del_poder', SocioFormService::slugifyClave('Fecha del poder'));
         $this->assertSame('campo', SocioFormService::slugifyClave('!!!'));
+        $this->assertSame(
+            FormEngine::slugifyClave('Nombre completo'),
+            SocioFormService::slugifyClave('Nombre completo')
+        );
     }
 
     public function testShareIsUsableRespectsRevokeExpiryAndUses(): void

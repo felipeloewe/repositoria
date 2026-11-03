@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Libraries\DocumentAcl;
+use App\Libraries\FormEngine;
 use App\Libraries\MembershipAuth;
 use App\Libraries\RecursoSistema;
 use App\Libraries\SocioFormService;
@@ -403,8 +404,14 @@ class SociosFormularios extends BaseController
             $expira = date('Y-m-d H:i:s', time() + ($horas * 3600));
         }
 
-        $token    = bin2hex(random_bytes(16));
-        $password = self::mintPassword();
+        // Evitar colisión con shares de empresa (misma ruta pública /f/{token}).
+        do {
+            $token = bin2hex(random_bytes(16));
+            $clashSocio   = model(SocioFormShareModel::class)->where('token', $token)->first();
+            $clashEmpresa = model(\App\Models\EmpresaFormShareModel::class)->where('token', $token)->first();
+        } while ($clashSocio !== null || $clashEmpresa !== null);
+
+        $password = FormEngine::mintPassword();
         $shareId  = new_id();
 
         model(SocioFormShareModel::class)->insert([
@@ -484,17 +491,5 @@ class SociosFormularios extends BaseController
             'campos'     => $campos,
             'respuestas' => $respuestas,
         ]);
-    }
-
-    private static function mintPassword(): string
-    {
-        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
-        $out      = '';
-        $len      = strlen($alphabet);
-        for ($i = 0; $i < 10; $i++) {
-            $out .= $alphabet[random_int(0, $len - 1)];
-        }
-
-        return $out;
     }
 }
