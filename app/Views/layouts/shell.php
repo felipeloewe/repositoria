@@ -43,7 +43,7 @@
                     <a href="<?= site_url('documentos/archivados/respaldo') ?>" class="nav-sub <?= ($title ?? '') === 'Respaldo archivados' ? 'active' : '' ?>" data-nav="respaldo"><span class="nav-label">Respaldo</span></a>
                 <?php endif; ?>
                 <?php if (\App\Libraries\DocumentAcl::isSocio($memb)): ?>
-                    <a href="<?= site_url('socios') ?>" class="<?= ($title ?? '') === 'Socios' ? 'active' : '' ?>" data-nav="socios"><span class="nav-label">Socios</span></a>
+                    <a href="<?= site_url('socios') ?>" class="<?= in_array(($title ?? ''), ['Socios', 'Formularios socios'], true) ? 'active' : '' ?>" data-nav="socios"><span class="nav-label">Socios</span></a>
                 <?php endif; ?>
 
                 <p class="nav-section">Canales</p>

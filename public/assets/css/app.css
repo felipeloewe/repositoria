@@ -526,3 +526,38 @@ input:focus, select:focus {
   border-radius: 12px;
 }
 .correo-link-form label { margin-top: .65rem; }
+
+/* Socios — Documentos | Formularios */
+.socios-tabs {
+  display: flex;
+  gap: .35rem;
+  margin: 0 0 1.1rem;
+  padding: .3rem;
+  background: rgba(47, 50, 96, 0.06);
+  border-radius: 14px;
+  width: fit-content;
+  max-width: 100%;
+  font-family: var(--font-nav);
+}
+.socios-tabs a {
+  display: inline-block;
+  padding: .55rem 1.1rem;
+  border-radius: 10px;
+  color: var(--nav-navy);
+  font-weight: 600;
+  font-size: .92rem;
+  text-decoration: none;
+}
+.socios-tabs a:hover { background: rgba(47, 158, 154, 0.12); text-decoration: none; }
+.socios-tabs a.is-active {
+  background: var(--nav-navy);
+  color: #fff;
+}
+.share-creds code {
+  display: inline-block;
+  margin: .15rem 0;
+  padding: .15rem .4rem;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 6px;
+  word-break: break-all;
+}

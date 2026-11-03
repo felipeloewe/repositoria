@@ -23,6 +23,11 @@ $routes->get('registro/cancelar', 'Registro::cancel');
 // Fase 3 webhook (no session auth; optional shared secret)
 $routes->post('api/webhooks/imap-mail', 'Webhook::imapMail');
 
+// Formularios de socios — fill público (token + password; sin login)
+$routes->get('f/(:segment)', 'FormularioPublico::gate/$1');
+$routes->post('f/(:segment)/unlock', 'FormularioPublico::unlock/$1');
+$routes->post('f/(:segment)', 'FormularioPublico::submit/$1');
+
 $routes->group('', ['filter' => 'auth'], static function (RouteCollection $routes): void {
     $routes->get('dashboard', 'Dashboard::index');
     $routes->get('empresa/cambiar', 'Auth::switchEmpresa');
@@ -36,9 +41,22 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('organizacion/membresia', 'Organizacion::storeMembresia');
     $routes->post('organizacion/membresia/socio', 'Organizacion::updateMembresiaSocio');
 
-    // Menú Socios — documentos exclusivos (ambito=socio)
+    // Menú Socios — documentos exclusivos (ambito=socio) + formularios
     $routes->get('socios', 'DocumentosSocios::index');
     $routes->post('socios/upload', 'DocumentosSocios::upload');
+    $routes->get('socios/formularios', 'SociosFormularios::index');
+    $routes->get('socios/formularios/nueva', 'SociosFormularios::createForm');
+    $routes->post('socios/formularios', 'SociosFormularios::store');
+    $routes->get('socios/formularios/instancias/(:segment)', 'SociosFormularios::showInstancia/$1');
+    $routes->get('socios/formularios/(:segment)', 'SociosFormularios::show/$1');
+    $routes->post('socios/formularios/(:segment)', 'SociosFormularios::update/$1');
+    $routes->post('socios/formularios/(:segment)/toggle', 'SociosFormularios::toggle/$1');
+    $routes->post('socios/formularios/(:segment)/campos', 'SociosFormularios::storeCampo/$1');
+    $routes->post('socios/formularios/(:segment)/campos/(:segment)/delete', 'SociosFormularios::deleteCampo/$1/$2');
+    $routes->get('socios/formularios/(:segment)/rellenar', 'SociosFormularios::fillForm/$1');
+    $routes->post('socios/formularios/(:segment)/rellenar', 'SociosFormularios::fillSubmit/$1');
+    $routes->post('socios/formularios/(:segment)/compartir', 'SociosFormularios::share/$1');
+    $routes->post('socios/formularios/(:segment)/shares/(:segment)/revoke', 'SociosFormularios::revokeShare/$1/$2');
 
     // Admin central — empresas/planes + promoción filial (b) → empresa (a)
     $routes->get('admin/empresas', 'AdminCentral::empresas');
