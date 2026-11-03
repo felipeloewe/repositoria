@@ -7,7 +7,7 @@
     <p><?= esc($plantilla['descripcion'] ?: 'Plantilla de formulario de socios.') ?></p>
 </section>
 
-<?= $this->include('socios/_tabs', ['tab' => 'formularios']) ?>
+<?= view('socios/_tabs', ['tab' => 'formularios']) ?>
 
 <?php if (! empty($success)): ?>
     <div class="alert alert-ok"><?= esc($success) ?></div>

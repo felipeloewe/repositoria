@@ -11,7 +11,7 @@
     </p>
 </section>
 
-<?= $this->include('socios/_tabs', ['tab' => 'formularios']) ?>
+<?= view('socios/_tabs', ['tab' => 'formularios']) ?>
 
 <p class="muted"><a href="<?= site_url('socios/formularios') ?>">← Formularios</a>
 <?php if (! empty($instancia['documento_id'])): ?>

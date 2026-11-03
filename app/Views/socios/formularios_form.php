@@ -7,7 +7,7 @@
     <p>Define el nombre; luego agregarás los campos (texto, fecha, archivo).</p>
 </section>
 
-<?= $this->include('socios/_tabs', ['tab' => 'formularios']) ?>
+<?= view('socios/_tabs', ['tab' => 'formularios']) ?>
 
 <?php if (! empty($error)): ?>
     <div class="alert alert-error"><?= esc($error) ?></div>
