@@ -28,6 +28,7 @@ class DemoSeeder extends Seeder
             'promocion_sucursal_auditoria',
             'canal_paquete_auditoria', 'canal_paquete_documentos', 'canal_paquetes',
             'fiscalizacion_auditoria', 'fiscalizacion_documentos', 'fiscalizacion_solicitudes',
+            'socio_form_instancias', 'socio_form_shares', 'socio_form_campos', 'socio_form_plantillas',
             'documento_archivo_respaldos',
             'documento_cambios', 'documento_estado_historial', 'documento_versiones',
             'documento_autorizaciones', 'documentos', 'documento_tipos', 'documento_secciones',
@@ -564,6 +565,38 @@ class DemoSeeder extends Seeder
             'estado_desde' => 'EN_ELABORACION', 'estado_hasta' => 'VIGENTE',
             'actor_id' => $users['admin']['id'], 'nota' => 'Publicado (seed)', 'created_at' => $now,
         ]);
+
+        // Plantilla demo Formularios de socios
+        if ($this->db->tableExists('socio_form_plantillas')) {
+            $plantillaId = new_id();
+            $this->db->table('socio_form_plantillas')->insert([
+                'id'            => $plantillaId,
+                'empresa_id'    => $empresaDemo,
+                'nombre'        => 'Ficha representante legal',
+                'descripcion'   => 'Datos básicos del representante para terceros.',
+                'activo'        => 1,
+                'creado_por_id' => $users['admin']['id'],
+                'created_at'    => $now,
+                'updated_at'    => $now,
+            ]);
+            $this->db->table('socio_form_campos')->insertBatch([
+                [
+                    'id' => new_id(), 'plantilla_id' => $plantillaId,
+                    'clave' => 'nombre_completo', 'etiqueta' => 'Nombre completo',
+                    'tipo' => 'text', 'obligatorio' => 1, 'orden' => 1, 'created_at' => $now,
+                ],
+                [
+                    'id' => new_id(), 'plantilla_id' => $plantillaId,
+                    'clave' => 'fecha_poder', 'etiqueta' => 'Fecha del poder',
+                    'tipo' => 'date', 'obligatorio' => 1, 'orden' => 2, 'created_at' => $now,
+                ],
+                [
+                    'id' => new_id(), 'plantilla_id' => $plantillaId,
+                    'clave' => 'anexo', 'etiqueta' => 'Anexo (opcional)',
+                    'tipo' => 'file', 'obligatorio' => 0, 'orden' => 3, 'created_at' => $now,
+                ],
+            ]);
+        }
 
         // --- Fase 4 demos ---
         if ($this->db->tableExists('fiscalizacion_solicitudes')) {
