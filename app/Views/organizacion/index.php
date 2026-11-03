@@ -14,6 +14,58 @@
     <div class="alert alert-error"><?= esc($error) ?></div>
 <?php endif; ?>
 
+<div class="card section-card">
+    <h3>Recursos genéricos</h3>
+    <p class="hint">Plantillas y documentos de sistema compartidos por todas las empresas. Activos por defecto; puedes desactivarlos solo para esta empresa. El mismo patrón aplica a futuros documentos genéricos.</p>
+    <?php if (empty($recursosSistema)): ?>
+        <p class="muted">Sin recursos genéricos publicados.</p>
+    <?php else: ?>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Recurso</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($recursosSistema as $rec): ?>
+                <tr>
+                    <td>
+                        <strong><?= esc($rec['nombre']) ?></strong>
+                        <br><span class="muted" style="font-size:.85rem"><?= esc($rec['descripcion']) ?></span>
+                        <br><code><?= esc($rec['clave']) ?></code>
+                    </td>
+                    <td><?= esc($rec['tipo'] === 'form_plantilla' ? 'Plantilla formulario' : 'Documento') ?></td>
+                    <td>
+                        <?php if (! empty($rec['activo'])): ?>
+                            <span class="tag tag-oficial">Activa</span>
+                        <?php else: ?>
+                            <span class="tag">Inactiva</span>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <form method="post" action="<?= site_url('organizacion/recursos-sistema/toggle') ?>">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="recurso_tipo" value="<?= esc($rec['tipo']) ?>">
+                            <input type="hidden" name="recurso_clave" value="<?= esc($rec['clave']) ?>">
+                            <?php if (! empty($rec['activo'])): ?>
+                                <input type="hidden" name="activo" value="0">
+                                <button class="btn btn-ghost btn-sm" type="submit">Desactivar</button>
+                            <?php else: ?>
+                                <input type="hidden" name="activo" value="1">
+                                <button class="btn btn-primary btn-sm" type="submit">Activar</button>
+                            <?php endif; ?>
+                        </form>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+</div>
+
 <?php if (! empty($planSnap)): ?>
 <div class="card section-card">
     <h3>Plan y cupos</h3>

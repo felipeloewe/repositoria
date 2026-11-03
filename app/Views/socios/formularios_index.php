@@ -52,9 +52,13 @@
         </thead>
         <tbody>
         <?php foreach ($plantillas as $p): ?>
+            <?php $esGenerica = ! empty($p['clave_sistema']); ?>
             <tr>
                 <td>
                     <a href="<?= site_url('socios/formularios/' . $p['id']) ?>"><strong><?= esc($p['nombre']) ?></strong></a>
+                    <?php if ($esGenerica): ?>
+                        <span class="tag" title="Plantilla genérica de sistema">Genérica</span>
+                    <?php endif; ?>
                     <?php if (! empty($p['descripcion'])): ?>
                         <br><span class="muted" style="font-size:.85rem"><?= esc($p['descripcion']) ?></span>
                     <?php endif; ?>

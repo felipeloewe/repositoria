@@ -2,8 +2,9 @@
 
 <?= $this->section('content') ?>
 
+<?php $esGenerica = ! empty($esGenerica) || ! empty($plantilla['clave_sistema']); ?>
 <section class="banner">
-    <h2><?= esc($plantilla['nombre']) ?></h2>
+    <h2><?= esc($plantilla['nombre']) ?><?php if ($esGenerica): ?> <span class="tag">Genérica</span><?php endif; ?></h2>
     <p><?= esc($plantilla['descripcion'] ?: 'Plantilla de formulario de socios.') ?></p>
 </section>
 
@@ -38,6 +39,11 @@
 
 <div class="card section-card">
     <h3>Datos de la plantilla</h3>
+    <?php if ($esGenerica): ?>
+        <p class="hint">Plantilla genérica de sistema (<code><?= esc((string) ($plantilla['clave_sistema'] ?? '')) ?></code>). La estructura es fija; el Master activa/desactiva por empresa en <a href="<?= site_url('organizacion') ?>">Organización</a>.</p>
+        <p><strong><?= esc($plantilla['nombre']) ?></strong></p>
+        <p class="muted"><?= esc($plantilla['descripcion'] ?? '') ?></p>
+    <?php else: ?>
     <form method="post" action="<?= site_url('socios/formularios/' . $plantilla['id']) ?>">
         <?= csrf_field() ?>
         <label for="nombre">Nombre</label>
@@ -54,6 +60,7 @@
             <?= (int) $plantilla['activo'] === 1 ? 'Desactivar' : 'Activar' ?>
         </button>
     </form>
+    <?php endif; ?>
 </div>
 
 <div class="card section-card">
@@ -69,7 +76,7 @@
                 <th>Clave</th>
                 <th>Tipo</th>
                 <th>Oblig.</th>
-                <th></th>
+                <?php if (! $esGenerica): ?><th></th><?php endif; ?>
             </tr>
         </thead>
         <tbody>
@@ -80,18 +87,21 @@
                 <td><code><?= esc($c['clave']) ?></code></td>
                 <td><?= esc($c['tipo']) ?></td>
                 <td><?= (int) $c['obligatorio'] === 1 ? 'Sí' : 'No' ?></td>
+                <?php if (! $esGenerica): ?>
                 <td>
                     <form method="post" action="<?= site_url('socios/formularios/' . $plantilla['id'] . '/campos/' . $c['id'] . '/delete') ?>" onsubmit="return confirm('¿Eliminar campo?')">
                         <?= csrf_field() ?>
                         <button class="btn btn-sm" type="submit" style="background:#fee2e2;color:#991b1b">Eliminar</button>
                     </form>
                 </td>
+                <?php endif; ?>
             </tr>
         <?php endforeach; ?>
         </tbody>
     </table>
     <?php endif; ?>
 
+    <?php if (! $esGenerica): ?>
     <h4 style="margin-top:1.25rem">Agregar campo</h4>
     <form method="post" action="<?= site_url('socios/formularios/' . $plantilla['id'] . '/campos') ?>" class="form-row" style="grid-template-columns:1.4fr 1fr .8fr auto auto;align-items:end">
         <?= csrf_field() ?>
@@ -118,6 +128,7 @@
             <button class="btn btn-primary btn-sm" type="submit">Agregar</button>
         </div>
     </form>
+    <?php endif; ?>
 </div>
 
 <?php if ((int) $plantilla['activo'] === 1 && $campos !== []): ?>

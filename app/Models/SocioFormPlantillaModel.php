@@ -15,6 +15,6 @@ class SocioFormPlantillaModel extends Model
     protected $returnType       = 'array';
     protected $useTimestamps    = true;
     protected $allowedFields    = [
-        'id', 'empresa_id', 'nombre', 'descripcion', 'activo', 'creado_por_id',
+        'id', 'empresa_id', 'clave_sistema', 'nombre', 'descripcion', 'activo', 'creado_por_id',
     ];
 }

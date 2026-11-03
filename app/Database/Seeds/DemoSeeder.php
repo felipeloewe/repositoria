@@ -6,6 +6,7 @@ namespace App\Database\Seeds;
 
 use App\Libraries\DocumentStorage;
 use App\Libraries\PlanEntitlement;
+use App\Libraries\RecursoSistema;
 use App\Libraries\Roles;
 use CodeIgniter\Database\Seeder;
 
@@ -29,6 +30,7 @@ class DemoSeeder extends Seeder
             'canal_paquete_auditoria', 'canal_paquete_documentos', 'canal_paquetes',
             'fiscalizacion_auditoria', 'fiscalizacion_documentos', 'fiscalizacion_solicitudes',
             'socio_form_instancias', 'socio_form_shares', 'socio_form_campos', 'socio_form_plantillas',
+            'empresa_recurso_sistema',
             'documento_archivo_respaldos',
             'documento_cambios', 'documento_estado_historial', 'documento_versiones',
             'documento_autorizaciones', 'documentos', 'documento_tipos', 'documento_secciones',
@@ -566,10 +568,14 @@ class DemoSeeder extends Seeder
             'actor_id' => $users['admin']['id'], 'nota' => 'Publicado (seed)', 'created_at' => $now,
         ]);
 
-        // Plantilla demo Formularios de socios
+        // Plantilla demo Formularios de socios (custom) + re-seed genérica de sistema
         if ($this->db->tableExists('socio_form_plantillas')) {
+            if ($this->db->fieldExists('clave_sistema', 'socio_form_plantillas')) {
+                RecursoSistema::ensureEstadoSituacionPlantilla($this->db);
+            }
+
             $plantillaId = new_id();
-            $this->db->table('socio_form_plantillas')->insert([
+            $plantillaRow = [
                 'id'            => $plantillaId,
                 'empresa_id'    => $empresaDemo,
                 'nombre'        => 'Ficha representante legal',
@@ -578,7 +584,11 @@ class DemoSeeder extends Seeder
                 'creado_por_id' => $users['admin']['id'],
                 'created_at'    => $now,
                 'updated_at'    => $now,
-            ]);
+            ];
+            if ($this->db->fieldExists('clave_sistema', 'socio_form_plantillas')) {
+                $plantillaRow['clave_sistema'] = null;
+            }
+            $this->db->table('socio_form_plantillas')->insert($plantillaRow);
             $this->db->table('socio_form_campos')->insertBatch([
                 [
                     'id' => new_id(), 'plantilla_id' => $plantillaId,

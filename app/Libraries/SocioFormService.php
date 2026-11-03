@@ -142,11 +142,20 @@ final class SocioFormService
         string $actorUsuarioId,
         ?string $shareId,
         array $post,
-        array $files
+        array $files,
+        ?string $empresaIdOverride = null
     ): array {
         helper('id');
 
-        $empresaId = (string) $plantilla['empresa_id'];
+        // Plantillas genéricas tienen empresa_id NULL — usar tenant del actor/share.
+        $empresaId = trim((string) ($empresaIdOverride ?? ''));
+        if ($empresaId === '') {
+            $empresaId = trim((string) ($plantilla['empresa_id'] ?? ''));
+        }
+        if ($empresaId === '') {
+            throw new RuntimeException('No se pudo resolver la empresa para el formulario.');
+        }
+
         $collected = $this->collectRespuestas($empresaId, $actorUsuarioId, $campos, $post, $files);
 
         $empresa = model(EmpresaModel::class)->find($empresaId);
@@ -401,13 +410,69 @@ final class SocioFormService
             ->findAll();
     }
 
+    /**
+     * Plantilla custom de la empresa, o genérica activa para esa empresa.
+     */
     public static function plantillaOfEmpresa(string $id, string $empresaId): ?array
     {
         $row = model(SocioFormPlantillaModel::class)->find($id);
-        if (! is_array($row) || (string) $row['empresa_id'] !== $empresaId) {
+        if (! is_array($row)) {
+            return null;
+        }
+
+        if (RecursoSistema::isGenerica($row)) {
+            $clave = (string) $row['clave_sistema'];
+            if ((int) ($row['activo'] ?? 0) !== 1) {
+                return null;
+            }
+            if (! RecursoSistema::isActivo($empresaId, RecursoSistema::TIPO_FORM_PLANTILLA, $clave)) {
+                return null;
+            }
+
+            return $row;
+        }
+
+        if ((string) ($row['empresa_id'] ?? '') !== $empresaId) {
             return null;
         }
 
         return $row;
+    }
+
+    /**
+     * Custom de la empresa + genéricas activas (para listados).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function plantillasVisibles(string $empresaId): array
+    {
+        $custom = model(SocioFormPlantillaModel::class)
+            ->where('empresa_id', $empresaId)
+            ->orderBy('nombre', 'ASC')
+            ->findAll();
+
+        $generic = RecursoSistema::plantillasGenericasActivas($empresaId);
+
+        $merged = array_merge($generic, $custom);
+        usort($merged, static fn (array $a, array $b): int => strcasecmp((string) $a['nombre'], (string) $b['nombre']));
+
+        return $merged;
+    }
+
+    /** ¿La plantilla está usable para rellenar/compartir en esta empresa? */
+    public static function plantillaUsable(array $plantilla, string $empresaId): bool
+    {
+        if ((int) ($plantilla['activo'] ?? 0) !== 1) {
+            return false;
+        }
+        if (RecursoSistema::isGenerica($plantilla)) {
+            return RecursoSistema::isActivo(
+                $empresaId,
+                RecursoSistema::TIPO_FORM_PLANTILLA,
+                (string) $plantilla['clave_sistema']
+            );
+        }
+
+        return (string) ($plantilla['empresa_id'] ?? '') === $empresaId;
     }
 }

@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Libraries\MembershipAuth;
 use App\Libraries\PlanEntitlement;
+use App\Libraries\RecursoSistema;
 use App\Libraries\Roles;
 use App\Models\ActividadModel;
 use App\Models\DepartamentoModel;
@@ -83,20 +84,57 @@ class Organizacion extends BaseController
 
         $planSnap = (new PlanEntitlement())->snapshot($empresaId);
 
+        $recursosSistema = RecursoSistema::listForEmpresa($empresaId);
+
         return view('organizacion/index', [
-            'title'       => 'Organización',
-            'memb'        => $memb,
-            'deptos'      => $deptos,
-            'sucursales'  => $sucursales,
-            'actividades' => $actividades,
-            'temas'       => $temas,
-            'deptoMap'    => $deptoMap,
-            'miembros'    => $miembros,
-            'roles'       => Roles::ALL,
-            'planSnap'    => $planSnap,
-            'success'     => session()->getFlashdata('success'),
-            'error'       => session()->getFlashdata('error'),
+            'title'           => 'Organización',
+            'memb'            => $memb,
+            'deptos'          => $deptos,
+            'sucursales'      => $sucursales,
+            'actividades'     => $actividades,
+            'temas'           => $temas,
+            'deptoMap'        => $deptoMap,
+            'miembros'        => $miembros,
+            'roles'           => Roles::ALL,
+            'planSnap'        => $planSnap,
+            'recursosSistema' => $recursosSistema,
+            'success'         => session()->getFlashdata('success'),
+            'error'           => session()->getFlashdata('error'),
         ]);
+    }
+
+    /**
+     * Master: activa/desactiva un recurso genérico de sistema para esta empresa (default ON).
+     */
+    public function toggleRecursoSistema()
+    {
+        $memb = $this->requireMaster();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $tipo  = trim((string) $this->request->getPost('recurso_tipo'));
+        $clave = trim((string) $this->request->getPost('recurso_clave'));
+        $raw   = $this->request->getPost('activo');
+
+        $known = false;
+        foreach (RecursoSistema::catalogo() as $item) {
+            if ($item['tipo'] === $tipo && $item['clave'] === $clave) {
+                $known = true;
+                break;
+            }
+        }
+        if (! $known || ! in_array($tipo, [RecursoSistema::TIPO_FORM_PLANTILLA, RecursoSistema::TIPO_DOCUMENTO], true)) {
+            return redirect()->to('/organizacion')->with('error', 'Recurso genérico no reconocido.');
+        }
+
+        $activo = ! ($raw === null || $raw === false || $raw === '' || $raw === '0' || $raw === 0);
+        RecursoSistema::setActivo((string) $memb['empresa_id'], $tipo, $clave, $activo);
+
+        return redirect()->to('/organizacion')->with(
+            'success',
+            $activo ? 'Recurso genérico activado para esta empresa.' : 'Recurso genérico desactivado para esta empresa.'
+        );
     }
 
     public function storeMembresia()
