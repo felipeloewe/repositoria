@@ -55,12 +55,36 @@ final class DocumentStorage
     }
 
     /**
+     * Prefijo de carpeta por ámbito: general → {empresaId}/{docId}/… ;
+     * socio → {empresaId}/socios/{docId}/…
+     */
+    public static function docDirPrefix(string $empresaId, string $documentoId, string $ambito = 'general'): string
+    {
+        $empresaId   = preg_replace('/[^a-zA-Z0-9_-]+/', '', $empresaId) ?? '';
+        $documentoId = preg_replace('/[^a-zA-Z0-9_-]+/', '', $documentoId) ?? '';
+        if ($empresaId === '' || $documentoId === '') {
+            throw new RuntimeException('empresaId/documentoId inválidos para storage.');
+        }
+
+        if ($ambito === 'socio') {
+            return $empresaId . '/socios/' . $documentoId;
+        }
+
+        return $empresaId . '/' . $documentoId;
+    }
+
+    /**
      * @return array{ruta_relativa: string, tamano_bytes: int}
      */
-    public static function save(string $empresaId, string $documentoId, string $nombreArchivo, string $binary): array
-    {
+    public static function save(
+        string $empresaId,
+        string $documentoId,
+        string $nombreArchivo,
+        string $binary,
+        string $ambito = 'general'
+    ): array {
         $safe = preg_replace('/[^a-zA-Z0-9._-]+/', '_', $nombreArchivo) ?: 'archivo.bin';
-        $rel  = $empresaId . '/' . $documentoId . '/' . $safe;
+        $rel  = self::docDirPrefix($empresaId, $documentoId, $ambito) . '/' . $safe;
         $full = self::absolutePath($rel);
 
         if (file_put_contents($full, $binary) === false) {

@@ -66,11 +66,14 @@ class Documentos extends BaseController
             'empresa_id'             => $doc['empresa_id'],
             'departamento_id'        => $doc['departamento_id'],
             'sucursal_id'            => $doc['sucursal_id'],
+            'ambito'                 => DocumentAcl::normalizeAmbito($doc['ambito'] ?? null),
             'autorizado_usuario_ids' => $authIds,
         ];
 
         if ($needView && ! DocumentAcl::canView($memb, $aclDoc)) {
-            return redirect()->to('/documentos')->with('error', 'Sin acceso a este documento.');
+            $fallback = DocumentAcl::isSocioDoc($aclDoc) ? '/socios' : '/documentos';
+
+            return redirect()->to($fallback)->with('error', 'Sin acceso a este documento.');
         }
 
         return [
@@ -88,6 +91,20 @@ class Documentos extends BaseController
         }
 
         return model(DocumentoTipoModel::class)->find($tipoId);
+    }
+
+    /**
+     * @param array<string, mixed> $doc
+     *
+     * @return array{sucursal_id: ?string, departamento_id: ?string, ambito: string}
+     */
+    private function uploadTargetFromDoc(array $doc): array
+    {
+        return [
+            'sucursal_id'     => $doc['sucursal_id'] ?? null,
+            'departamento_id' => $doc['departamento_id'] ?? null,
+            'ambito'          => DocumentAcl::normalizeAmbito($doc['ambito'] ?? null),
+        ];
     }
 
     private function registrarEstado(array $memb, string $docId, ?string $desde, string $hasta, ?string $nota = null): void
@@ -203,10 +220,15 @@ class Documentos extends BaseController
 
         $visible = [];
         foreach ($docs as $doc) {
+            // Docs de socios viven en /socios — no mezclar con depto.
+            if (DocumentAcl::normalizeAmbito($doc['ambito'] ?? null) === DocumentAcl::AMBITO_SOCIO) {
+                continue;
+            }
             $aclDoc = [
                 'empresa_id'             => $doc['empresa_id'],
                 'departamento_id'        => $doc['departamento_id'],
                 'sucursal_id'            => $doc['sucursal_id'],
+                'ambito'                 => DocumentAcl::AMBITO_GENERAL,
                 'autorizado_usuario_ids' => $authByDoc[$doc['id']] ?? [],
             ];
             if (! DocumentAcl::canView($memb, $aclDoc)) {
@@ -369,10 +391,7 @@ class Documentos extends BaseController
             }
         }
 
-        $canMutate = DocumentAcl::canUpload($memb, [
-            'sucursal_id'     => $doc['sucursal_id'],
-            'departamento_id' => $doc['departamento_id'],
-        ]);
+        $canMutate = DocumentAcl::canUpload($memb, $this->uploadTargetFromDoc($doc));
 
         return view('documentos/show', [
             'title'         => 'Documentos',
@@ -514,6 +533,7 @@ class Documentos extends BaseController
             'departamento_id'       => $seccion['departamento_id'],
             'sucursal_id'           => $seccion['sucursal_id'],
             'seccion_id'            => $seccion['id'],
+            'ambito'                => DocumentAcl::AMBITO_GENERAL,
             'tipo_id'               => $tipo['id'],
             'estado'                => DocumentLifecycle::EN_ELABORACION,
             'version_actual'        => 1,
@@ -590,10 +610,7 @@ class Documentos extends BaseController
             return redirect()->to('/documentos/' . $id)->with('error', 'El ciclo de vida aplica solo a tipos oficiales.');
         }
 
-        if (! DocumentAcl::canUpload($memb, [
-            'sucursal_id'     => $doc['sucursal_id'],
-            'departamento_id' => $doc['departamento_id'],
-        ])) {
+        if (! DocumentAcl::canUpload($memb, $this->uploadTargetFromDoc($doc))) {
             return redirect()->to('/documentos/' . $id)->with('error', 'Sin permiso para cambiar el estado.');
         }
 
@@ -679,10 +696,7 @@ class Documentos extends BaseController
         $doc  = $loaded['doc'];
         $tipo = $this->tipoOf($doc['tipo_id'] ?? null);
 
-        if (! DocumentAcl::canUpload($memb, [
-            'sucursal_id'     => $doc['sucursal_id'],
-            'departamento_id' => $doc['departamento_id'],
-        ])) {
+        if (! DocumentAcl::canUpload($memb, $this->uploadTargetFromDoc($doc))) {
             return redirect()->to('/documentos/' . $id)->with('error', 'Sin permiso para subir versión.');
         }
 
@@ -745,9 +759,10 @@ class Documentos extends BaseController
 
         try {
             // Guardar bajo subcarpeta de versión para no pisar el blob anterior
-            $safe = preg_replace('/[^a-zA-Z0-9._-]+/', '_', $file->getClientName()) ?: 'archivo.bin';
-            $rel  = $memb['empresa_id'] . '/' . $id . '/v' . $newNum . '/' . $safe;
-            $full = DocumentStorage::absolutePath($rel);
+            $safe   = preg_replace('/[^a-zA-Z0-9._-]+/', '_', $file->getClientName()) ?: 'archivo.bin';
+            $ambito = DocumentAcl::normalizeAmbito($doc['ambito'] ?? null);
+            $rel    = DocumentStorage::docDirPrefix($memb['empresa_id'], $id, $ambito) . '/v' . $newNum . '/' . $safe;
+            $full   = DocumentStorage::absolutePath($rel);
             if (file_put_contents($full, $binary) === false) {
                 throw new RuntimeException('No se pudo escribir la nueva versión.');
             }
@@ -850,10 +865,7 @@ class Documentos extends BaseController
             return redirect()->to('/documentos/' . $id)->with('error', 'Vencimiento solo para tipos oficiales.');
         }
 
-        if (! DocumentAcl::canUpload($memb, [
-            'sucursal_id'     => $doc['sucursal_id'],
-            'departamento_id' => $doc['departamento_id'],
-        ])) {
+        if (! DocumentAcl::canUpload($memb, $this->uploadTargetFromDoc($doc))) {
             return redirect()->to('/documentos/' . $id)->with('error', 'Sin permiso.');
         }
 
@@ -887,10 +899,7 @@ class Documentos extends BaseController
             return redirect()->to('/documentos/' . $id)->with('error', 'Fecha de término solo para tipos borrador (usa cabecera en oficiales).');
         }
 
-        if (! DocumentAcl::canUpload($memb, [
-            'sucursal_id'     => $doc['sucursal_id'],
-            'departamento_id' => $doc['departamento_id'],
-        ])) {
+        if (! DocumentAcl::canUpload($memb, $this->uploadTargetFromDoc($doc))) {
             return redirect()->to('/documentos/' . $id)->with('error', 'Sin permiso.');
         }
 
@@ -916,10 +925,7 @@ class Documentos extends BaseController
         }
 
         $doc = $loaded['doc'];
-        if (! DocumentAcl::canUpload($memb, [
-            'sucursal_id'     => $doc['sucursal_id'],
-            'departamento_id' => $doc['departamento_id'],
-        ])) {
+        if (! DocumentAcl::canUpload($memb, $this->uploadTargetFromDoc($doc))) {
             return redirect()->to('/documentos/' . $id)->with('error', 'Sin permiso.');
         }
 
@@ -954,10 +960,7 @@ class Documentos extends BaseController
             return redirect()->to('/documentos/' . $id)->with('error', 'Solo se renuevan documentos oficiales vigentes o vencidos.');
         }
 
-        if (! DocumentAcl::canUpload($memb, [
-            'sucursal_id'     => $doc['sucursal_id'],
-            'departamento_id' => $doc['departamento_id'],
-        ])) {
+        if (! DocumentAcl::canUpload($memb, $this->uploadTargetFromDoc($doc))) {
             return redirect()->to('/documentos/' . $id)->with('error', 'Sin permiso para renovar.');
         }
 
@@ -994,6 +997,7 @@ class Documentos extends BaseController
             'departamento_id'       => $doc['departamento_id'],
             'sucursal_id'           => $doc['sucursal_id'],
             'seccion_id'            => $doc['seccion_id'],
+            'ambito'                => DocumentAcl::normalizeAmbito($doc['ambito'] ?? null),
             'tipo_id'               => $doc['tipo_id'],
             'estado'                => $estadoHijo,
             'version_actual'        => 1,
@@ -1062,10 +1066,7 @@ class Documentos extends BaseController
             return redirect()->to('/documentos/' . $id)->with('error', 'Control de cambios solo para tipos borrador.');
         }
 
-        if (! DocumentAcl::canUpload($memb, [
-            'sucursal_id'     => $doc['sucursal_id'],
-            'departamento_id' => $doc['departamento_id'],
-        ])) {
+        if (! DocumentAcl::canUpload($memb, $this->uploadTargetFromDoc($doc))) {
             return redirect()->to('/documentos/' . $id)->with('error', 'Sin permiso.');
         }
 
@@ -1132,7 +1133,9 @@ class Documentos extends BaseController
 
         $doc = $loaded['doc'];
         if (! DocumentAcl::canDelete($memb, $loaded['aclDoc'])) {
-            return redirect()->to('/documentos')->with('error', 'Sin permiso para eliminar.');
+            $fallback = DocumentAcl::isSocioDoc($loaded['aclDoc']) ? '/socios' : '/documentos';
+
+            return redirect()->to($fallback)->with('error', 'Sin permiso para eliminar.');
         }
 
         // Borrar blobs de versiones
@@ -1148,7 +1151,9 @@ class Documentos extends BaseController
         model(DocumentoModel::class)->delete($id);
         DocumentStorage::delete((string) $doc['ruta_relativa']);
 
-        return redirect()->to('/documentos')->with('success', 'Documento eliminado.');
+        $fallback = DocumentAcl::isSocioDoc($loaded['aclDoc']) ? '/socios' : '/documentos';
+
+        return redirect()->to($fallback)->with('success', 'Documento eliminado.');
     }
 
     public function authorize()

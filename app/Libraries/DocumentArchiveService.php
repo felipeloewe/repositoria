@@ -83,6 +83,10 @@ final class DocumentArchiveService
             ->where('archivado_at >=', $inicio)
             ->where('archivado_at <', $fin)
             ->where('blob_eliminado_at', null)
+            ->groupStart()
+                ->where('ambito', DocumentAcl::AMBITO_GENERAL)
+                ->orWhere('ambito', null)
+            ->groupEnd()
             ->findAll();
 
         if ($docs === []) {

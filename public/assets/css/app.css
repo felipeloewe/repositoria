@@ -375,6 +375,17 @@ input:focus, select:focus {
 .card h3 { margin: 0 0 .35rem; font-size: 1rem; }
 .card .value { font-size: 1.8rem; font-weight: 800; color: var(--blue-700); letter-spacing: -0.03em; }
 .card .hint { color: var(--muted); font-size: .85rem; }
+.check-label {
+  display: flex;
+  gap: .55rem;
+  align-items: flex-start;
+  margin: .85rem 0 1rem;
+  font-size: .9rem;
+  color: var(--text, #0f2744);
+  cursor: pointer;
+}
+.check-label input { margin-top: .2rem; flex-shrink: 0; }
+.socio-field[hidden] { display: none !important; }
 
 .section-card { margin-top: 1rem; }
 .section-card h3 { margin: 0 0 1rem; }

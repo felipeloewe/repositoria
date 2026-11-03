@@ -15,7 +15,7 @@ class DocumentoModel extends Model
     protected $returnType       = 'array';
     protected $useTimestamps    = true;
     protected $allowedFields    = [
-        'id', 'empresa_id', 'departamento_id', 'sucursal_id', 'seccion_id',
+        'id', 'empresa_id', 'departamento_id', 'sucursal_id', 'seccion_id', 'ambito',
         'tipo_id', 'estado', 'version_actual', 'vence_at', 'alerta_dias', 'fecha_termino', 'notas_ciclo',
         'renueva_de_id', 'cadena_id',
         'cabecera_partes', 'cabecera_asunto', 'cabecera_inicio', 'cabecera_termino', 'cabecera_autorizantes',

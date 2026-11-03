@@ -42,6 +42,9 @@
                     <a href="<?= site_url('documentos/archivados') ?>" class="nav-sub <?= ($title ?? '') === 'Archivados' ? 'active' : '' ?>" data-nav="archivados"><span class="nav-label">Archivados</span></a>
                     <a href="<?= site_url('documentos/archivados/respaldo') ?>" class="nav-sub <?= ($title ?? '') === 'Respaldo archivados' ? 'active' : '' ?>" data-nav="respaldo"><span class="nav-label">Respaldo</span></a>
                 <?php endif; ?>
+                <?php if (\App\Libraries\DocumentAcl::isSocio($memb)): ?>
+                    <a href="<?= site_url('socios') ?>" class="<?= ($title ?? '') === 'Socios' ? 'active' : '' ?>" data-nav="socios"><span class="nav-label">Socios</span></a>
+                <?php endif; ?>
 
                 <p class="nav-section">Canales</p>
                 <a href="<?= site_url('correo') ?>" class="<?= ($title ?? '') === 'Correo' ? 'active' : '' ?>" data-nav="correo"><span class="nav-label">Correo</span></a>

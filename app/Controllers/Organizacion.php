@@ -113,6 +113,7 @@ class Organizacion extends BaseController
         $rol      = trim((string) $this->request->getPost('rol'));
         $sucursal = trim((string) $this->request->getPost('sucursal_id')) ?: null;
         $password = (string) $this->request->getPost('password');
+        $esSocio  = $this->resolveEsSocio($rol, $this->request->getPost('es_socio'));
 
         if ($email === '' || $nombre === '' || ! in_array($rol, Roles::ALL, true)) {
             return redirect()->to('/organizacion')->with('error', 'Datos de usuario incompletos o rol inválido.');
@@ -168,6 +169,7 @@ class Organizacion extends BaseController
                     model(MembresiaModel::class)->update($exists['id'], [
                         'rol'         => $rol,
                         'sucursal_id' => $rol === Roles::JEFE_SUCURSAL ? $sucursal : null,
+                        'es_socio'    => $esSocio,
                         'activa'      => 1,
                     ]);
 
@@ -181,6 +183,7 @@ class Organizacion extends BaseController
                 'usuario_id'  => $userId,
                 'rol'         => $rol,
                 'sucursal_id' => $rol === Roles::JEFE_SUCURSAL ? $sucursal : null,
+                'es_socio'    => $esSocio,
                 'activa'      => 1,
             ]);
         } catch (Throwable $e) {
@@ -190,6 +193,61 @@ class Organizacion extends BaseController
         }
 
         return redirect()->to('/organizacion')->with('success', 'Usuario agregado a la empresa.');
+    }
+
+    /**
+     * Toggle atributo Socio en una membresía Master de la empresa.
+     */
+    public function updateMembresiaSocio()
+    {
+        $memb = $this->requireMaster();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $membresiaId = trim((string) $this->request->getPost('membresia_id'));
+        $esSocioRaw  = $this->request->getPost('es_socio');
+
+        $row = model(MembresiaModel::class)
+            ->where('id', $membresiaId)
+            ->where('empresa_id', $memb['empresa_id'])
+            ->where('activa', 1)
+            ->first();
+
+        if ($row === null) {
+            return redirect()->to('/organizacion')->with('error', 'Membresía no encontrada.');
+        }
+
+        if (! Roles::isMaster((string) $row['rol'])) {
+            return redirect()->to('/organizacion')->with(
+                'error',
+                'El atributo Socio solo aplica a Administrador Master.'
+            );
+        }
+
+        $esSocio = $this->resolveEsSocio((string) $row['rol'], $esSocioRaw);
+        model(MembresiaModel::class)->update($row['id'], ['es_socio' => $esSocio]);
+
+        return redirect()->to('/organizacion')->with(
+            'success',
+            $esSocio ? 'Atributo Socio activado (Menú Socios).' : 'Atributo Socio desactivado.'
+        );
+    }
+
+    /**
+     * Solo Master puede ser socio; checkbox/post se ignora en otros roles.
+     */
+    private function resolveEsSocio(string $rol, mixed $raw): int
+    {
+        if (! Roles::isMaster($rol)) {
+            return 0;
+        }
+
+        if ($raw === null || $raw === false || $raw === '' || $raw === '0' || $raw === 0) {
+            return 0;
+        }
+
+        return 1;
     }
 
     public function storeDepartamento()
