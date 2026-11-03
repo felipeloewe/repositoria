@@ -9,7 +9,7 @@
     <p>Repositorio exclusivo para socios / representantes legales de esta empresa. Visible solo entre membresías con atributo <strong>Socio</strong>.</p>
 </section>
 
-<?= $this->include('socios/_tabs', ['tab' => 'documentos']) ?>
+<?= view('socios/_tabs', ['tab' => 'documentos']) ?>
 
 <?php if (! empty($success)): ?>
     <div class="alert alert-ok"><?= esc($success) ?></div>

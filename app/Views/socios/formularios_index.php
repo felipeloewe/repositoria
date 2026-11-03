@@ -7,7 +7,7 @@
     <p>Plantillas para capturar datos de socios / representantes legales. El resultado se guarda como PDF en el repositorio de socios.</p>
 </section>
 
-<?= $this->include('socios/_tabs', ['tab' => 'formularios']) ?>
+<?= view('socios/_tabs', ['tab' => 'formularios']) ?>
 
 <?php if (! empty($success)): ?>
     <div class="alert alert-ok"><?= esc($success) ?></div>

@@ -7,7 +7,7 @@
     <p>Al enviar se genera un PDF y se guarda en documentos de socios.</p>
 </section>
 
-<?= $this->include('socios/_tabs', ['tab' => 'formularios']) ?>
+<?= view('socios/_tabs', ['tab' => 'formularios']) ?>
 
 <?php if (! empty($error)): ?>
     <div class="alert alert-error"><?= esc($error) ?></div>
