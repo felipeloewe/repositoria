@@ -3,7 +3,7 @@
 
 <section class="banner">
     <h2><?= esc($thread['subject'] ?? 'Hilo') ?></h2>
-    <p>Modo <?= esc($mode) ?> · casilla <?= esc($thread['account']['email'] ?? '') ?></p>
+    <p>Modo <?= esc($mode) ?> · casilla <?= esc($thread['account']['email'] ?? '') ?>. Por cada adjunto (PDF, Office, imágenes, etc.) elegí la sección destino; el certificado del hilo es siempre PDF.</p>
 </section>
 
 <?php if (! empty($success)): ?><div class="alert alert-ok"><?= esc($success) ?></div><?php endif; ?>
@@ -18,7 +18,7 @@
     </p>
     <p><?= nl2br(esc($msg['bodyText'] ?? '')) ?></p>
     <?php foreach ($msg['attachments'] ?? [] as $att): ?>
-        <div style="margin-top:.75rem;padding:.75rem;background:var(--blue-50);border-radius:12px">
+        <div class="correo-attach">
             <strong><?= esc($att['filename'] ?? 'adjunto') ?></strong>
             <span class="muted">(<?= esc($att['mimeType'] ?? '') ?>)</span>
             <?php if ($uploadableSections !== []): ?>
@@ -34,7 +34,7 @@
                 </select>
                 <label>Título (opcional)</label>
                 <input type="text" name="titulo" placeholder="Adjunto correo · <?= esc($att['filename'] ?? '') ?>">
-                <button class="btn btn-primary btn-sm" type="submit">Guardar adjunto en repositorio</button>
+                <button class="btn btn-primary btn-sm" type="submit">Guardar este adjunto en la sección</button>
             </form>
             <?php else: ?>
                 <p class="muted" style="margin:.35rem 0 0">Tu rol no puede subir a secciones (solo Master/Jefe).</p>

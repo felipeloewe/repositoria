@@ -11,9 +11,10 @@ namespace App\Libraries;
  */
 final class ImapMailClient
 {
-    public const MOCK_ACCOUNT_ID = 'mac_demo_repositoria';
-    public const MOCK_THREAD_ID  = 'thr_demo_liquidacion';
-    public const MOCK_ATTACH_ID  = 'att_demo_liquidacion';
+    public const MOCK_ACCOUNT_ID     = 'mac_demo_repositoria';
+    public const MOCK_THREAD_ID      = 'thr_demo_liquidacion';
+    public const MOCK_ATTACH_ID      = 'att_demo_liquidacion';
+    public const MOCK_ATTACH_XLSX_ID = 'att_demo_planilla';
 
     public static function baseUrl(): ?string
     {
@@ -141,16 +142,24 @@ final class ImapMailClient
     public static function downloadAttachment(string $attachmentId): array
     {
         if (self::baseUrl() === null) {
-            if ($attachmentId !== self::MOCK_ATTACH_ID) {
-                throw new \RuntimeException('Adjunto no encontrado (mock)');
+            if ($attachmentId === self::MOCK_ATTACH_ID) {
+                return [
+                    'bytes'    => self::mockAttachmentPdf(),
+                    'filename' => 'liquidacion-marzo.pdf',
+                    'mimeType' => 'application/pdf',
+                    'mode'     => 'mock',
+                ];
+            }
+            if ($attachmentId === self::MOCK_ATTACH_XLSX_ID) {
+                return [
+                    'bytes'    => self::mockAttachmentXlsx(),
+                    'filename' => 'planilla-marzo.xlsx',
+                    'mimeType' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'mode'     => 'mock',
+                ];
             }
 
-            return [
-                'bytes'    => self::mockAttachmentPdf(),
-                'filename' => 'liquidacion-marzo.pdf',
-                'mimeType' => 'application/pdf',
-                'mode'     => 'mock',
-            ];
+            throw new \RuntimeException('Adjunto no encontrado (mock)');
         }
 
         $res = self::mailFetch('/api/attachments/' . rawurlencode($attachmentId) . '/export', 'GET', null, false);
@@ -200,6 +209,106 @@ final class ImapMailClient
             'filename' => 'certificado-hilo-' . $threadId . '.pdf',
             'mode'     => 'live',
         ];
+    }
+
+    /**
+     * Trigger IMAP sync for an account.
+     *
+     * @return array{data: array<string, mixed>, mode: string}
+     */
+    public static function syncAccount(string $accountId): array
+    {
+        if (self::baseUrl() === null) {
+            return [
+                'data' => [
+                    'id'         => $accountId,
+                    'syncStatus' => 'IDLE',
+                    'note'       => 'mock sync skipped',
+                ],
+                'mode' => 'mock',
+            ];
+        }
+
+        $res  = self::mailFetch('/api/accounts/' . rawurlencode($accountId) . '/sync', 'POST', []);
+        $data = self::parseJson($res);
+
+        return ['data' => is_array($data) ? $data : [], 'mode' => 'live'];
+    }
+
+    public static function gmailOAuthStartUrl(string $usuarioId): ?string
+    {
+        $base = self::baseUrl();
+        if ($base === null) {
+            return null;
+        }
+
+        return $base . '/api/oauth/gmail/start?usuarioId=' . rawurlencode($usuarioId);
+    }
+
+    /**
+     * Download bytes from a relative downloadPath in a webhook payload.
+     *
+     * @return array{bytes: string, filename: string, mimeType: string, mode: string}
+     */
+    public static function downloadByPath(string $downloadPath, ?string $fallbackFilename = null): array
+    {
+        $path = '/' . ltrim($downloadPath, '/');
+
+        if (self::baseUrl() === null) {
+            $isCert = str_contains($path, '/certificate');
+            if ($isCert) {
+                return [
+                    'bytes'    => self::mockCertificatePdf('Webhook mock'),
+                    'filename' => $fallbackFilename ?: 'certificado-hilo.pdf',
+                    'mimeType' => 'application/pdf',
+                    'mode'     => 'mock',
+                ];
+            }
+
+            return [
+                'bytes'    => self::mockAttachmentPdf(),
+                'filename' => $fallbackFilename ?: 'adjunto-mock.pdf',
+                'mimeType' => 'application/pdf',
+                'mode'     => 'mock',
+            ];
+        }
+
+        $res = self::mailFetch($path, 'GET', null, false);
+        if ($res['status'] < 200 || $res['status'] >= 300) {
+            if (str_contains($path, '/certificate')) {
+                self::mailFetch($path, 'POST', []);
+                $res = self::mailFetch($path, 'GET', null, false);
+            }
+            if ($res['status'] < 200 || $res['status'] >= 300) {
+                throw new \RuntimeException('downloadPath failed (' . $res['status'] . '): ' . $path);
+            }
+        }
+
+        $cd       = $res['headers']['content-disposition'] ?? '';
+        $filename = $fallbackFilename ?: ('archivo-' . basename(parse_url($path, PHP_URL_PATH) ?: 'bin'));
+        if (preg_match('/filename="?([^";]+)"?/i', $cd, $m)) {
+            $filename = $m[1];
+        }
+
+        return [
+            'bytes'    => $res['body'],
+            'filename' => $filename,
+            'mimeType' => $res['headers']['content-type'] ?? 'application/octet-stream',
+            'mode'     => 'live',
+        ];
+    }
+
+    /** Shared secret for inbound webhook (deploy alias supported). */
+    public static function webhookSecret(): ?string
+    {
+        foreach (['REPOSITORIA_WEBHOOK_SECRET', 'IMAP_MAIL_WEBHOOK_SECRET'] as $key) {
+            $raw = env($key);
+            if (is_string($raw) && trim($raw) !== '') {
+                return trim($raw);
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -387,6 +496,12 @@ final class ImapMailClient
                             'mimeType' => 'application/pdf',
                             'size'     => 48,
                         ],
+                        [
+                            'id'       => self::MOCK_ATTACH_XLSX_ID,
+                            'filename' => 'planilla-marzo.xlsx',
+                            'mimeType' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'size'     => 32,
+                        ],
                     ],
                 ],
                 [
@@ -407,6 +522,12 @@ final class ImapMailClient
     private static function mockAttachmentPdf(): string
     {
         return "%PDF-1.4\n% mock attachment Repositoria Fase 3\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n";
+    }
+
+    /** Minimal placeholder bytes for a non-PDF mock attachment (MIME preserved on save). */
+    private static function mockAttachmentXlsx(): string
+    {
+        return "PK\x03\x04mock-xlsx-repositoria-fase3";
     }
 
     private static function mockCertificatePdf(string $subject): string

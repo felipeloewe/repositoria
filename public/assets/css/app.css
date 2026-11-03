@@ -474,3 +474,44 @@ input:focus, select:focus {
   .sidebar-foot { display: none; }
   .grid, .stack-forms, .form-row { grid-template-columns: 1fr; }
 }
+
+/* Correo / imap-mail */
+.correo-status__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.correo-status__actions { flex-shrink: 0; }
+.correo-accounts {
+  list-style: none;
+  padding: 0;
+  margin: .85rem 0 0;
+}
+.correo-accounts li { margin: .25rem 0; }
+.correo-account-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .65rem;
+}
+.correo-account-list__item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: .75rem 1rem;
+  background: var(--blue-50);
+  border-radius: 12px;
+}
+.correo-attach {
+  margin-top: .75rem;
+  padding: .75rem;
+  background: var(--blue-50);
+  border-radius: 12px;
+}
+.correo-link-form label { margin-top: .65rem; }

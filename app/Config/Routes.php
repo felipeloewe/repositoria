@@ -70,9 +70,11 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('correo', 'Correo::index');
     $routes->get('correo/configuracion', 'Correo::configuracion');
     $routes->post('correo/configuracion', 'Correo::linkMailbox');
-    $routes->get('correo/(:segment)', 'Correo::thread/$1');
+    $routes->post('correo/preferencia', 'Correo::savePreferencia');
+    $routes->post('correo/sincronizar', 'Correo::syncAccount');
     $routes->post('correo/guardar-adjunto', 'Correo::saveAttachment');
     $routes->post('correo/guardar-certificado', 'Correo::saveCertificate');
+    $routes->get('correo/(:segment)', 'Correo::thread/$1');
 
     // Fase 4 — Flujos
     $routes->get('flujos', 'Flujos::index');

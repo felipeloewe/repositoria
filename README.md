@@ -41,9 +41,10 @@ El prototipo Next.js (rama `cursor/scaffold-repositoria-e946` / PR #1) queda com
 ## Correo (Fase 3)
 
 - UI `/correo`, `/correo/configuracion`, `/correo/{threadId}`
-- Cliente HTTP a imap-mail; sin `IMAP_MAIL_BASE_URL` (o si cae) → fixtures mock
+- Cliente HTTP a imap-mail (`IMAP_MAIL_BASE_URL`, p.ej. `https://imap.booklet.cl`); sin URL (o si cae) → fixtures mock
+- Vincular casilla IMAP / Gmail OAuth; sincronizar; preferencia de sección destino
 - Guardar **adjunto** y **certificado PDF** del hilo como `Documento` (sección + ACL)
-- Webhook stub `POST /api/webhooks/imap-mail`
+- Webhook `POST /api/webhooks/imap-mail` (secreto `REPOSITORIA_WEBHOOK_SECRET` o `IMAP_MAIL_WEBHOOK_SECRET`) ingesta `files[]` → DocumentStorage (idempotente)
 
 ## Flujos (Fase 4)
 
