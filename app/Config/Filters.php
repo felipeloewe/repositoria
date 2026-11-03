@@ -75,7 +75,10 @@ class Filters extends BaseFilters
     public array $globals = [
         'before' => [
             // 'honeypot',
-            'csrf',
+            'csrf' => [
+                // imap-mail server → CI4 (shared secret, no session cookie)
+                'except' => ['api/webhooks/imap-mail'],
+            ],
             // 'invalidchars',
         ],
         'after' => [

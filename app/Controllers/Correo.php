@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Libraries\DocumentAcl;
-use App\Libraries\DocumentStorage;
 use App\Libraries\ImapMailClient;
+use App\Libraries\MailDocumentIngest;
 use App\Libraries\MembershipAuth;
-use App\Models\DocumentoModel;
+use App\Models\CorreoPreferenciaModel;
 use App\Models\DocumentoSeccionModel;
 
 /** Fase 3 — UI Correo + vínculo a repositorio. */
@@ -72,9 +72,9 @@ class Correo extends BaseController
             return $memb;
         }
 
-        $health  = ImapMailClient::health();
-        $threads = ImapMailClient::listThreads($memb['usuario_id']);
-        $accounts = ImapMailClient::listAccounts($memb['usuario_id']);
+        $health    = ImapMailClient::health();
+        $threads   = ImapMailClient::listThreads($memb['usuario_id']);
+        $accounts  = ImapMailClient::listAccounts($memb['usuario_id']);
 
         return view('correo/index', [
             'title'    => 'Correo',
@@ -97,15 +97,21 @@ class Correo extends BaseController
 
         $health   = ImapMailClient::health();
         $accounts = ImapMailClient::listAccounts($memb['usuario_id']);
+        $sections = $this->uploadableSections($memb);
+        $pref     = model(CorreoPreferenciaModel::class)
+            ->findFor($memb['usuario_id'], $memb['empresa_id']);
 
         return view('correo/configuracion', [
-            'title'    => 'Correo',
-            'memb'     => $memb,
-            'health'   => $health,
-            'mode'     => $accounts['mode'],
-            'accounts' => $accounts['data'],
-            'success'  => session()->getFlashdata('success'),
-            'error'    => session()->getFlashdata('error'),
+            'title'           => 'Correo',
+            'memb'            => $memb,
+            'health'          => $health,
+            'mode'            => $accounts['mode'],
+            'accounts'        => $accounts['data'],
+            'uploadableSections' => $sections,
+            'preferencia'     => $pref,
+            'gmailOAuthUrl'   => ImapMailClient::gmailOAuthStartUrl($memb['usuario_id']),
+            'success'         => session()->getFlashdata('success'),
+            'error'           => session()->getFlashdata('error'),
         ]);
     }
 
@@ -139,9 +145,76 @@ class Correo extends BaseController
                 'imapPassword' => trim((string) $this->request->getPost('imap_password')) ?: null,
             ]);
 
-            return redirect()->to('/correo')->with(
+            return redirect()->to('/correo/configuracion')->with(
                 'success',
                 'Casilla vinculada (' . $result['mode'] . '): ' . ($result['data']['email'] ?? $email)
+            );
+        } catch (\Throwable $e) {
+            return redirect()->to('/correo/configuracion')->with('error', $e->getMessage());
+        }
+    }
+
+    public function savePreferencia()
+    {
+        $memb = $this->requireMemb();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $seccionId = (string) $this->request->getPost('seccion_id');
+        if ($seccionId === '') {
+            return redirect()->to('/correo/configuracion')->with('error', 'Sección requerida.');
+        }
+
+        $allowed = array_column($this->uploadableSections($memb), 'id');
+        if (! in_array($seccionId, $allowed, true)) {
+            return redirect()->to('/correo/configuracion')->with('error', 'Sección no permitida.');
+        }
+
+        model(CorreoPreferenciaModel::class)->upsertSeccion(
+            $memb['usuario_id'],
+            $memb['empresa_id'],
+            $seccionId
+        );
+
+        return redirect()->to('/correo/configuracion')->with(
+            'success',
+            'Sección destino guardada para adjuntos y certificados automáticos.'
+        );
+    }
+
+    public function syncAccount()
+    {
+        $memb = $this->requireMemb();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $accountId = (string) $this->request->getPost('account_id');
+        if ($accountId === '') {
+            return redirect()->to('/correo/configuracion')->with('error', 'Casilla requerida.');
+        }
+
+        $accounts = ImapMailClient::listAccounts($memb['usuario_id']);
+        $owned    = false;
+        foreach ($accounts['data'] as $a) {
+            if (($a['id'] ?? null) === $accountId
+                && (($a['usuarioId'] ?? null) === $memb['usuario_id'] || ! isset($a['usuarioId']))
+            ) {
+                $owned = true;
+                break;
+            }
+        }
+        if (! $owned && $accounts['mode'] === 'live') {
+            return redirect()->to('/correo/configuracion')->with('error', 'Casilla no pertenece a tu usuario.');
+        }
+
+        try {
+            $result = ImapMailClient::syncAccount($accountId);
+
+            return redirect()->to('/correo')->with(
+                'success',
+                'Sincronización solicitada (' . $result['mode'] . ').'
             );
         } catch (\Throwable $e) {
             return redirect()->to('/correo/configuracion')->with('error', $e->getMessage());
@@ -194,22 +267,28 @@ class Correo extends BaseController
         }
 
         try {
-            $docId = $this->saveBufferToRepo($memb, $seccionId, $threadId, function () use ($attachmentId) {
-                $file = ImapMailClient::downloadAttachment($attachmentId);
-
-                return [
+            $this->assertThreadOwner($memb, $threadId);
+            $file = ImapMailClient::downloadAttachment($attachmentId);
+            $result = (new MailDocumentIngest())->saveToSection(
+                $memb,
+                $seccionId,
+                $threadId,
+                MailDocumentIngest::KIND_ATTACHMENT,
+                [
                     'bytes'    => $file['bytes'],
                     'filename' => $file['filename'],
                     'mime'     => $file['mimeType'],
                     'titulo'   => null,
-                    'mode'     => $file['mode'],
-                ];
-            }, $tituloRaw ? $tituloRaw : null);
-
-            return redirect()->to('/correo/' . $threadId)->with(
-                'success',
-                'Adjunto guardado en repositorio (doc ' . $docId . ').'
+                ],
+                $attachmentId,
+                $tituloRaw !== '' ? $tituloRaw : null
             );
+
+            $msg = $result['created']
+                ? 'Adjunto guardado en repositorio (doc ' . $result['documento_id'] . ').'
+                : 'Adjunto ya estaba en el repositorio (doc ' . $result['documento_id'] . ').';
+
+            return redirect()->to('/correo/' . $threadId)->with('success', $msg);
         } catch (\Throwable $e) {
             return redirect()->to('/correo/' . $threadId)->with('error', $e->getMessage());
         }
@@ -231,89 +310,42 @@ class Correo extends BaseController
         }
 
         try {
-            $docId = $this->saveBufferToRepo($memb, $seccionId, $threadId, function () use ($threadId) {
-                $file = ImapMailClient::downloadCertificate($threadId);
-
-                return [
+            $this->assertThreadOwner($memb, $threadId);
+            $file = ImapMailClient::downloadCertificate($threadId);
+            $result = (new MailDocumentIngest())->saveToSection(
+                $memb,
+                $seccionId,
+                $threadId,
+                MailDocumentIngest::KIND_CERTIFICATE,
+                [
                     'bytes'    => $file['bytes'],
                     'filename' => $file['filename'],
                     'mime'     => 'application/pdf',
                     'titulo'   => 'Certificado de hilo',
-                    'mode'     => $file['mode'],
-                ];
-            }, $tituloRaw ?: 'Certificado de hilo · ' . $threadId);
-
-            return redirect()->to('/correo/' . $threadId)->with(
-                'success',
-                'Certificado PDF guardado en repositorio (doc ' . $docId . ').'
+                ],
+                null,
+                $tituloRaw !== '' ? $tituloRaw : ('Certificado de hilo · ' . $threadId)
             );
+
+            $msg = $result['created']
+                ? 'Certificado PDF guardado en repositorio (doc ' . $result['documento_id'] . ').'
+                : 'Certificado ya estaba en el repositorio (doc ' . $result['documento_id'] . ').';
+
+            return redirect()->to('/correo/' . $threadId)->with('success', $msg);
         } catch (\Throwable $e) {
             return redirect()->to('/correo/' . $threadId)->with('error', $e->getMessage());
         }
     }
 
-    /**
-     * @param callable(): array{bytes: string, filename: string, mime: string, titulo: ?string, mode: string} $loader
-     */
-    private function saveBufferToRepo(array $memb, string $seccionId, string $threadId, callable $loader, ?string $tituloOverride): string
+    /** @param array<string, mixed> $memb */
+    private function assertThreadOwner(array $memb, string $threadId): void
     {
-        helper('id');
-
-        $seccion = model(DocumentoSeccionModel::class)
-            ->where('id', $seccionId)
-            ->where('empresa_id', $memb['empresa_id'])
-            ->first();
-        if ($seccion === null) {
-            throw new \RuntimeException('Sección no válida.');
+        if ($threadId === '') {
+            return;
         }
-        if (! DocumentAcl::canUpload($memb, [
-            'sucursal_id'     => $seccion['sucursal_id'],
-            'departamento_id' => $seccion['departamento_id'],
-        ])) {
-            throw new \RuntimeException('Sin permiso para subir en esta sección.');
+        $thread = ImapMailClient::getThread($threadId, $memb['usuario_id']);
+        if (($thread['data']['account']['usuarioId'] ?? null) !== $memb['usuario_id']) {
+            throw new \RuntimeException('Este hilo no pertenece a tu casilla.');
         }
-
-        if ($threadId !== '') {
-            $thread = ImapMailClient::getThread($threadId, $memb['usuario_id']);
-            if (($thread['data']['account']['usuarioId'] ?? null) !== $memb['usuario_id']) {
-                throw new \RuntimeException('Este hilo no pertenece a tu casilla.');
-            }
-        }
-
-        $file  = $loader();
-        $bytes = $file['bytes'];
-        (new \App\Libraries\PlanEntitlement())->assertCanUpload($memb['empresa_id'], strlen($bytes));
-
-        $docId = new_id();
-        $titulo = $tituloOverride ?: ($file['titulo'] ?: ('Correo · ' . $file['filename']));
-
-        $docs = model(DocumentoModel::class);
-        $docs->insert([
-            'id'              => $docId,
-            'empresa_id'      => $memb['empresa_id'],
-            'departamento_id' => $seccion['departamento_id'],
-            'sucursal_id'     => $seccion['sucursal_id'],
-            'seccion_id'      => $seccion['id'],
-            'titulo'          => $titulo,
-            'nombre_archivo'  => $file['filename'],
-            'ruta_relativa'   => 'pending',
-            'mime'            => $file['mime'],
-            'tamano_bytes'    => strlen($bytes),
-            'subido_por_id'   => $memb['usuario_id'],
-        ]);
-
-        try {
-            $saved = DocumentStorage::save($memb['empresa_id'], $docId, $file['filename'], $bytes);
-            $docs->update($docId, [
-                'ruta_relativa' => $saved['ruta_relativa'],
-                'tamano_bytes'  => $saved['tamano_bytes'],
-            ]);
-        } catch (\Throwable $e) {
-            $docs->delete($docId);
-
-            throw $e;
-        }
-
-        return $docId;
     }
 }

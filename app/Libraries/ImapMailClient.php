@@ -203,6 +203,106 @@ final class ImapMailClient
     }
 
     /**
+     * Trigger IMAP sync for an account.
+     *
+     * @return array{data: array<string, mixed>, mode: string}
+     */
+    public static function syncAccount(string $accountId): array
+    {
+        if (self::baseUrl() === null) {
+            return [
+                'data' => [
+                    'id'         => $accountId,
+                    'syncStatus' => 'IDLE',
+                    'note'       => 'mock sync skipped',
+                ],
+                'mode' => 'mock',
+            ];
+        }
+
+        $res  = self::mailFetch('/api/accounts/' . rawurlencode($accountId) . '/sync', 'POST', []);
+        $data = self::parseJson($res);
+
+        return ['data' => is_array($data) ? $data : [], 'mode' => 'live'];
+    }
+
+    public static function gmailOAuthStartUrl(string $usuarioId): ?string
+    {
+        $base = self::baseUrl();
+        if ($base === null) {
+            return null;
+        }
+
+        return $base . '/api/oauth/gmail/start?usuarioId=' . rawurlencode($usuarioId);
+    }
+
+    /**
+     * Download bytes from a relative downloadPath in a webhook payload.
+     *
+     * @return array{bytes: string, filename: string, mimeType: string, mode: string}
+     */
+    public static function downloadByPath(string $downloadPath, ?string $fallbackFilename = null): array
+    {
+        $path = '/' . ltrim($downloadPath, '/');
+
+        if (self::baseUrl() === null) {
+            $isCert = str_contains($path, '/certificate');
+            if ($isCert) {
+                return [
+                    'bytes'    => self::mockCertificatePdf('Webhook mock'),
+                    'filename' => $fallbackFilename ?: 'certificado-hilo.pdf',
+                    'mimeType' => 'application/pdf',
+                    'mode'     => 'mock',
+                ];
+            }
+
+            return [
+                'bytes'    => self::mockAttachmentPdf(),
+                'filename' => $fallbackFilename ?: 'adjunto-mock.pdf',
+                'mimeType' => 'application/pdf',
+                'mode'     => 'mock',
+            ];
+        }
+
+        $res = self::mailFetch($path, 'GET', null, false);
+        if ($res['status'] < 200 || $res['status'] >= 300) {
+            if (str_contains($path, '/certificate')) {
+                self::mailFetch($path, 'POST', []);
+                $res = self::mailFetch($path, 'GET', null, false);
+            }
+            if ($res['status'] < 200 || $res['status'] >= 300) {
+                throw new \RuntimeException('downloadPath failed (' . $res['status'] . '): ' . $path);
+            }
+        }
+
+        $cd       = $res['headers']['content-disposition'] ?? '';
+        $filename = $fallbackFilename ?: ('archivo-' . basename(parse_url($path, PHP_URL_PATH) ?: 'bin'));
+        if (preg_match('/filename="?([^";]+)"?/i', $cd, $m)) {
+            $filename = $m[1];
+        }
+
+        return [
+            'bytes'    => $res['body'],
+            'filename' => $filename,
+            'mimeType' => $res['headers']['content-type'] ?? 'application/octet-stream',
+            'mode'     => 'live',
+        ];
+    }
+
+    /** Shared secret for inbound webhook (deploy alias supported). */
+    public static function webhookSecret(): ?string
+    {
+        foreach (['REPOSITORIA_WEBHOOK_SECRET', 'IMAP_MAIL_WEBHOOK_SECRET'] as $key) {
+            $raw = env($key);
+            if (is_string($raw) && trim($raw) !== '') {
+                return trim($raw);
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @template T
      *
      * @param callable(): T $live

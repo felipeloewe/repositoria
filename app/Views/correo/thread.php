@@ -3,7 +3,7 @@
 
 <section class="banner">
     <h2><?= esc($thread['subject'] ?? 'Hilo') ?></h2>
-    <p>Modo <?= esc($mode) ?> · casilla <?= esc($thread['account']['email'] ?? '') ?></p>
+    <p>Modo <?= esc($mode) ?> · casilla <?= esc($thread['account']['email'] ?? '') ?> · guardá adjuntos y el certificado PDF en el repositorio</p>
 </section>
 
 <?php if (! empty($success)): ?><div class="alert alert-ok"><?= esc($success) ?></div><?php endif; ?>
@@ -18,7 +18,7 @@
     </p>
     <p><?= nl2br(esc($msg['bodyText'] ?? '')) ?></p>
     <?php foreach ($msg['attachments'] ?? [] as $att): ?>
-        <div style="margin-top:.75rem;padding:.75rem;background:var(--blue-50);border-radius:12px">
+        <div class="correo-attach">
             <strong><?= esc($att['filename'] ?? 'adjunto') ?></strong>
             <span class="muted">(<?= esc($att['mimeType'] ?? '') ?>)</span>
             <?php if ($uploadableSections !== []): ?>
