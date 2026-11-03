@@ -4,20 +4,26 @@ declare(strict_types=1);
 
 namespace App\Libraries;
 
+use App\Models\EmpresaFormPlantillaModel;
 use App\Models\EmpresaRecursoSistemaModel;
 use App\Models\SocioFormPlantillaModel;
 
 /**
  * Recursos genéricos de sistema (plantillas / futuros documentos) con on/off por empresa.
  * Default ON: ausencia de fila en empresa_recurso_sistema = activo.
+ * Socios: form_plantilla · Empresa: form_plantilla_empresa (tablas y catálogo separados).
  */
 final class RecursoSistema
 {
-    public const TIPO_FORM_PLANTILLA = 'form_plantilla';
-    public const TIPO_DOCUMENTO      = 'documento';
+    public const TIPO_FORM_PLANTILLA         = 'form_plantilla';
+    public const TIPO_FORM_PLANTILLA_EMPRESA = 'form_plantilla_empresa';
+    public const TIPO_DOCUMENTO              = 'documento';
 
-    /** Primera plantilla genérica — Estado de Situación y Solicitud de productos. */
+    /** Primera plantilla genérica socio — Estado de Situación y Solicitud de productos. */
     public const CLAVE_ESTADO_SITUACION = 'estado_situacion_solicitud_productos';
+
+    /** Primera plantilla genérica empresa — Solicitud interna. */
+    public const CLAVE_SOLICITUD_INTERNA_EMPRESA = 'solicitud_interna_empresa';
 
     /**
      * Catálogo conocido (UI Master). Futuros docs genéricos se agregan aquí.
@@ -31,9 +37,35 @@ final class RecursoSistema
                 'tipo'        => self::TIPO_FORM_PLANTILLA,
                 'clave'       => self::CLAVE_ESTADO_SITUACION,
                 'nombre'      => 'Estado de Situación y Solicitud de productos',
-                'descripcion' => 'Plantilla genérica de formulario (PDF AcroForm). Activa por defecto en todas las empresas.',
+                'descripcion' => 'Plantilla genérica de formulario de socios (PDF AcroForm). Activa por defecto.',
+            ],
+            [
+                'tipo'        => self::TIPO_FORM_PLANTILLA_EMPRESA,
+                'clave'       => self::CLAVE_SOLICITUD_INTERNA_EMPRESA,
+                'nombre'      => 'Solicitud interna',
+                'descripcion' => 'Plantilla genérica de Formulario (empresa). Activa por defecto; distinta de las genéricas de socios.',
             ],
         ];
+    }
+
+    /** @return list<string> */
+    public static function tiposConocidos(): array
+    {
+        return [
+            self::TIPO_FORM_PLANTILLA,
+            self::TIPO_FORM_PLANTILLA_EMPRESA,
+            self::TIPO_DOCUMENTO,
+        ];
+    }
+
+    public static function labelTipo(string $tipo): string
+    {
+        return match ($tipo) {
+            self::TIPO_FORM_PLANTILLA         => 'Plantilla formulario (socios)',
+            self::TIPO_FORM_PLANTILLA_EMPRESA => 'Plantilla formulario (empresa)',
+            self::TIPO_DOCUMENTO              => 'Documento',
+            default                           => $tipo,
+        };
     }
 
     public static function isActivo(string $empresaId, string $tipo, string $clave): bool
@@ -169,7 +201,7 @@ final class RecursoSistema
     }
 
     /**
-     * Plantillas genéricas activas para una empresa (globally activo + per-empresa ON).
+     * Plantillas genéricas de socios activas para una empresa (globally activo + per-empresa ON).
      *
      * @return list<array<string, mixed>>
      */
@@ -188,6 +220,90 @@ final class RecursoSistema
                 continue;
             }
             if (! self::isActivo($empresaId, self::TIPO_FORM_PLANTILLA, $clave)) {
+                continue;
+            }
+            $out[] = $row;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Idempotent seed: plantilla genérica de empresa «Solicitud interna».
+     */
+    public static function ensureSolicitudInternaEmpresaPlantilla(?\CodeIgniter\Database\BaseConnection $db = null): string
+    {
+        helper('id');
+        $db ??= db_connect();
+        $now = date('Y-m-d H:i:s');
+
+        $existing = $db->table('empresa_form_plantillas')
+            ->where('clave_sistema', self::CLAVE_SOLICITUD_INTERNA_EMPRESA)
+            ->get()
+            ->getRowArray();
+
+        if (is_array($existing)) {
+            return (string) $existing['id'];
+        }
+
+        $plantillaId = new_id();
+        $db->table('empresa_form_plantillas')->insert([
+            'id'            => $plantillaId,
+            'empresa_id'    => null,
+            'clave_sistema' => self::CLAVE_SOLICITUD_INTERNA_EMPRESA,
+            'nombre'        => 'Solicitud interna',
+            'descripcion'   => 'Plantilla genérica de sistema para Formulario (empresa). Disponible para todas las empresas; el Master puede desactivarla por empresa.',
+            'activo'        => 1,
+            'creado_por_id' => null,
+            'created_at'    => $now,
+            'updated_at'    => $now,
+        ]);
+
+        $campos = [
+            ['clave' => 'solicitante', 'etiqueta' => 'Solicitante', 'tipo' => 'text', 'obligatorio' => 1, 'orden' => 1],
+            ['clave' => 'area', 'etiqueta' => 'Área / departamento', 'tipo' => 'text', 'obligatorio' => 1, 'orden' => 2],
+            ['clave' => 'fecha', 'etiqueta' => 'Fecha de solicitud', 'tipo' => 'date', 'obligatorio' => 1, 'orden' => 3],
+            ['clave' => 'detalle', 'etiqueta' => 'Detalle de la solicitud', 'tipo' => 'text', 'obligatorio' => 1, 'orden' => 4],
+            ['clave' => 'anexo', 'etiqueta' => 'Anexo', 'tipo' => 'file', 'obligatorio' => 0, 'orden' => 5],
+        ];
+        $batch = [];
+        foreach ($campos as $c) {
+            $batch[] = [
+                'id'           => new_id(),
+                'plantilla_id' => $plantillaId,
+                'clave'        => $c['clave'],
+                'etiqueta'     => $c['etiqueta'],
+                'tipo'         => $c['tipo'],
+                'obligatorio'  => (int) $c['obligatorio'],
+                'orden'        => (int) $c['orden'],
+                'created_at'   => $now,
+            ];
+        }
+        $db->table('empresa_form_campos')->insertBatch($batch);
+
+        return $plantillaId;
+    }
+
+    /**
+     * Plantillas genéricas de empresa activas (tablas empresa_form_*; tipo form_plantilla_empresa).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function plantillasGenericasEmpresaActivas(string $empresaId): array
+    {
+        $rows = model(EmpresaFormPlantillaModel::class)
+            ->where('clave_sistema !=', '')
+            ->where('activo', 1)
+            ->orderBy('nombre', 'ASC')
+            ->findAll();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $clave = (string) ($row['clave_sistema'] ?? '');
+            if ($clave === '') {
+                continue;
+            }
+            if (! self::isActivo($empresaId, self::TIPO_FORM_PLANTILLA_EMPRESA, $clave)) {
                 continue;
             }
             $out[] = $row;

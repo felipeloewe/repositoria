@@ -124,7 +124,7 @@ class Organizacion extends BaseController
                 break;
             }
         }
-        if (! $known || ! in_array($tipo, [RecursoSistema::TIPO_FORM_PLANTILLA, RecursoSistema::TIPO_DOCUMENTO], true)) {
+        if (! $known || ! in_array($tipo, RecursoSistema::tiposConocidos(), true)) {
             return redirect()->to('/organizacion')->with('error', 'Recurso genérico no reconocido.');
         }
 

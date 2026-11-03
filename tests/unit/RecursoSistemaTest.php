@@ -14,6 +14,12 @@ final class RecursoSistemaTest extends CIUnitTestCase
     {
         $claves = array_column(RecursoSistema::catalogo(), 'clave');
         $this->assertContains(RecursoSistema::CLAVE_ESTADO_SITUACION, $claves);
+        $this->assertContains(RecursoSistema::CLAVE_SOLICITUD_INTERNA_EMPRESA, $claves);
+    }
+
+    public function testTiposConocidosIncluyeEmpresa(): void
+    {
+        $this->assertContains(RecursoSistema::TIPO_FORM_PLANTILLA_EMPRESA, RecursoSistema::tiposConocidos());
     }
 
     public function testIsGenerica(): void

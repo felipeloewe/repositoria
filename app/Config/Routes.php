@@ -42,6 +42,21 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('organizacion/membresia/socio', 'Organizacion::updateMembresiaSocio');
     $routes->post('organizacion/recursos-sistema/toggle', 'Organizacion::toggleRecursoSistema');
 
+    // Menú Formulario (empresa) — plantillas → PDF ambito=general + shares públicos
+    $routes->get('formularios', 'EmpresaFormularios::index');
+    $routes->get('formularios/nueva', 'EmpresaFormularios::createForm');
+    $routes->post('formularios', 'EmpresaFormularios::store');
+    $routes->get('formularios/instancias/(:segment)', 'EmpresaFormularios::showInstancia/$1');
+    $routes->get('formularios/(:segment)', 'EmpresaFormularios::show/$1');
+    $routes->post('formularios/(:segment)', 'EmpresaFormularios::update/$1');
+    $routes->post('formularios/(:segment)/toggle', 'EmpresaFormularios::toggle/$1');
+    $routes->post('formularios/(:segment)/campos', 'EmpresaFormularios::storeCampo/$1');
+    $routes->post('formularios/(:segment)/campos/(:segment)/delete', 'EmpresaFormularios::deleteCampo/$1/$2');
+    $routes->get('formularios/(:segment)/rellenar', 'EmpresaFormularios::fillForm/$1');
+    $routes->post('formularios/(:segment)/rellenar', 'EmpresaFormularios::fillSubmit/$1');
+    $routes->post('formularios/(:segment)/compartir', 'EmpresaFormularios::share/$1');
+    $routes->post('formularios/(:segment)/shares/(:segment)/revoke', 'EmpresaFormularios::revokeShare/$1/$2');
+
     // Menú Socios — documentos exclusivos (ambito=socio) + formularios
     $routes->get('socios', 'DocumentosSocios::index');
     $routes->post('socios/upload', 'DocumentosSocios::upload');
