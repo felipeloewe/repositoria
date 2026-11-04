@@ -62,6 +62,7 @@ class CreateRecursoAgrupaciones extends Migration
             $this->forge->createTable('recurso_entidades', true);
         }
 
+        // Junction tables: indexes only (no FK to empresas — collation mismatches on some hosts).
         if (! $this->db->tableExists('empresa_recurso_agrupacion')) {
             $this->forge->addField([
                 'id'            => ['type' => 'VARCHAR', 'constraint' => 36],
@@ -74,8 +75,7 @@ class CreateRecursoAgrupaciones extends Migration
             $this->forge->addPrimaryKey('id');
             $this->forge->addUniqueKey(['empresa_id', 'agrupacion_id']);
             $this->forge->addKey('agrupacion_id');
-            $this->forge->addForeignKey('empresa_id', 'empresas', 'id', 'CASCADE', 'CASCADE');
-            $this->forge->addForeignKey('agrupacion_id', 'recurso_agrupaciones', 'id', 'CASCADE', 'CASCADE');
+            $this->forge->addKey('empresa_id');
             $this->forge->createTable('empresa_recurso_agrupacion', true);
         }
 
@@ -91,8 +91,7 @@ class CreateRecursoAgrupaciones extends Migration
             $this->forge->addPrimaryKey('id');
             $this->forge->addUniqueKey(['empresa_id', 'entidad_id']);
             $this->forge->addKey('entidad_id');
-            $this->forge->addForeignKey('empresa_id', 'empresas', 'id', 'CASCADE', 'CASCADE');
-            $this->forge->addForeignKey('entidad_id', 'recurso_entidades', 'id', 'CASCADE', 'CASCADE');
+            $this->forge->addKey('empresa_id');
             $this->forge->createTable('empresa_recurso_entidad', true);
         }
 
