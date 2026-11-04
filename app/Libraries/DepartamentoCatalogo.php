@@ -31,19 +31,19 @@ final class DepartamentoCatalogo
             [
                 'clave'       => 'admin_finanzas_contabilidad',
                 'nombre'      => 'Administración, Finanzas y Contabilidad',
-                'descripcion' => 'Administración general, flujo de caja, presupuestos, proyecciones de inversión, impuestos, auditorías y contabilidad general.',
+                'descripcion' => 'Administración general, gestión del flujo de caja, presupuestos, proyecciones de inversión, pago de impuestos, auditorías y contabilidad general de la compañía.',
                 'aliases'     => ['Administración', 'Finanzas', 'Contabilidad'],
             ],
             [
                 'clave'       => 'ventas_desarrollo_negocios',
                 'nombre'      => 'Ventas y Desarrollo de Negocios',
-                'descripcion' => 'Generación de ingresos mediante prospección, negociación, cierre de contratos y gestión de canales de distribución.',
+                'descripcion' => 'Generación directa de ingresos mediante la prospección de clientes, negociación, cierre de contratos y gestión de canales de distribución.',
                 'aliases'     => ['Comercial', 'Ventas'],
             ],
             [
                 'clave'       => 'marketing_comunicaciones',
                 'nombre'      => 'Marketing y Comunicaciones',
-                'descripcion' => 'Posicionamiento de marca, investigación de mercado, publicidad, estrategias digitales y comunicación interna y externa.',
+                'descripcion' => 'Posicionamiento de la marca, investigación de mercado, publicidad, estrategias digitales y la comunicación tanto interna como externa de la empresa.',
                 'aliases'     => ['Marketing'],
             ],
             [
@@ -55,32 +55,32 @@ final class DepartamentoCatalogo
             [
                 'clave'       => 'legales_cumplimiento',
                 'nombre'      => 'Legales y Cumplimiento',
-                'descripcion' => 'Marco legal, contratos comerciales, propiedad intelectual y cumplimiento de normativas locales e internacionales.',
-                'aliases'     => ['Legal', 'Compliance'],
+                'descripcion' => 'Garantizar que la empresa opere dentro del marco de la ley: contratos comerciales, propiedad intelectual (marcas y patentes) y cumplimiento de normativas locales e internacionales (protección de datos, anticorrupción).',
+                'aliases'     => ['Legal', 'Legal & Compliance', 'Compliance'],
             ],
             [
                 'clave'       => 'ti_ciberseguridad',
                 'nombre'      => 'Tecnologías de la Información y Ciberseguridad',
-                'descripcion' => 'Infraestructura tecnológica, software (ERP, CRM), nube, mesa de ayuda y protección de datos frente a ciberataques.',
+                'descripcion' => 'Proveer y mantener la infraestructura tecnológica: software (ERP, CRM), servidores en la nube, soporte técnico de mesa de ayuda y protección de datos contra ciberataques.',
                 'aliases'     => ['Tecnología', 'IT', 'Informática'],
             ],
             [
                 'clave'       => 'experiencia_servicio_cliente',
                 'nombre'      => 'Experiencia y Servicio al Cliente',
-                'descripcion' => 'Retención postventa, fidelización, soporte al usuario y gestión de reclamos.',
+                'descripcion' => 'Retener a los clientes y resolver sus problemas después de la venta: fidelización, soporte técnico al usuario y gestión de reclamos.',
                 'aliases'     => ['Atención a Clientes', 'Customer Success', 'Customer Service'],
             ],
             [
                 'clave'       => 'compras_abastecimiento',
                 'nombre'      => 'Compras y Abastecimiento Corporativo',
-                'descripcion' => 'Negociación y adquisición de bienes, servicios y herramientas corporativas (software, flotas, consultores, etc.), distinto de materia prima operativa.',
-                'aliases'     => ['Compras', 'Procurement'],
+                'descripcion' => 'Negociar y adquirir bienes, servicios y herramientas que la empresa necesita para funcionar (software, papelería, limpieza, flotas, consultores), distinto de las compras de materia prima de Operaciones.',
+                'aliases'     => ['Compras', 'Procurement', 'Procurement & Sourcing'],
             ],
             [
                 'clave'       => 'investigacion_desarrollo',
                 'nombre'      => 'Investigación, Desarrollo e Innovación',
-                'descripcion' => 'Mejora de productos actuales o creación de nuevos servicios; innovación y procesos o ingeniería según el giro.',
-                'aliases'     => ['I+D', 'R&D', 'Innovación'],
+                'descripcion' => 'Diseñar el futuro de la empresa mejorando productos actuales o creando nuevos servicios; en servicios puede llamarse Innovación y Procesos, y en productos el área de ingeniería o diseño.',
+                'aliases'     => ['I+D', 'R&D', 'Innovación', 'Innovación y Procesos'],
             ],
         ];
     }
