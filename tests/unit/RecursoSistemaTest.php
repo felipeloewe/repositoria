@@ -42,7 +42,7 @@ final class RecursoSistemaTest extends CIUnitTestCase
     {
         $path = APPPATH . 'Database/Seeds/data/estado_situacion_solicitud_productos_campos.php';
         $this->assertFileExists($path);
-        /** @var list<array{clave: string, etiqueta: string, tipo: string, obligatorio: int, orden: int}> $campos */
+        /** @var list<array{clave: string, etiqueta: string, tipo: string, obligatorio: int, orden: int, seccion?: string}> $campos */
         $campos = require $path;
         $this->assertNotEmpty($campos);
         $claves = [];
@@ -50,6 +50,7 @@ final class RecursoSistemaTest extends CIUnitTestCase
             $this->assertArrayHasKey('clave', $c);
             $this->assertArrayHasKey('etiqueta', $c);
             $this->assertArrayHasKey('tipo', $c);
+            $this->assertArrayHasKey('seccion', $c);
             $this->assertContains($c['tipo'], ['text', 'date', 'file']);
             $claves[] = $c['clave'];
         }
@@ -76,7 +77,7 @@ final class RecursoSistemaTest extends CIUnitTestCase
         foreach ($files as $clave => $meta) {
             $path = APPPATH . 'Database/Seeds/data/' . $meta['file'];
             $this->assertFileExists($path, $clave);
-            /** @var list<array{clave: string, etiqueta: string, tipo: string, obligatorio: int, orden: int}> $campos */
+            /** @var list<array{clave: string, etiqueta: string, tipo: string, obligatorio: int, orden: int, seccion?: string}> $campos */
             $campos = require $path;
             $this->assertCount($meta['count'], $campos, $clave);
             $claves = [];
@@ -84,6 +85,7 @@ final class RecursoSistemaTest extends CIUnitTestCase
                 $this->assertArrayHasKey('clave', $c);
                 $this->assertArrayHasKey('etiqueta', $c);
                 $this->assertArrayHasKey('tipo', $c);
+                $this->assertArrayHasKey('seccion', $c, $clave);
                 $this->assertContains($c['tipo'], ['text', 'date', 'file']);
                 $claves[] = $c['clave'];
             }

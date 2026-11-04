@@ -233,6 +233,10 @@ class SociosFormularios extends BaseController
         $tipo        = (string) $this->request->getPost('tipo');
         $obligatorio = $this->request->getPost('obligatorio') ? 1 : 0;
         $claveIn     = trim((string) $this->request->getPost('clave'));
+        $seccion     = trim((string) $this->request->getPost('seccion'));
+        if (mb_strlen($seccion) > 255) {
+            $seccion = mb_substr($seccion, 0, 255);
+        }
 
         if ($etiqueta === '' || ! in_array($tipo, SocioFormService::TIPOS, true)) {
             return redirect()->to('/socios/formularios/' . $id)->with('error', 'Etiqueta y tipo válidos son obligatorios.');
@@ -261,6 +265,7 @@ class SociosFormularios extends BaseController
             'tipo'         => $tipo,
             'obligatorio'  => $obligatorio,
             'orden'        => $orden,
+            'seccion'      => $seccion !== '' ? $seccion : null,
             'created_at'   => date('Y-m-d H:i:s'),
         ]);
 

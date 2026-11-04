@@ -193,11 +193,12 @@ final class RecursoSistema
         ]);
 
         $camposPath = APPPATH . 'Database/Seeds/data/estado_situacion_solicitud_productos_campos.php';
-        /** @var list<array{clave: string, etiqueta: string, tipo: string, obligatorio: int, orden: int}> $campos */
+        /** @var list<array{clave: string, etiqueta: string, tipo: string, obligatorio: int, orden: int, seccion?: string}> $campos */
         $campos = is_file($camposPath) ? require $camposPath : [];
         if ($campos !== []) {
             $batch = [];
             foreach ($campos as $c) {
+                $seccion = isset($c['seccion']) ? trim((string) $c['seccion']) : '';
                 $batch[] = [
                     'id'           => new_id(),
                     'plantilla_id' => $plantillaId,
@@ -206,6 +207,7 @@ final class RecursoSistema
                     'tipo'         => $c['tipo'],
                     'obligatorio'  => (int) ($c['obligatorio'] ?? 0),
                     'orden'        => (int) ($c['orden'] ?? 0),
+                    'seccion'      => $seccion !== '' ? $seccion : null,
                     'created_at'   => $now,
                 ];
             }
@@ -367,11 +369,12 @@ final class RecursoSistema
         ]);
 
         $camposPath = APPPATH . 'Database/Seeds/data/' . $camposFile;
-        /** @var list<array{clave: string, etiqueta: string, tipo: string, obligatorio: int, orden: int}> $campos */
+        /** @var list<array{clave: string, etiqueta: string, tipo: string, obligatorio: int, orden: int, seccion?: string}> $campos */
         $campos = is_file($camposPath) ? require $camposPath : [];
         if ($campos !== []) {
             $batch = [];
             foreach ($campos as $c) {
+                $seccion = isset($c['seccion']) ? trim((string) $c['seccion']) : '';
                 $batch[] = [
                     'id'           => new_id(),
                     'plantilla_id' => $plantillaId,
@@ -380,6 +383,7 @@ final class RecursoSistema
                     'tipo'         => $c['tipo'],
                     'obligatorio'  => (int) ($c['obligatorio'] ?? 0),
                     'orden'        => (int) ($c['orden'] ?? 0),
+                    'seccion'      => $seccion !== '' ? $seccion : null,
                     'created_at'   => $now,
                 ];
             }
