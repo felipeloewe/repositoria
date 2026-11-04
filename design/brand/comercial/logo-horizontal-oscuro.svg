@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 96" fill="none" role="img" aria-label="Repositoria Gestor Documental">
+  <defs>
+    <linearGradient id="rpLogoMarkOnDark" x1="4" y1="12" x2="88" y2="84" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A8C4FF"/>
+      <stop offset="40%" stop-color="#6EC8E8"/>
+      <stop offset="100%" stop-color="#2EC4C6"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#rpLogoMarkOnDark)">
+    <path d="M8 28 L22 18 L22 78 L8 88 Z"/>
+    <path d="M22 18 L25 16.2 L25 21.2 L22 23 Z" opacity=".5"/>
+    <path d="M28 22 L42 12 L42 72 L28 82 Z"/>
+    <path d="M42 12 L45 10.2 L45 15.2 L42 17 Z" opacity=".5"/>
+    <path d="M48 26 L62 16 L62 76 L48 86 Z"/>
+    <path d="M62 16 L65 14.2 L65 19.2 L62 21 Z" opacity=".5"/>
+    <path d="M68 20 L82 10 L82 70 L68 80 Z"/>
+    <path d="M82 10 L85 8.2 L85 13.2 L82 15 Z" opacity=".5"/>
+  </g>
+  <text x="104" y="48" fill="#FFFFFF" font-family="Inter, DejaVu Sans, Arial, sans-serif" font-size="34" font-weight="800" letter-spacing="1.5">REPOSITORIA</text>
+  <text x="106" y="74" fill="#2EC4C6" font-family="Inter, DejaVu Sans, Arial, sans-serif" font-size="14" font-weight="600" letter-spacing="3.2">GESTOR DOCUMENTAL</text>
+</svg>
