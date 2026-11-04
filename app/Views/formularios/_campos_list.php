@@ -18,7 +18,8 @@ $colspan = $esGenerica ? 6 : 7;
 <?php if ($dupCount > 0): ?>
     <p class="form-dup-legend hint">
         <span class="form-dup-swatch" aria-hidden="true"></span>
-        Amarillo = etiqueta o clave repetida / redundante (<?= (int) $dupCount ?>). Útil para revisar el mapeo del PDF.
+        Amarillo (<?= (int) $dupCount ?>): etiqueta/clave repetida. La representación gráfica del PDF sí puede duplicar
+        datos; el highlight es para no completar de más — ir corrigiendo de a poco.
     </p>
 <?php endif; ?>
 <table class="table">

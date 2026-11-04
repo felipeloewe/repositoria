@@ -13,7 +13,8 @@ $dupCount = count(array_filter($campos, static fn ($c) => ! empty($c['es_duplica
 <?php if ($dupCount > 0): ?>
     <p class="form-dup-legend hint">
         <span class="form-dup-swatch" aria-hidden="true"></span>
-        Campos en amarillo: etiqueta o clave repetida / redundante (<?= (int) $dupCount ?>) — revisar antes de usar.
+        Amarillo (<?= (int) $dupCount ?>): etiqueta/clave que se repite. El PDF a menudo duplica datos en la gráfica;
+        no hace falta completar de más — revisá y rellená solo lo necesario.
     </p>
 <?php endif; ?>
 
