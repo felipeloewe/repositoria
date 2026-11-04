@@ -4,20 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Ingresar · Repositoria</title>
+    <link rel="icon" href="<?= base_url('favicon.ico') ?>" sizes="any">
+    <link rel="icon" type="image/png" href="<?= base_url('assets/brand/favicon-32.png') ?>" sizes="32x32">
+    <link rel="apple-touch-icon" href="<?= base_url('assets/brand/apple-touch-icon.png') ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Questrial&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= base_url('assets/css/app.css') ?>">
 </head>
 <body>
 <div class="auth-page">
     <div class="auth-card">
-        <div class="brand">
-            <div class="brand-mark" aria-hidden="true"></div>
-            <div>
-                <h1>Repositoria</h1>
-                <p>Ingreso por membresía real</p>
-            </div>
+        <div class="brand brand--auth">
+            <img class="brand-logo" src="<?= base_url('assets/brand/logo.svg') ?>" width="280" height="64" alt="Repositoria — Gestor documental">
         </div>
         <h2>Bienvenido</h2>
         <p class="lead">Usa tu correo y contraseña. El perfil sale de tu membresía activa — sin switcher de roles.</p>

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600" fill="none" role="img" aria-label="Repositoria brochure">
+  <defs>
+    <linearGradient id="broBg" x1="0" y1="0" x2="1200" y2="1600" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#15245C"/>
+      <stop offset="55%" stop-color="#1B2A6B"/>
+      <stop offset="100%" stop-color="#163A6E"/>
+    </linearGradient>
+    <linearGradient id="broMark" x1="420" y1="420" x2="780" y2="820" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A8C4FF"/>
+      <stop offset="40%" stop-color="#6EC8E8"/>
+      <stop offset="100%" stop-color="#2EC4C6"/>
+    </linearGradient>
+    <linearGradient id="broAccent" x1="0" y1="1400" x2="1200" y2="1600" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1F529E"/>
+      <stop offset="100%" stop-color="#2EC4C6"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="1600" fill="url(#broBg)"/>
+  <path d="M0 1280 L420 1180 L1200 1320 L1200 1600 L0 1600 Z" fill="url(#broAccent)" opacity=".9"/>
+  <path d="M0 0 L1200 0 L1200 48 L0 120 Z" fill="#2EC4C6" opacity=".22"/>
+
+  <g fill="url(#broMark)" transform="translate(430 360) scale(4.2)">
+    <path d="M8 18 L18 12 L18 52 L8 58 Z"/>
+    <path d="M18 12 L20 10.8 L20 14.2 L18 15.4 Z" opacity=".5"/>
+    <path d="M22 14 L32 8 L32 48 L22 54 Z"/>
+    <path d="M32 8 L34 6.8 L34 10.2 L32 11.4 Z" opacity=".5"/>
+    <path d="M36 16 L46 10 L46 50 L36 56 Z"/>
+    <path d="M46 10 L48 8.8 L48 12.2 L46 13.4 Z" opacity=".5"/>
+    <path d="M50 12 L60 6 L60 46 L50 52 Z"/>
+    <path d="M60 6 L62 4.8 L62 8.2 L60 9.4 Z" opacity=".5"/>
+  </g>
+
+  <text x="600" y="980" fill="#FFFFFF" font-family="Inter, DejaVu Sans, Arial, sans-serif" font-size="72" font-weight="800" letter-spacing="4" text-anchor="middle">REPOSITORIA</text>
+  <text x="600" y="1040" fill="#2EC4C6" font-family="Inter, DejaVu Sans, Arial, sans-serif" font-size="28" font-weight="600" letter-spacing="8" text-anchor="middle">GESTOR DOCUMENTAL</text>
+  <text x="600" y="1480" fill="#FFFFFF" font-family="Inter, DejaVu Sans, Arial, sans-serif" font-size="22" letter-spacing="1.5" text-anchor="middle" opacity=".85">Identidad comercial - uso en brochure y presentaciones</text>
+</svg>
