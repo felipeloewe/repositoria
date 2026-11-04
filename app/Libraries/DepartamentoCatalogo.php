@@ -11,65 +11,98 @@ use App\Models\EmpresaModel;
  * Departamentos genéricos de sistema (10) con on/off por empresa.
  * Materializados como filas en `departamentos` (clave_sistema + activo).
  * Default ON al materializar; Master desactiva en Administración → Departamentos.
+ *
+ * Catálogo definido por producto (Gestión de Personas … I+D).
  */
 final class DepartamentoCatalogo
 {
     /**
-     * @return list<array{clave: string, nombre: string, descripcion: string}>
+     * @return list<array{clave: string, nombre: string, descripcion: string, aliases?: list<string>}>
      */
     public static function catalogo(): array
     {
         return [
             [
-                'clave'       => 'operaciones',
-                'nombre'      => 'Operaciones',
-                'descripcion' => 'Gestión de la operación diaria y cumplimiento de procesos de negocio.',
+                'clave'       => 'gestion_personas',
+                'nombre'      => 'Gestión de Personas',
+                'descripcion' => 'Atracción, retención, capacitación y bienestar del talento humano, además de las relaciones laborales y legales con los empleados.',
+                'aliases'     => ['Recursos Humanos', 'RRHH', 'HR'],
             ],
             [
-                'clave'       => 'administracion',
-                'nombre'      => 'Administración',
-                'descripcion' => 'Soporte administrativo, control interno y coordinación organizacional.',
+                'clave'       => 'admin_finanzas_contabilidad',
+                'nombre'      => 'Administración, Finanzas y Contabilidad',
+                'descripcion' => 'Administración general, flujo de caja, presupuestos, proyecciones de inversión, impuestos, auditorías y contabilidad general.',
+                'aliases'     => ['Administración', 'Finanzas', 'Contabilidad'],
             ],
             [
-                'clave'       => 'finanzas',
-                'nombre'      => 'Finanzas',
-                'descripcion' => 'Tesorería, presupuesto, control de gastos y reportes financieros.',
+                'clave'       => 'ventas_desarrollo_negocios',
+                'nombre'      => 'Ventas y Desarrollo de Negocios',
+                'descripcion' => 'Generación de ingresos mediante prospección, negociación, cierre de contratos y gestión de canales de distribución.',
+                'aliases'     => ['Comercial', 'Ventas'],
             ],
             [
-                'clave'       => 'recursos_humanos',
-                'nombre'      => 'Recursos Humanos',
-                'descripcion' => 'Personas, contratos laborales, beneficios y desarrollo organizacional.',
+                'clave'       => 'marketing_comunicaciones',
+                'nombre'      => 'Marketing y Comunicaciones',
+                'descripcion' => 'Posicionamiento de marca, investigación de mercado, publicidad, estrategias digitales y comunicación interna y externa.',
+                'aliases'     => ['Marketing'],
             ],
             [
-                'clave'       => 'comercial',
-                'nombre'      => 'Comercial',
-                'descripcion' => 'Ventas, cartera de clientes y seguimiento de oportunidades de negocio.',
+                'clave'       => 'operaciones_cadena_suministro',
+                'nombre'      => 'Operaciones y Cadena de Suministro',
+                'descripcion' => 'Producción del bien o entrega del servicio, logística, compras de materias primas, almacenamiento, inventario y distribución final.',
+                'aliases'     => ['Operaciones', 'Logística', 'Supply Chain'],
             ],
             [
-                'clave'       => 'marketing',
-                'nombre'      => 'Marketing',
-                'descripcion' => 'Comunicación, marca, campañas y materiales de difusión.',
+                'clave'       => 'legales_cumplimiento',
+                'nombre'      => 'Legales y Cumplimiento',
+                'descripcion' => 'Marco legal, contratos comerciales, propiedad intelectual y cumplimiento de normativas locales e internacionales.',
+                'aliases'     => ['Legal', 'Compliance'],
             ],
             [
-                'clave'       => 'tecnologia',
-                'nombre'      => 'Tecnología',
-                'descripcion' => 'Sistemas, infraestructura digital y soporte tecnológico interno.',
+                'clave'       => 'ti_ciberseguridad',
+                'nombre'      => 'Tecnologías de la Información y Ciberseguridad',
+                'descripcion' => 'Infraestructura tecnológica, software (ERP, CRM), nube, mesa de ayuda y protección de datos frente a ciberataques.',
+                'aliases'     => ['Tecnología', 'IT', 'Informática'],
             ],
             [
-                'clave'       => 'legal',
-                'nombre'      => 'Legal',
-                'descripcion' => 'Asuntos jurídicos, contratos institucionales y cumplimiento normativo.',
+                'clave'       => 'experiencia_servicio_cliente',
+                'nombre'      => 'Experiencia y Servicio al Cliente',
+                'descripcion' => 'Retención postventa, fidelización, soporte al usuario y gestión de reclamos.',
+                'aliases'     => ['Atención a Clientes', 'Customer Success', 'Customer Service'],
             ],
             [
-                'clave'       => 'logistica',
-                'nombre'      => 'Logística',
-                'descripcion' => 'Distribución, inventario, abastecimiento y coordinación de entregas.',
+                'clave'       => 'compras_abastecimiento',
+                'nombre'      => 'Compras y Abastecimiento Corporativo',
+                'descripcion' => 'Negociación y adquisición de bienes, servicios y herramientas corporativas (software, flotas, consultores, etc.), distinto de materia prima operativa.',
+                'aliases'     => ['Compras', 'Procurement'],
             ],
             [
-                'clave'       => 'atencion_clientes',
-                'nombre'      => 'Atención a Clientes',
-                'descripcion' => 'Servicio al cliente, reclamos y seguimiento postventa.',
+                'clave'       => 'investigacion_desarrollo',
+                'nombre'      => 'Investigación, Desarrollo e Innovación',
+                'descripcion' => 'Mejora de productos actuales o creación de nuevos servicios; innovación y procesos o ingeniería según el giro.',
+                'aliases'     => ['I+D', 'R&D', 'Innovación'],
             ],
+        ];
+    }
+
+    /**
+     * Claves del catálogo anterior → nuevas (branch pre-merge).
+     *
+     * @return array<string, string>
+     */
+    public static function legacyClaveMap(): array
+    {
+        return [
+            'operaciones'       => 'operaciones_cadena_suministro',
+            'administracion'    => 'admin_finanzas_contabilidad',
+            'finanzas'          => 'admin_finanzas_contabilidad',
+            'recursos_humanos'  => 'gestion_personas',
+            'comercial'         => 'ventas_desarrollo_negocios',
+            'marketing'         => 'marketing_comunicaciones',
+            'tecnologia'        => 'ti_ciberseguridad',
+            'legal'             => 'legales_cumplimiento',
+            'logistica'         => 'operaciones_cadena_suministro',
+            'atencion_clientes' => 'experiencia_servicio_cliente',
         ];
     }
 
@@ -87,14 +120,61 @@ final class DepartamentoCatalogo
     }
 
     /**
+     * Remapea claves del catálogo v1 si existen filas legacy en esta empresa.
+     */
+    private static function remapLegacyClaves(string $empresaId, \CodeIgniter\Database\BaseConnection $db, string $now): void
+    {
+        $byNombre = [];
+        foreach (self::catalogo() as $item) {
+            $byNombre[$item['clave']] = $item['nombre'];
+        }
+
+        foreach (self::legacyClaveMap() as $old => $new) {
+            if ($old === $new) {
+                continue;
+            }
+            $row = $db->table('departamentos')
+                ->where('empresa_id', $empresaId)
+                ->where('clave_sistema', $old)
+                ->get()
+                ->getRowArray();
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $target = $db->table('departamentos')
+                ->where('empresa_id', $empresaId)
+                ->where('clave_sistema', $new)
+                ->get()
+                ->getRowArray();
+            if (is_array($target)) {
+                // Ya existe el genérico nuevo: dejar la fila legacy como custom.
+                $db->table('departamentos')->where('id', $row['id'])->update([
+                    'clave_sistema' => null,
+                    'updated_at'    => $now,
+                ]);
+                continue;
+            }
+
+            $db->table('departamentos')->where('id', $row['id'])->update([
+                'clave_sistema' => $new,
+                'nombre'        => $byNombre[$new] ?? $row['nombre'],
+                'updated_at'    => $now,
+            ]);
+        }
+    }
+
+    /**
      * Idempotent: materializa los 10 genéricos para la empresa (activo=1 si nuevos).
-     * Si ya existe un depto custom con el mismo nombre, lo adopta (asigna clave_sistema).
+     * Si ya existe un depto custom con el mismo nombre (o alias), lo adopta.
      */
     public static function ensureForEmpresa(string $empresaId, ?\CodeIgniter\Database\BaseConnection $db = null): void
     {
         helper('id');
         $db ??= db_connect();
         $now = date('Y-m-d H:i:s');
+
+        self::remapLegacyClaves($empresaId, $db, $now);
 
         foreach (self::catalogo() as $item) {
             $clave  = $item['clave'];
@@ -106,20 +186,38 @@ final class DepartamentoCatalogo
                 ->get()
                 ->getRowArray();
             if (is_array($byClave)) {
+                // Mantener nombre canónico del catálogo.
+                if ((string) ($byClave['nombre'] ?? '') !== $nombre) {
+                    $db->table('departamentos')->where('id', $byClave['id'])->update([
+                        'nombre'     => $nombre,
+                        'updated_at' => $now,
+                    ]);
+                }
                 continue;
             }
 
-            // Adoptar custom homónimo (sin clave) para no chocar UNIQUE (empresa_id, nombre).
-            $byNombre = $db->table('departamentos')
-                ->where('empresa_id', $empresaId)
-                ->where('nombre', $nombre)
-                ->where('clave_sistema', null)
-                ->get()
-                ->getRowArray();
-            if (is_array($byNombre)) {
-                $db->table('departamentos')->where('id', $byNombre['id'])->update([
+            $nombres = array_values(array_unique(array_merge([$nombre], $item['aliases'] ?? [])));
+            $adopted = null;
+            foreach ($nombres as $candidato) {
+                $byNombre = $db->table('departamentos')
+                    ->where('empresa_id', $empresaId)
+                    ->where('nombre', $candidato)
+                    ->groupStart()
+                        ->where('clave_sistema', null)
+                        ->orWhere('clave_sistema', '')
+                    ->groupEnd()
+                    ->get()
+                    ->getRowArray();
+                if (is_array($byNombre)) {
+                    $adopted = $byNombre;
+                    break;
+                }
+            }
+            if (is_array($adopted)) {
+                $db->table('departamentos')->where('id', $adopted['id'])->update([
+                    'nombre'        => $nombre,
                     'clave_sistema' => $clave,
-                    'activo'        => (int) ($byNombre['activo'] ?? 1) === 1 ? 1 : 0,
+                    'activo'        => (int) ($adopted['activo'] ?? 1) === 1 ? 1 : 0,
                     'updated_at'    => $now,
                 ]);
                 continue;

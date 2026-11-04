@@ -16,9 +16,9 @@ final class DepartamentoCatalogoTest extends CIUnitTestCase
         $this->assertCount(10, $cat);
         $claves = array_column($cat, 'clave');
         $this->assertSameSize($claves, array_unique($claves));
-        $this->assertContains('operaciones', $claves);
-        $this->assertContains('administracion', $claves);
-        $this->assertContains('atencion_clientes', $claves);
+        $this->assertContains('gestion_personas', $claves);
+        $this->assertContains('admin_finanzas_contabilidad', $claves);
+        $this->assertContains('investigacion_desarrollo', $claves);
         foreach ($cat as $item) {
             $this->assertNotSame('', trim($item['nombre']));
             $this->assertNotSame('', trim($item['descripcion']));
@@ -28,9 +28,20 @@ final class DepartamentoCatalogoTest extends CIUnitTestCase
 
     public function testIsGenerico(): void
     {
-        $this->assertTrue(DepartamentoCatalogo::isGenerico('finanzas'));
+        $this->assertTrue(DepartamentoCatalogo::isGenerico('ventas_desarrollo_negocios'));
+        $this->assertFalse(DepartamentoCatalogo::isGenerico('finanzas')); // clave legacy
         $this->assertFalse(DepartamentoCatalogo::isGenerico(null));
         $this->assertFalse(DepartamentoCatalogo::isGenerico(''));
         $this->assertFalse(DepartamentoCatalogo::isGenerico('otro'));
+    }
+
+    public function testLegacyClaveMapCubreCatalogoAnterior(): void
+    {
+        $map = DepartamentoCatalogo::legacyClaveMap();
+        $this->assertSame('gestion_personas', $map['recursos_humanos']);
+        $this->assertSame('operaciones_cadena_suministro', $map['operaciones']);
+        foreach ($map as $new) {
+            $this->assertTrue(DepartamentoCatalogo::isGenerico($new));
+        }
     }
 }
