@@ -51,6 +51,11 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('departamentos/temas', 'Departamentos::temas');
     $routes->post('departamentos/temas', 'Departamentos::storeTema');
 
+    // Administración → Recursos (agrupaciones / entidades con checkboxes)
+    $routes->get('recursos', 'Recursos::index');
+    $routes->post('recursos/agrupacion/toggle', 'Recursos::toggleAgrupacion');
+    $routes->post('recursos/entidad/toggle', 'Recursos::toggleEntidad');
+
     // Menú Formulario (empresa) — plantillas → PDF ambito=general + shares públicos
     $routes->get('formularios', 'EmpresaFormularios::index');
     $routes->get('formularios/nueva', 'EmpresaFormularios::createForm');
