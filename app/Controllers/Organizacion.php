@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Libraries\DepartamentoCatalogo;
 use App\Libraries\MembershipAuth;
 use App\Libraries\PlanEntitlement;
 use App\Libraries\RecursoSistema;
@@ -47,10 +48,8 @@ class Organizacion extends BaseController
         }
 
         $empresaId = $memb['empresa_id'];
-        $deptos    = model(DepartamentoModel::class)
-            ->where('empresa_id', $empresaId)
-            ->orderBy('nombre', 'ASC')
-            ->findAll();
+        DepartamentoCatalogo::ensureForEmpresa((string) $empresaId);
+        $deptos = DepartamentoCatalogo::listActivos((string) $empresaId);
 
         $sucursales = model(SucursalModel::class)
             ->where('empresa_id', $empresaId)
@@ -301,13 +300,22 @@ class Organizacion extends BaseController
             return redirect()->to('/organizacion')->with('error', 'Nombre de departamento requerido.');
         }
 
+        foreach (DepartamentoCatalogo::catalogo() as $item) {
+            if (mb_strtolower($item['nombre']) === mb_strtolower($nombre)) {
+                return redirect()->to('/departamentos')
+                    ->with('error', '«' . $item['nombre'] . '» es genérico; actívalo en Administración → Departamentos.');
+            }
+        }
+
         model(DepartamentoModel::class)->insert([
-            'id'         => new_id(),
-            'empresa_id' => $memb['empresa_id'],
-            'nombre'     => $nombre,
+            'id'            => new_id(),
+            'empresa_id'    => $memb['empresa_id'],
+            'nombre'        => $nombre,
+            'clave_sistema' => null,
+            'activo'        => 1,
         ]);
 
-        return redirect()->to('/organizacion')->with('success', 'Departamento creado.');
+        return redirect()->to('/organizacion')->with('success', 'Departamento creado. También puedes gestionar genéricos en Departamentos.');
     }
 
     public function storeSucursal()

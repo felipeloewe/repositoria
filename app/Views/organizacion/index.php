@@ -182,15 +182,28 @@
     </div>
 </div>
 
+<div class="card section-card">
+    <h3>Departamentos activos</h3>
+    <p class="hint">Los <strong>10 genéricos</strong> y los custom se gestionan en
+        <a href="<?= site_url('departamentos') ?>">Administración → Departamentos</a>
+        (activar / desactivar). Aquí solo se listan los activos para sucursales y tags.</p>
+    <?php if ($deptos === []): ?>
+        <p class="muted">Ningún departamento activo. <a href="<?= site_url('departamentos') ?>">Activar genéricos</a>.</p>
+    <?php else: ?>
+        <p><?php foreach ($deptos as $i => $d): ?><?= $i > 0 ? ' · ' : '' ?><strong><?= esc($d['nombre']) ?></strong><?php endforeach; ?></p>
+    <?php endif; ?>
+</div>
+
 <div class="stack-forms">
     <div class="card">
-        <h3>Nuevo departamento</h3>
+        <h3>Nuevo departamento custom</h3>
         <form method="post" action="<?= site_url('organizacion/departamento') ?>">
             <?= csrf_field() ?>
             <label for="depto_nombre">Nombre</label>
-            <input id="depto_nombre" type="text" name="nombre" required>
+            <input id="depto_nombre" type="text" name="nombre" required placeholder="No use nombres del catálogo genérico">
             <button class="btn btn-primary" type="submit">Crear departamento</button>
         </form>
+        <p class="hint" style="margin-top:.5rem"><a href="<?= site_url('departamentos') ?>">Ver genéricos y toggles →</a></p>
     </div>
     <div class="card">
         <h3>Nueva sucursal</h3>

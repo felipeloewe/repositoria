@@ -42,6 +42,11 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('organizacion/membresia/socio', 'Organizacion::updateMembresiaSocio');
     $routes->post('organizacion/recursos-sistema/toggle', 'Organizacion::toggleRecursoSistema');
 
+    // Administración → Departamentos (genéricos on/off + custom)
+    $routes->get('departamentos', 'Departamentos::index');
+    $routes->post('departamentos/toggle', 'Departamentos::toggle');
+    $routes->post('departamentos/custom', 'Departamentos::storeCustom');
+
     // Menú Formulario (empresa) — plantillas → PDF ambito=general + shares públicos
     $routes->get('formularios', 'EmpresaFormularios::index');
     $routes->get('formularios/nueva', 'EmpresaFormularios::createForm');

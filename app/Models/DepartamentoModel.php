@@ -13,5 +13,5 @@ class DepartamentoModel extends Model
     protected $useAutoIncrement = false;
     protected $returnType       = 'array';
     protected $useTimestamps    = true;
-    protected $allowedFields    = ['id', 'empresa_id', 'nombre'];
+    protected $allowedFields    = ['id', 'empresa_id', 'nombre', 'clave_sistema', 'activo'];
 }

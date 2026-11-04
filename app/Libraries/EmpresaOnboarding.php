@@ -7,6 +7,7 @@ namespace App\Libraries;
 use App\Models\EmpresaModel;
 use App\Models\PlanModel;
 use App\Models\UsuarioModel;
+// DepartamentoCatalogo in same namespace
 use CodeIgniter\Database\BaseConnection;
 use RuntimeException;
 use Throwable;
@@ -186,12 +187,17 @@ final class EmpresaOnboarding
             if ($createDefs) {
                 $deptoId = new_id();
                 $this->db->table('departamentos')->insert([
-                    'id'         => $deptoId,
-                    'empresa_id' => $empresaId,
-                    'nombre'     => 'General',
-                    'created_at' => $now,
-                    'updated_at' => $now,
+                    'id'            => $deptoId,
+                    'empresa_id'    => $empresaId,
+                    'nombre'        => 'General',
+                    'clave_sistema' => null,
+                    'activo'        => 1,
+                    'created_at'    => $now,
+                    'updated_at'    => $now,
                 ]);
+
+                // 10 genéricos activos por defecto (Administración → Departamentos).
+                DepartamentoCatalogo::ensureForEmpresa($empresaId, $this->db);
 
                 $sucursalId = new_id();
                 $this->db->table('sucursales')->insert([
