@@ -25,6 +25,12 @@ final class RecursoSistema
     /** Primera plantilla genérica empresa — Solicitud interna. */
     public const CLAVE_SOLICITUD_INTERNA_EMPRESA = 'solicitud_interna_empresa';
 
+    /** DJ identificación Beneficiarios Finales (Circular 57 Banco). */
+    public const CLAVE_DJ_BENEFICIARIOS_FINALES = 'dj_beneficiarios_finales_circular_57';
+
+    /** DJ Art. 85 Ley General de Bancos. */
+    public const CLAVE_DJ_ART_85_LEY_GENERAL_BANCOS = 'dj_art_85_ley_general_bancos';
+
     /**
      * Catálogo conocido (UI Master). Futuros docs genéricos se agregan aquí.
      *
@@ -44,6 +50,18 @@ final class RecursoSistema
                 'clave'       => self::CLAVE_SOLICITUD_INTERNA_EMPRESA,
                 'nombre'      => 'Solicitud interna',
                 'descripcion' => 'Plantilla genérica de Formulario (empresa). Activa por defecto; distinta de las genéricas de socios.',
+            ],
+            [
+                'tipo'        => self::TIPO_FORM_PLANTILLA_EMPRESA,
+                'clave'       => self::CLAVE_DJ_BENEFICIARIOS_FINALES,
+                'nombre'      => 'DJ Beneficiarios Finales (Circular 57)',
+                'descripcion' => 'Declaración jurada de identificación de beneficiarios finales (Circular 57). Genérica empresa; activa por defecto.',
+            ],
+            [
+                'tipo'        => self::TIPO_FORM_PLANTILLA_EMPRESA,
+                'clave'       => self::CLAVE_DJ_ART_85_LEY_GENERAL_BANCOS,
+                'nombre'      => 'DJ Art. 85 Ley General de Bancos',
+                'descripcion' => 'Declaración Art. 85 Ley General de Bancos. Genérica empresa; activa por defecto.',
             ],
         ];
     }
@@ -280,6 +298,95 @@ final class RecursoSistema
             ];
         }
         $db->table('empresa_form_campos')->insertBatch($batch);
+
+        return $plantillaId;
+    }
+
+    /**
+     * Idempotent seed: DJ Beneficiarios Finales (Circular 57) — empresa.
+     */
+    public static function ensureDjBeneficiariosFinalesPlantilla(?\CodeIgniter\Database\BaseConnection $db = null): string
+    {
+        return self::ensureEmpresaPlantillaFromData(
+            self::CLAVE_DJ_BENEFICIARIOS_FINALES,
+            'DJ Beneficiarios Finales (Circular 57)',
+            'Declaración jurada para la identificación de beneficiarios finales de personas y/o estructuras jurídicas (Circular Nº 57). Plantilla genérica de sistema; el Master puede desactivarla por empresa.',
+            'dj_beneficiarios_finales_circular_57_campos.php',
+            $db
+        );
+    }
+
+    /**
+     * Idempotent seed: DJ Art. 85 Ley General de Bancos — empresa.
+     */
+    public static function ensureDjArt85LeyGeneralBancosPlantilla(?\CodeIgniter\Database\BaseConnection $db = null): string
+    {
+        return self::ensureEmpresaPlantillaFromData(
+            self::CLAVE_DJ_ART_85_LEY_GENERAL_BANCOS,
+            'DJ Art. 85 Ley General de Bancos',
+            'Declaración Art. 85 Ley General de Bancos (obligaciones complementarias / márgenes de crédito). Plantilla genérica de sistema; el Master puede desactivarla por empresa.',
+            'dj_art_85_ley_general_bancos_campos.php',
+            $db
+        );
+    }
+
+    /**
+     * Shared idempotent seed for empresa generics backed by Seeds/data/*.php.
+     */
+    private static function ensureEmpresaPlantillaFromData(
+        string $clave,
+        string $nombre,
+        string $descripcion,
+        string $camposFile,
+        ?\CodeIgniter\Database\BaseConnection $db = null
+    ): string {
+        helper('id');
+        $db ??= db_connect();
+        $now = date('Y-m-d H:i:s');
+
+        $existing = $db->table('empresa_form_plantillas')
+            ->where('clave_sistema', $clave)
+            ->get()
+            ->getRowArray();
+
+        if (is_array($existing)) {
+            return (string) $existing['id'];
+        }
+
+        $plantillaId = new_id();
+        $db->table('empresa_form_plantillas')->insert([
+            'id'            => $plantillaId,
+            'empresa_id'    => null,
+            'clave_sistema' => $clave,
+            'nombre'        => $nombre,
+            'descripcion'   => $descripcion,
+            'activo'        => 1,
+            'creado_por_id' => null,
+            'created_at'    => $now,
+            'updated_at'    => $now,
+        ]);
+
+        $camposPath = APPPATH . 'Database/Seeds/data/' . $camposFile;
+        /** @var list<array{clave: string, etiqueta: string, tipo: string, obligatorio: int, orden: int}> $campos */
+        $campos = is_file($camposPath) ? require $camposPath : [];
+        if ($campos !== []) {
+            $batch = [];
+            foreach ($campos as $c) {
+                $batch[] = [
+                    'id'           => new_id(),
+                    'plantilla_id' => $plantillaId,
+                    'clave'        => $c['clave'],
+                    'etiqueta'     => $c['etiqueta'],
+                    'tipo'         => $c['tipo'],
+                    'obligatorio'  => (int) ($c['obligatorio'] ?? 0),
+                    'orden'        => (int) ($c['orden'] ?? 0),
+                    'created_at'   => $now,
+                ];
+            }
+            foreach (array_chunk($batch, 50) as $chunk) {
+                $db->table('empresa_form_campos')->insertBatch($chunk);
+            }
+        }
 
         return $plantillaId;
     }
