@@ -34,18 +34,22 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('empresa/cambiar', 'Auth::doSwitchEmpresa');
 
     $routes->get('organizacion', 'Organizacion::index');
-    $routes->post('organizacion/departamento', 'Organizacion::storeDepartamento');
+    $routes->post('organizacion/departamento', 'Organizacion::storeDepartamento'); // legacy → redirige a /departamentos
     $routes->post('organizacion/sucursal', 'Organizacion::storeSucursal');
-    $routes->post('organizacion/actividad', 'Organizacion::storeActividad');
-    $routes->post('organizacion/tema', 'Organizacion::storeTema');
+    $routes->post('organizacion/actividad', 'Organizacion::storeActividad'); // legacy → /departamentos/actividades
+    $routes->post('organizacion/tema', 'Organizacion::storeTema'); // legacy → /departamentos/temas
     $routes->post('organizacion/membresia', 'Organizacion::storeMembresia');
     $routes->post('organizacion/membresia/socio', 'Organizacion::updateMembresiaSocio');
     $routes->post('organizacion/recursos-sistema/toggle', 'Organizacion::toggleRecursoSistema');
 
-    // Administración → Departamentos (genéricos on/off + custom)
+    // Administración → Departamentos (menú exclusivo + pestañas)
     $routes->get('departamentos', 'Departamentos::index');
     $routes->post('departamentos/toggle', 'Departamentos::toggle');
     $routes->post('departamentos/custom', 'Departamentos::storeCustom');
+    $routes->get('departamentos/actividades', 'Departamentos::actividades');
+    $routes->post('departamentos/actividades', 'Departamentos::storeActividad');
+    $routes->get('departamentos/temas', 'Departamentos::temas');
+    $routes->post('departamentos/temas', 'Departamentos::storeTema');
 
     // Menú Formulario (empresa) — plantillas → PDF ambito=general + shares públicos
     $routes->get('formularios', 'EmpresaFormularios::index');

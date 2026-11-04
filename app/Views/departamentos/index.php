@@ -7,6 +7,8 @@
     <p>Catálogo de <strong>10 departamentos genéricos</strong> (sistema) que puedes activar o desactivar para esta empresa, más departamentos custom propios.</p>
 </section>
 
+<?= view('departamentos/_tabs', ['tab' => 'departamentos']) ?>
+
 <?php if (! empty($success)): ?>
     <div class="alert alert-ok"><?= esc($success) ?></div>
 <?php endif; ?>
@@ -15,8 +17,8 @@
 <?php endif; ?>
 
 <p class="muted" style="margin:.25rem 0 1rem">
-    <a href="<?= site_url('organizacion') ?>">← Organización</a>
-    · Solo departamentos <strong>activos</strong> aparecen al crear sucursales, documentos y demás.
+    Solo departamentos <strong>activos</strong> aparecen al crear sucursales, documentos y demás.
+    Actividades y Temas de Interés viven en las pestañas de este menú (relación con departamento, opcional).
 </p>
 
 <div class="card section-card">
@@ -99,7 +101,7 @@
         <?= csrf_field() ?>
         <div>
             <label for="depto_nombre">Nombre</label>
-            <input id="depto_nombre" type="text" name="nombre" required placeholder="p.ej. Innovación">
+            <input id="depto_nombre" type="text" name="nombre" required placeholder="p.ej. Innovación regional">
         </div>
         <div>
             <button class="btn btn-primary btn-sm" type="submit">Crear</button>
