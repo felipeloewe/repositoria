@@ -68,42 +68,16 @@
     <?php if ($campos === []): ?>
         <p class="muted">Sin campos. Agrega texto, fecha o archivo.</p>
     <?php else: ?>
-    <table class="table">
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Etiqueta</th>
-                <th>Clave</th>
-                <th>Tipo</th>
-                <th>Oblig.</th>
-                <?php if (! $esGenerica): ?><th></th><?php endif; ?>
-            </tr>
-        </thead>
-        <tbody>
-        <?php foreach ($campos as $c): ?>
-            <tr>
-                <td class="muted"><?= (int) $c['orden'] ?></td>
-                <td><?= esc($c['etiqueta']) ?></td>
-                <td><code><?= esc($c['clave']) ?></code></td>
-                <td><?= esc($c['tipo']) ?></td>
-                <td><?= (int) $c['obligatorio'] === 1 ? 'Sí' : 'No' ?></td>
-                <?php if (! $esGenerica): ?>
-                <td>
-                    <form method="post" action="<?= site_url('socios/formularios/' . $plantilla['id'] . '/campos/' . $c['id'] . '/delete') ?>" onsubmit="return confirm('¿Eliminar campo?')">
-                        <?= csrf_field() ?>
-                        <button class="btn btn-sm" type="submit" style="background:#fee2e2;color:#991b1b">Eliminar</button>
-                    </form>
-                </td>
-                <?php endif; ?>
-            </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
+        <?= view('formularios/_campos_list', [
+            'campos'         => $campos,
+            'esGenerica'     => $esGenerica,
+            'deleteBaseUrl'  => 'socios/formularios/' . $plantilla['id'] . '/campos',
+        ]) ?>
     <?php endif; ?>
 
     <?php if (! $esGenerica): ?>
     <h4 style="margin-top:1.25rem">Agregar campo</h4>
-    <form method="post" action="<?= site_url('socios/formularios/' . $plantilla['id'] . '/campos') ?>" class="form-row" style="grid-template-columns:1.4fr 1fr .8fr auto auto;align-items:end">
+    <form method="post" action="<?= site_url('socios/formularios/' . $plantilla['id'] . '/campos') ?>" class="form-row" style="grid-template-columns:1.4fr 1fr 1fr .8fr auto auto;align-items:end">
         <?= csrf_field() ?>
         <div>
             <label for="etiqueta">Etiqueta</label>
@@ -112,6 +86,10 @@
         <div>
             <label for="clave">Clave (opcional)</label>
             <input id="clave" type="text" name="clave" placeholder="auto">
+        </div>
+        <div>
+            <label for="seccion">Sección (opcional)</label>
+            <input id="seccion" type="text" name="seccion" placeholder="p.ej. Antecedentes" maxlength="255">
         </div>
         <div>
             <label for="tipo">Tipo</label>

@@ -34,21 +34,7 @@
             <label for="titulo">Título del documento</label>
             <input id="titulo" type="text" name="titulo" value="<?= esc(($plantilla['nombre'] ?? 'Formulario') . ' — ' . date('Y-m-d')) ?>" required>
 
-            <?php foreach ($campos as $c): ?>
-                <?php
-                    $clave = $c['clave'];
-                    $req   = (int) $c['obligatorio'] === 1;
-                    $lab   = $c['etiqueta'] . ($req ? ' *' : '');
-                ?>
-                <label for="f_<?= esc($clave) ?>"><?= esc($lab) ?></label>
-                <?php if ($c['tipo'] === 'date'): ?>
-                    <input id="f_<?= esc($clave) ?>" type="date" name="<?= esc($clave) ?>" <?= $req ? 'required' : '' ?>>
-                <?php elseif ($c['tipo'] === 'file'): ?>
-                    <input id="f_<?= esc($clave) ?>" type="file" name="<?= esc($clave) ?>" <?= $req ? 'required' : '' ?> style="margin-bottom:1rem">
-                <?php else: ?>
-                    <input id="f_<?= esc($clave) ?>" type="text" name="<?= esc($clave) ?>" <?= $req ? 'required' : '' ?>>
-                <?php endif; ?>
-            <?php endforeach; ?>
+            <?= view('formularios/_campos_fill', ['campos' => $campos]) ?>
 
             <button class="btn btn-primary" type="submit" style="margin-top:1rem">Enviar</button>
         </form>

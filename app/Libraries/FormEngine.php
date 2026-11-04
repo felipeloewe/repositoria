@@ -28,6 +28,94 @@ final class FormEngine
 
     public const ORIGEN_PUBLICO = 'publico';
 
+    /**
+     * Normaliza etiqueta para detectar duplicados/redundantes (review UI).
+     * Quita índices [N], «(fila N)» y sufijos entre paréntesis al final.
+     */
+    public static function normalizeEtiquetaDup(string $etiqueta): string
+    {
+        $s = mb_strtolower(trim($etiqueta), 'UTF-8');
+        $s = preg_replace('/\s*\[\d+\]/u', '', $s) ?? $s;
+        $s = preg_replace('/\s*\(fila\s*\d+\)/ui', '', $s) ?? $s;
+        $s = preg_replace('/\s*\([^)]*\)\s*$/u', '', $s) ?? $s;
+        $s = preg_replace('/\s+/u', ' ', $s) ?? $s;
+
+        return trim($s, " \t\n\r\0\x0B—–-");
+    }
+
+    /**
+     * Normaliza clave para detectar variantes (_2, _3, row1…) del mismo campo.
+     */
+    public static function normalizeClaveDup(string $clave): string
+    {
+        $s = strtolower(trim($clave));
+        while (preg_match('/_\d+$/', $s) === 1) {
+            $s = (string) preg_replace('/_\d+$/', '', $s);
+        }
+        $s = (string) preg_replace('/\d+$/', '', $s);
+
+        return rtrim($s, '_');
+    }
+
+    /**
+     * Marca campos cuya etiqueta o clave (normalizada) aparece más de una vez.
+     *
+     * @param list<array<string, mixed>> $campos
+     * @return list<array<string, mixed>>
+     */
+    public static function markDuplicateCampos(array $campos): array
+    {
+        $etiqCounts  = [];
+        $claveCounts = [];
+        foreach ($campos as $c) {
+            $ne = self::normalizeEtiquetaDup((string) ($c['etiqueta'] ?? ''));
+            $nk = self::normalizeClaveDup((string) ($c['clave'] ?? ''));
+            if ($ne !== '') {
+                $etiqCounts[$ne] = ($etiqCounts[$ne] ?? 0) + 1;
+            }
+            if ($nk !== '') {
+                $claveCounts[$nk] = ($claveCounts[$nk] ?? 0) + 1;
+            }
+        }
+
+        foreach ($campos as $i => $c) {
+            $ne = self::normalizeEtiquetaDup((string) ($c['etiqueta'] ?? ''));
+            $nk = self::normalizeClaveDup((string) ($c['clave'] ?? ''));
+            $campos[$i]['es_duplicado'] = ($ne !== '' && ($etiqCounts[$ne] ?? 0) > 1)
+                || ($nk !== '' && ($claveCounts[$nk] ?? 0) > 1);
+        }
+
+        return $campos;
+    }
+
+    /**
+     * Agrupa campos por `seccion` preservando el orden de aparición.
+     * Campos sin sección van bajo clave vacía (sin encabezado UI).
+     *
+     * @param list<array<string, mixed>> $campos
+     * @return list<array{seccion: string, campos: list<array<string, mixed>>}>
+     */
+    public static function groupCamposBySeccion(array $campos): array
+    {
+        $groups = [];
+        $order  = [];
+        foreach ($campos as $c) {
+            $sec = trim((string) ($c['seccion'] ?? ''));
+            if (! array_key_exists($sec, $groups)) {
+                $groups[$sec] = [];
+                $order[]      = $sec;
+            }
+            $groups[$sec][] = $c;
+        }
+
+        $out = [];
+        foreach ($order as $sec) {
+            $out[] = ['seccion' => $sec, 'campos' => $groups[$sec]];
+        }
+
+        return $out;
+    }
+
     public static function slugifyClave(string $etiqueta): string
     {
         $s = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $etiqueta) ?: $etiqueta;
@@ -88,14 +176,20 @@ final class FormEngine
         callable $storeUpload,
         string $fileValueSuffix = 'adjunto'
     ): array {
-        $respuestas = [];
-        $rows       = [];
+        $respuestas  = [];
+        $rows        = [];
+        $lastSeccion = null;
 
         foreach ($campos as $campo) {
             $clave    = (string) $campo['clave'];
             $etiqueta = (string) $campo['etiqueta'];
             $tipo     = (string) $campo['tipo'];
             $required = (int) ($campo['obligatorio'] ?? 0) === 1;
+            $seccion  = trim((string) ($campo['seccion'] ?? ''));
+            if ($seccion !== '' && $seccion !== $lastSeccion) {
+                $rows[]      = ['label' => '— ' . $seccion . ' —', 'value' => ''];
+                $lastSeccion = $seccion;
+            }
 
             if ($tipo === 'file') {
                 $file = $files[$clave] ?? null;

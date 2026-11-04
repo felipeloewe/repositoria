@@ -15,6 +15,6 @@ class SocioFormCampoModel extends Model
     protected $returnType       = 'array';
     protected $useTimestamps    = false;
     protected $allowedFields    = [
-        'id', 'plantilla_id', 'clave', 'etiqueta', 'tipo', 'obligatorio', 'orden', 'created_at',
+        'id', 'plantilla_id', 'clave', 'etiqueta', 'tipo', 'obligatorio', 'orden', 'seccion', 'created_at',
     ];
 }
