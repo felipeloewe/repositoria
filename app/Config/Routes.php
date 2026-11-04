@@ -57,7 +57,11 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('formularios/(:segment)/compartir', 'EmpresaFormularios::share/$1');
     $routes->post('formularios/(:segment)/shares/(:segment)/revoke', 'EmpresaFormularios::revokeShare/$1/$2');
 
-    // Menú Socios — documentos exclusivos (ambito=socio) + formularios
+    // Menú Contratos (Principal) — clon inicial de Documentos (ambito=contrato)
+    $routes->get('contratos', 'Contratos::index');
+    $routes->post('contratos/upload', 'Contratos::upload');
+
+    // Menú Socios — documentos exclusivos (ambito=socio) + formularios + contratos
     $routes->get('socios', 'DocumentosSocios::index');
     $routes->post('socios/upload', 'DocumentosSocios::upload');
     $routes->get('socios/formularios', 'SociosFormularios::index');
@@ -73,6 +77,8 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('socios/formularios/(:segment)/rellenar', 'SociosFormularios::fillSubmit/$1');
     $routes->post('socios/formularios/(:segment)/compartir', 'SociosFormularios::share/$1');
     $routes->post('socios/formularios/(:segment)/shares/(:segment)/revoke', 'SociosFormularios::revokeShare/$1/$2');
+    $routes->get('socios/contratos', 'ContratosSocios::index');
+    $routes->post('socios/contratos/upload', 'ContratosSocios::upload');
 
     // Admin central — empresas/planes + promoción filial (b) → empresa (a)
     $routes->get('admin/empresas', 'AdminCentral::empresas');

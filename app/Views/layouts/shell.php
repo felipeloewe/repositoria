@@ -45,6 +45,7 @@
                 <?php if (\App\Libraries\EmpresaFormService::canAccess($memb)): ?>
                     <a href="<?= site_url('formularios') ?>" class="<?= ($title ?? '') === 'Formulario' ? 'active' : '' ?>" data-nav="formularios"><span class="nav-label">Formulario</span></a>
                 <?php endif; ?>
+                <a href="<?= site_url('contratos') ?>" class="<?= ($title ?? '') === 'Contratos' ? 'active' : '' ?>" data-nav="contratos"><span class="nav-label">Contratos</span></a>
                 <?php if (\App\Libraries\DocumentAcl::isSocio($memb)): ?>
                     <a href="<?= site_url('socios') ?>" class="<?= in_array(($title ?? ''), ['Socios', 'Formularios socios'], true) ? 'active' : '' ?>" data-nav="socios"><span class="nav-label">Socios</span></a>
                 <?php endif; ?>

@@ -71,7 +71,7 @@ class Documentos extends BaseController
         ];
 
         if ($needView && ! DocumentAcl::canView($memb, $aclDoc)) {
-            $fallback = DocumentAcl::isSocioDoc($aclDoc) ? '/socios' : '/documentos';
+            $fallback = DocumentAcl::listPathForAmbito($aclDoc['ambito'] ?? null);
 
             return redirect()->to($fallback)->with('error', 'Sin acceso a este documento.');
         }
@@ -220,8 +220,8 @@ class Documentos extends BaseController
 
         $visible = [];
         foreach ($docs as $doc) {
-            // Docs de socios viven en /socios — no mezclar con depto.
-            if (DocumentAcl::normalizeAmbito($doc['ambito'] ?? null) === DocumentAcl::AMBITO_SOCIO) {
+            // Pools aislados (socios / contratos) tienen su propio menú.
+            if (DocumentAcl::isIsolatedPool($doc['ambito'] ?? null)) {
                 continue;
             }
             $aclDoc = [
