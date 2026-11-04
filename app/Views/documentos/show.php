@@ -27,11 +27,17 @@ $cadena = $cadena ?? [];
 <?php endif; ?>
 
 <div class="admin-subnav">
-    <?php if (($doc['ambito'] ?? 'general') === 'socio'): ?>
-        <a href="<?= site_url('socios') ?>">← Volver a Socios</a>
-    <?php else: ?>
-        <a href="<?= site_url('documentos') ?>">← Volver al listado</a>
-    <?php endif; ?>
+    <?php
+        $ambitoDoc = \App\Libraries\DocumentAcl::normalizeAmbito($doc['ambito'] ?? null);
+        $volverHref = \App\Libraries\DocumentAcl::listPathForAmbito($ambitoDoc);
+        $volverLabel = match ($ambitoDoc) {
+            \App\Libraries\DocumentAcl::AMBITO_SOCIO          => '← Volver a Socios',
+            \App\Libraries\DocumentAcl::AMBITO_CONTRATO       => '← Volver a Contratos',
+            \App\Libraries\DocumentAcl::AMBITO_SOCIO_CONTRATO => '← Volver a Contratos de socios',
+            default                                            => '← Volver al listado',
+        };
+    ?>
+    <a href="<?= site_url(ltrim($volverHref, '/')) ?>"><?= esc($volverLabel) ?></a>
 </div>
 
 <div class="card section-card">

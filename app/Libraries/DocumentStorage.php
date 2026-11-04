@@ -55,8 +55,11 @@ final class DocumentStorage
     }
 
     /**
-     * Prefijo de carpeta por ámbito: general → {empresaId}/{docId}/… ;
+     * Prefijo de carpeta por ámbito:
+     * general → {empresaId}/{docId}/…
      * socio → {empresaId}/socios/{docId}/…
+     * contrato → {empresaId}/contratos/{docId}/…
+     * socio_contrato → {empresaId}/socios/contratos/{docId}/…
      */
     public static function docDirPrefix(string $empresaId, string $documentoId, string $ambito = 'general'): string
     {
@@ -66,11 +69,14 @@ final class DocumentStorage
             throw new RuntimeException('empresaId/documentoId inválidos para storage.');
         }
 
-        if ($ambito === 'socio') {
-            return $empresaId . '/socios/' . $documentoId;
-        }
+        $ambito = DocumentAcl::normalizeAmbito($ambito);
 
-        return $empresaId . '/' . $documentoId;
+        return match ($ambito) {
+            DocumentAcl::AMBITO_SOCIO          => $empresaId . '/socios/' . $documentoId,
+            DocumentAcl::AMBITO_CONTRATO       => $empresaId . '/contratos/' . $documentoId,
+            DocumentAcl::AMBITO_SOCIO_CONTRATO => $empresaId . '/socios/contratos/' . $documentoId,
+            default                            => $empresaId . '/' . $documentoId,
+        };
     }
 
     /**

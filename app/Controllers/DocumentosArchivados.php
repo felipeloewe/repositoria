@@ -47,15 +47,19 @@ class DocumentosArchivados extends BaseController
             ->orderBy('archivado_at', 'DESC')
             ->findAll();
 
-        // Docs socio solo visibles a membresías con es_socio (no mezclar en panel Master general).
+        // Solo general (+ socio si es_socio). Contratos tienen menú propio (v1 sin archivados dedicados).
         $docs = array_values(array_filter(
             $docs,
             static function (array $d) use ($memb): bool {
-                if (DocumentAcl::normalizeAmbito($d['ambito'] ?? null) !== DocumentAcl::AMBITO_SOCIO) {
+                $ambito = DocumentAcl::normalizeAmbito($d['ambito'] ?? null);
+                if ($ambito === DocumentAcl::AMBITO_GENERAL) {
                     return true;
                 }
+                if ($ambito === DocumentAcl::AMBITO_SOCIO) {
+                    return DocumentAcl::isSocio($memb);
+                }
 
-                return DocumentAcl::isSocio($memb);
+                return false;
             }
         ));
 
