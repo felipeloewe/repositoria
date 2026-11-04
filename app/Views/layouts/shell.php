@@ -31,9 +31,8 @@
                         <p>Gestor documental</p>
                     </div>
                 </div>
-                <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-expanded="true" aria-controls="app-sidebar" title="Contraer menú">
+                <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-expanded="true" aria-controls="app-sidebar" aria-label="Contraer menú" title="Contraer menú">
                     <span class="sidebar-toggle-icon" aria-hidden="true"></span>
-                    <span class="sidebar-toggle-label">Menú</span>
                 </button>
             </div>
             <nav class="nav">
@@ -108,8 +107,10 @@
   var key = 'repositoria.sidebar.collapsed';
   function apply(collapsed) {
     shell.classList.toggle('is-collapsed', collapsed);
+    var label = collapsed ? 'Expandir menú' : 'Contraer menú';
     btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    btn.setAttribute('title', collapsed ? 'Expandir menú' : 'Contraer menú');
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('title', label);
   }
   try {
     apply(localStorage.getItem(key) === '1');
