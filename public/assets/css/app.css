@@ -250,18 +250,15 @@ input:focus, select:focus {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: .35rem;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
   border: 1px solid rgba(139, 188, 185, .35);
   background: rgba(255,255,255,.06);
   color: var(--nav-teal-soft);
   border-radius: 8px;
-  padding: .4rem .5rem;
+  padding: 0;
   cursor: pointer;
-  font-family: var(--font-nav);
-  font-size: .68rem;
-  font-weight: 600;
-  letter-spacing: .08em;
-  text-transform: uppercase;
 }
 .sidebar-toggle:hover { background: rgba(47, 158, 154, .18); }
 .sidebar-toggle-icon {
@@ -273,7 +270,6 @@ input:focus, select:focus {
     linear-gradient(currentColor, currentColor) 0 5px / 100% 2px no-repeat,
     linear-gradient(currentColor, currentColor) 0 10px / 100% 2px no-repeat;
 }
-.sidebar-toggle-label { line-height: 1; }
 
 .nav { display: flex; flex-direction: column; gap: .15rem; }
 .nav-section {
@@ -336,7 +332,6 @@ input:focus, select:focus {
 
 /* Collapsed rail */
 .shell.is-collapsed .brand-text,
-.shell.is-collapsed .sidebar-toggle-label,
 .shell.is-collapsed .nav-section,
 .shell.is-collapsed .sidebar-foot,
 .shell.is-collapsed .nav-label {
