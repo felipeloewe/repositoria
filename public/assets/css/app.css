@@ -598,6 +598,15 @@ input:focus, select:focus {
   flex-wrap: wrap;
   gap: .4rem .5rem;
 }
+.recurso-contrato-card.is-focus {
+  border-color: rgba(46, 155, 151, 0.55);
+  box-shadow: 0 0 0 1px rgba(46, 155, 151, 0.2);
+}
+@media (max-width: 800px) {
+  .recurso-contrato-card .stack-forms {
+    grid-template-columns: 1fr !important;
+  }
+}
 
 .share-creds code {
   display: inline-block;

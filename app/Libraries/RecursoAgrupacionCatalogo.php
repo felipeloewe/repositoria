@@ -499,4 +499,141 @@ final class RecursoAgrupacionCatalogo
 
         return $out;
     }
+
+    /**
+     * Entidades marcadas ON para la empresa (para pestaña Contratos), con contratos vinculados.
+     *
+     * @return list<array{
+     *   entidad_id: string,
+     *   entidad_nombre: string,
+     *   servicio_nombre: string,
+     *   agrupacion_nombre: string,
+     *   contratos: list<array<string, mixed>>
+     * }>
+     */
+    public static function listEntidadesMarcadasConContratos(string $empresaId): array
+    {
+        self::ensureForEmpresa($empresaId);
+        $db = db_connect();
+
+        $rows = $db->table('empresa_recurso_entidad ere')
+            ->select('ere.entidad_id, e.nombre AS entidad_nombre, s.nombre AS servicio_nombre, a.nombre AS agrupacion_nombre, a.orden AS a_orden, s.orden AS s_orden, e.orden AS e_orden')
+            ->join('recurso_entidades e', 'e.id = ere.entidad_id')
+            ->join('recurso_servicios s', 's.id = e.servicio_id')
+            ->join('recurso_agrupaciones a', 'a.id = s.agrupacion_id')
+            ->where('ere.empresa_id', $empresaId)
+            ->where('ere.marcado', 1)
+            ->orderBy('a.orden', 'ASC')
+            ->orderBy('s.orden', 'ASC')
+            ->orderBy('e.orden', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        $links = $db->table('empresa_recurso_entidad_contrato')
+            ->where('empresa_id', $empresaId)
+            ->get()
+            ->getResultArray();
+        $docIds = [];
+        $byEnt  = [];
+        foreach ($links as $l) {
+            $eid = (string) $l['entidad_id'];
+            $did = (string) $l['documento_id'];
+            $byEnt[$eid][] = $did;
+            $docIds[$did]  = true;
+        }
+
+        $docsById = [];
+        if ($docIds !== []) {
+            $docs = $db->table('documentos')
+                ->where('empresa_id', $empresaId)
+                ->whereIn('id', array_keys($docIds))
+                ->get()
+                ->getResultArray();
+            foreach ($docs as $d) {
+                $docsById[(string) $d['id']] = $d;
+            }
+        }
+
+        $out = [];
+        foreach ($rows as $r) {
+            $eid  = (string) $r['entidad_id'];
+            $ctrs = [];
+            foreach ($byEnt[$eid] ?? [] as $did) {
+                if (isset($docsById[$did])) {
+                    $ctrs[] = $docsById[$did];
+                }
+            }
+            $out[] = [
+                'entidad_id'         => $eid,
+                'entidad_nombre'     => (string) $r['entidad_nombre'],
+                'servicio_nombre'    => (string) $r['servicio_nombre'],
+                'agrupacion_nombre'  => (string) $r['agrupacion_nombre'],
+                'contratos'          => $ctrs,
+            ];
+        }
+
+        return $out;
+    }
+
+    public static function entidadMarcadaPertenece(string $empresaId, string $entidadId): bool
+    {
+        $row = db_connect()->table('empresa_recurso_entidad')
+            ->where('empresa_id', $empresaId)
+            ->where('entidad_id', $entidadId)
+            ->where('marcado', 1)
+            ->get()
+            ->getRowArray();
+
+        return is_array($row);
+    }
+
+    public static function linkContrato(string $empresaId, string $entidadId, string $documentoId): bool
+    {
+        if (! self::entidadMarcadaPertenece($empresaId, $entidadId)) {
+            return false;
+        }
+        helper('id');
+        $db = db_connect();
+        $doc = $db->table('documentos')
+            ->where('id', $documentoId)
+            ->where('empresa_id', $empresaId)
+            ->where('ambito', DocumentAcl::AMBITO_CONTRATO)
+            ->get()
+            ->getRowArray();
+        if (! is_array($doc)) {
+            return false;
+        }
+        $exists = $db->table('empresa_recurso_entidad_contrato')
+            ->where('empresa_id', $empresaId)
+            ->where('entidad_id', $entidadId)
+            ->where('documento_id', $documentoId)
+            ->get()
+            ->getRowArray();
+        if (is_array($exists)) {
+            return true;
+        }
+        $now = date('Y-m-d H:i:s');
+        $db->table('empresa_recurso_entidad_contrato')->insert([
+            'id'           => new_id(),
+            'empresa_id'   => $empresaId,
+            'entidad_id'   => $entidadId,
+            'documento_id' => $documentoId,
+            'created_at'   => $now,
+            'updated_at'   => $now,
+        ]);
+
+        return true;
+    }
+
+    public static function unlinkContrato(string $empresaId, string $entidadId, string $documentoId): bool
+    {
+        $db = db_connect();
+        $db->table('empresa_recurso_entidad_contrato')
+            ->where('empresa_id', $empresaId)
+            ->where('entidad_id', $entidadId)
+            ->where('documento_id', $documentoId)
+            ->delete();
+
+        return true;
+    }
 }

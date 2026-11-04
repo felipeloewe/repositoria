@@ -4,8 +4,10 @@
 
 <section class="banner">
     <h2>Recursos</h2>
-    <p>Agrupaciones genéricas de <strong>servicios</strong> y <strong>entidades</strong> prestadoras. Marca la agrupación que aplica a tu empresa y luego las entidades con las que tienes relación (contratado / vigente).</p>
+    <p>Agrupaciones genéricas de <strong>servicios</strong> y <strong>entidades</strong> prestadoras. Marca la agrupación y las entidades vigentes; luego vincula contratos en la pestaña Contratos.</p>
 </section>
+
+<?= view('recursos/_tabs', ['tab' => 'servicios']) ?>
 
 <?php if (! empty($success)): ?>
     <div class="alert alert-ok"><?= esc($success) ?></div>
@@ -15,7 +17,7 @@
 <?php endif; ?>
 
 <p class="muted" style="margin:.25rem 0 1rem">
-    Catálogo de sistema compartido. Más adelante podrás pasar de una entidad marcada a crear el contrato y subir respaldos en <a href="<?= site_url('contratos') ?>">Contratos</a>.
+    Pestaña <strong>Servicios</strong>: catálogo ON/OFF. Las entidades marcadas aparecen en <a href="<?= site_url('recursos/contratos') ?>">Contratos</a> para asignar o subir archivos.
 </p>
 
 <?php foreach ($agrupaciones as $agr): ?>
