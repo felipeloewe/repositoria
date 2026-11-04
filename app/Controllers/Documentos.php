@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Libraries\DepartamentoCatalogo;
 use App\Libraries\DocumentAcl;
 use App\Libraries\DocumentArchiveService;
 use App\Libraries\DocumentLifecycle;
@@ -162,10 +163,7 @@ class Documentos extends BaseController
         $filterTipo    = trim((string) $this->request->getGet('tipo_id'));
         $filterEstado  = trim((string) $this->request->getGet('estado'));
 
-        $deptos = model(DepartamentoModel::class)
-            ->where('empresa_id', $empresaId)
-            ->orderBy('nombre', 'ASC')
-            ->findAll();
+        $deptos = DepartamentoCatalogo::listActivos((string) $empresaId);
 
         $sucursales = model(SucursalModel::class)
             ->where('empresa_id', $empresaId)

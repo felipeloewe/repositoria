@@ -4,21 +4,21 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Libraries\DepartamentoCatalogo;
 use App\Libraries\MembershipAuth;
 use App\Libraries\PlanEntitlement;
 use App\Libraries\RecursoSistema;
 use App\Libraries\Roles;
-use App\Models\ActividadModel;
 use App\Models\DepartamentoModel;
 use App\Models\MembresiaModel;
 use App\Models\SucursalModel;
-use App\Models\TemaInteresModel;
 use App\Models\UsuarioModel;
 use RuntimeException;
 use Throwable;
 
 /**
- * Fase 1 — Organización CRUD (Master): Departamentos, Sucursales, Actividades, Temas.
+ * Fase 1 — Organización CRUD (Master): Sucursales, membresías, recursos.
+ * Departamentos / Actividades / Temas → menú Administración → Departamentos.
  */
 class Organizacion extends BaseController
 {
@@ -47,22 +47,10 @@ class Organizacion extends BaseController
         }
 
         $empresaId = $memb['empresa_id'];
-        $deptos    = model(DepartamentoModel::class)
-            ->where('empresa_id', $empresaId)
-            ->orderBy('nombre', 'ASC')
-            ->findAll();
+        DepartamentoCatalogo::ensureForEmpresa((string) $empresaId);
+        $deptos = DepartamentoCatalogo::listActivos((string) $empresaId);
 
         $sucursales = model(SucursalModel::class)
-            ->where('empresa_id', $empresaId)
-            ->orderBy('nombre', 'ASC')
-            ->findAll();
-
-        $actividades = model(ActividadModel::class)
-            ->where('empresa_id', $empresaId)
-            ->orderBy('nombre', 'ASC')
-            ->findAll();
-
-        $temas = model(TemaInteresModel::class)
             ->where('empresa_id', $empresaId)
             ->orderBy('nombre', 'ASC')
             ->findAll();
@@ -91,8 +79,6 @@ class Organizacion extends BaseController
             'memb'            => $memb,
             'deptos'          => $deptos,
             'sucursales'      => $sucursales,
-            'actividades'     => $actividades,
-            'temas'           => $temas,
             'deptoMap'        => $deptoMap,
             'miembros'        => $miembros,
             'roles'           => Roles::ALL,
@@ -288,26 +274,11 @@ class Organizacion extends BaseController
         return 1;
     }
 
+    /** @deprecated Alta custom vive en /departamentos */
+    /** @deprecated Alta custom vive en /departamentos */
     public function storeDepartamento()
     {
-        $memb = $this->requireMaster();
-        if (! is_array($memb)) {
-            return $memb;
-        }
-
-        helper('id');
-        $nombre = trim((string) $this->request->getPost('nombre'));
-        if ($nombre === '') {
-            return redirect()->to('/organizacion')->with('error', 'Nombre de departamento requerido.');
-        }
-
-        model(DepartamentoModel::class)->insert([
-            'id'         => new_id(),
-            'empresa_id' => $memb['empresa_id'],
-            'nombre'     => $nombre,
-        ]);
-
-        return redirect()->to('/organizacion')->with('success', 'Departamento creado.');
+        return redirect()->to('/departamentos');
     }
 
     public function storeSucursal()
@@ -343,63 +314,15 @@ class Organizacion extends BaseController
         return redirect()->to('/organizacion')->with('success', 'Sucursal creada.');
     }
 
+    /** @deprecated → /departamentos/actividades */
     public function storeActividad()
     {
-        $memb = $this->requireMaster();
-        if (! is_array($memb)) {
-            return $memb;
-        }
-
-        helper('id');
-        $nombre = trim((string) $this->request->getPost('nombre'));
-        $depto  = (string) $this->request->getPost('departamento_id');
-
-        $deptoRow = model(DepartamentoModel::class)
-            ->where('id', $depto)
-            ->where('empresa_id', $memb['empresa_id'])
-            ->first();
-
-        if ($nombre === '' || $deptoRow === null) {
-            return redirect()->to('/organizacion')->with('error', 'Actividad inválida.');
-        }
-
-        model(ActividadModel::class)->insert([
-            'id'              => new_id(),
-            'empresa_id'      => $memb['empresa_id'],
-            'departamento_id' => $depto,
-            'nombre'          => $nombre,
-        ]);
-
-        return redirect()->to('/organizacion')->with('success', 'Actividad creada.');
+        return redirect()->to('/departamentos/actividades');
     }
 
+    /** @deprecated → /departamentos/temas */
     public function storeTema()
     {
-        $memb = $this->requireMaster();
-        if (! is_array($memb)) {
-            return $memb;
-        }
-
-        helper('id');
-        $nombre = trim((string) $this->request->getPost('nombre'));
-        $depto  = (string) $this->request->getPost('departamento_id');
-
-        $deptoRow = model(DepartamentoModel::class)
-            ->where('id', $depto)
-            ->where('empresa_id', $memb['empresa_id'])
-            ->first();
-
-        if ($nombre === '' || $deptoRow === null) {
-            return redirect()->to('/organizacion')->with('error', 'Tema inválido.');
-        }
-
-        model(TemaInteresModel::class)->insert([
-            'id'              => new_id(),
-            'empresa_id'      => $memb['empresa_id'],
-            'departamento_id' => $depto,
-            'nombre'          => $nombre,
-        ]);
-
-        return redirect()->to('/organizacion')->with('success', 'Tema de interés creado.');
+        return redirect()->to('/departamentos/temas');
     }
 }
