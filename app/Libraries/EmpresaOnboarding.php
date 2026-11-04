@@ -198,6 +198,8 @@ final class EmpresaOnboarding
 
                 // 10 genéricos activos por defecto (Administración → Departamentos).
                 DepartamentoCatalogo::ensureForEmpresa($empresaId, $this->db);
+                // Agrupaciones / entidades (Administración → Recursos); checkboxes OFF.
+                RecursoAgrupacionCatalogo::ensureForEmpresa($empresaId, $this->db);
 
                 $sucursalId = new_id();
                 $this->db->table('sucursales')->insert([

@@ -553,6 +553,52 @@ input:focus, select:focus {
   background: var(--nav-navy);
   color: #fff;
 }
+
+/* Administración → Recursos (agrupaciones / entidades) */
+.recurso-agrupacion { margin-bottom: 1.1rem; }
+.recurso-agrupacion.is-marked {
+  border-color: rgba(46, 155, 151, 0.45);
+  box-shadow: 0 0 0 1px rgba(46, 155, 151, 0.18);
+}
+.recurso-agrupacion-head {
+  margin-bottom: .85rem;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid rgba(47, 50, 96, 0.08);
+}
+.recurso-check-form { margin: 0; }
+.recurso-check {
+  display: flex;
+  gap: .65rem;
+  align-items: flex-start;
+  cursor: pointer;
+  font-family: var(--font-nav);
+}
+.recurso-check input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: .2rem;
+  accent-color: #2E9B97;
+  flex-shrink: 0;
+}
+.recurso-check--entity {
+  padding: .35rem .55rem;
+  border-radius: 8px;
+  background: rgba(47, 50, 96, 0.04);
+}
+.recurso-check--entity:hover { background: rgba(47, 158, 154, 0.12); }
+.recurso-servicio { margin: .85rem 0 .35rem; }
+.recurso-servicio h4 {
+  margin: 0 0 .45rem;
+  font-family: var(--font-nav);
+  font-size: .95rem;
+  color: var(--nav-navy);
+}
+.recurso-entidades {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem .5rem;
+}
+
 .share-creds code {
   display: inline-block;
   margin: .15rem 0;
