@@ -51,10 +51,14 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('departamentos/temas', 'Departamentos::temas');
     $routes->post('departamentos/temas', 'Departamentos::storeTema');
 
-    // Administración → Recursos (agrupaciones / entidades con checkboxes)
+    // Administración → Recursos (tabs Servicios | Contratos)
     $routes->get('recursos', 'Recursos::index');
     $routes->post('recursos/agrupacion/toggle', 'Recursos::toggleAgrupacion');
     $routes->post('recursos/entidad/toggle', 'Recursos::toggleEntidad');
+    $routes->get('recursos/contratos', 'Recursos::contratos');
+    $routes->post('recursos/contratos/assign', 'Recursos::assignContrato');
+    $routes->post('recursos/contratos/unassign', 'Recursos::unassignContrato');
+    $routes->post('recursos/contratos/upload', 'Recursos::uploadContrato');
 
     // Menú Formulario (empresa) — plantillas → PDF ambito=general + shares públicos
     $routes->get('formularios', 'EmpresaFormularios::index');

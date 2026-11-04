@@ -63,7 +63,7 @@
                 <?php if (\App\Libraries\Roles::canManageOrg($memb['rol'])): ?>
                     <a href="<?= site_url('organizacion') ?>" class="<?= ($title ?? '') === 'Organización' ? 'active' : '' ?>" data-nav="org"><span class="nav-label">Organización</span></a>
                     <a href="<?= site_url('departamentos') ?>" class="<?= in_array(($title ?? ''), ['Departamentos', 'Actividades', 'Temas de Interés'], true) ? 'active' : '' ?>" data-nav="deptos"><span class="nav-label">Departamentos</span></a>
-                    <a href="<?= site_url('recursos') ?>" class="<?= ($title ?? '') === 'Recursos' ? 'active' : '' ?>" data-nav="recursos"><span class="nav-label">Recursos</span></a>
+                    <a href="<?= site_url('recursos') ?>" class="<?= in_array(($title ?? ''), ['Recursos', 'Recursos · Contratos'], true) ? 'active' : '' ?>" data-nav="recursos"><span class="nav-label">Recursos</span></a>
                 <?php endif; ?>
                 <?php if (! empty($memb['es_admin_central'])): ?>
                     <a href="<?= site_url('admin/empresas') ?>" class="<?= ($title ?? '') === 'Admin central' ? 'active' : '' ?>" data-nav="admin"><span class="nav-label">Admin central</span></a>
