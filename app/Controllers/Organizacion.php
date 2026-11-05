@@ -76,6 +76,7 @@ class Organizacion extends BaseController
 
         return view('organizacion/index', [
             'title'           => 'Organización',
+            'tab'             => 'empresa',
             'memb'            => $memb,
             'deptos'          => $deptos,
             'sucursales'      => $sucursales,
@@ -113,6 +114,7 @@ class Organizacion extends BaseController
 
         return view('organizacion/log', [
             'title'   => 'Organización',
+            'tab'     => 'log',
             'memb'    => $memb,
             'eventos' => $eventos,
             'success' => session()->getFlashdata('success'),

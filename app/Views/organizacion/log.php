@@ -7,7 +7,6 @@
     <p>Historial de solicitudes de <strong>archivo</strong> y <strong>baja</strong> (quién pidió, quién validó, resultado).</p>
 </section>
 
-<?php $tab = 'log'; ?>
 <?= $this->include('organizacion/_tabs') ?>
 
 <?php if (! empty($success)): ?>
