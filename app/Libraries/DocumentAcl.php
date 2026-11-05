@@ -138,30 +138,37 @@ final class DocumentAcl
     {
         $ambito = self::normalizeAmbito($target['ambito'] ?? null);
 
+        $legacy = false;
         if (self::isSocioPool($ambito)) {
-            return self::isSocio($memb);
-        }
+            $legacy = self::isSocio($memb);
+        } elseif ($ambito === self::AMBITO_CONTRATO) {
+            $legacy = Roles::canUploadDocs((string) ($memb['rol'] ?? ''));
+        } else {
+            $rol = (string) ($memb['rol'] ?? '');
 
-        if ($ambito === self::AMBITO_CONTRATO) {
-            return Roles::canUploadDocs((string) ($memb['rol'] ?? ''));
-        }
-
-        $rol = (string) ($memb['rol'] ?? '');
-
-        if (Roles::isMaster($rol)) {
-            return true;
-        }
-
-        if ($rol === Roles::JEFE_SUCURSAL) {
-            $targetSucursal = $target['sucursal_id'] ?? null;
-            if ($targetSucursal === null || $targetSucursal === '') {
-                return false;
+            if (Roles::isMaster($rol)) {
+                $legacy = true;
+            } elseif ($rol === Roles::JEFE_SUCURSAL) {
+                $targetSucursal = $target['sucursal_id'] ?? null;
+                if ($targetSucursal !== null && $targetSucursal !== '') {
+                    $legacy = ($memb['sucursal_id'] ?? null) === $targetSucursal;
+                }
             }
-
-            return ($memb['sucursal_id'] ?? null) === $targetSucursal;
         }
 
-        return false;
+        if (! $legacy) {
+            return false;
+        }
+
+        // Perfil checkboxes only restrict further when assigned.
+        $cap = match ($ambito) {
+            self::AMBITO_SOCIO          => 'cap.socios_upload',
+            self::AMBITO_SOCIO_CONTRATO => 'cap.socios_contratos_upload',
+            self::AMBITO_CONTRATO       => 'cap.contratos_upload',
+            default                     => 'cap.docs_upload',
+        };
+
+        return PerfilAcl::canCap($memb, $cap);
     }
 
     /**
@@ -174,22 +181,33 @@ final class DocumentAcl
             return false;
         }
 
+        $legacy = false;
         if (self::isSocioPool($doc['ambito'] ?? null)) {
-            return self::isSocio($memb);
+            $legacy = self::isSocio($memb);
+        } else {
+            $rol = (string) ($memb['rol'] ?? '');
+
+            if (Roles::isMaster($rol)) {
+                $legacy = true;
+            } elseif ($rol === Roles::JEFE_SUCURSAL) {
+                $legacy = ($memb['sucursal_id'] ?? null) !== null
+                    && ($memb['sucursal_id'] ?? null) === ($doc['sucursal_id'] ?? null);
+            }
         }
 
-        $rol = (string) ($memb['rol'] ?? '');
-
-        if (Roles::isMaster($rol)) {
-            return true;
+        if (! $legacy) {
+            return false;
         }
 
-        if ($rol === Roles::JEFE_SUCURSAL) {
-            return ($memb['sucursal_id'] ?? null) !== null
-                && ($memb['sucursal_id'] ?? null) === ($doc['sucursal_id'] ?? null);
-        }
+        $ambito = self::normalizeAmbito($doc['ambito'] ?? null);
+        $cap    = match ($ambito) {
+            self::AMBITO_SOCIO          => 'cap.socios_delete',
+            self::AMBITO_SOCIO_CONTRATO => 'cap.socios_contratos_delete',
+            self::AMBITO_CONTRATO       => 'cap.contratos_delete',
+            default                     => 'cap.docs_delete',
+        };
 
-        return false;
+        return PerfilAcl::canCap($memb, $cap);
     }
 
     public static function canAuthorize(array $memb): bool

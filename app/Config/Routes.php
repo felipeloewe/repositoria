@@ -60,6 +60,14 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('recursos/contratos/unassign', 'Recursos::unassignContrato');
     $routes->post('recursos/contratos/upload', 'Recursos::uploadContrato');
 
+    // Administración → Perfiles (tabs Perfiles | Asignación)
+    $routes->get('perfiles', 'Perfiles::index');
+    $routes->post('perfiles', 'Perfiles::store');
+    $routes->get('perfiles/asignacion', 'Perfiles::asignacion');
+    $routes->post('perfiles/asignacion', 'Perfiles::assign');
+    $routes->get('perfiles/(:segment)', 'Perfiles::edit/$1');
+    $routes->post('perfiles/(:segment)', 'Perfiles::update/$1');
+
     // Menú Formulario (empresa) — plantillas → PDF ambito=general + shares públicos
     $routes->get('formularios', 'EmpresaFormularios::index');
     $routes->get('formularios/nueva', 'EmpresaFormularios::createForm');

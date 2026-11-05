@@ -209,7 +209,8 @@ class Recursos extends BaseController
         if ($file->getSize() > self::MAX_BYTES) {
             return redirect()->to($back)->with('error', 'El archivo supera el límite de 15 MB.');
         }
-        if (! DocumentAcl::canUpload($memb, ['ambito' => DocumentAcl::AMBITO_CONTRATO])) {
+        if (! DocumentAcl::canUpload($memb, ['ambito' => DocumentAcl::AMBITO_CONTRATO])
+            || ! \App\Libraries\PerfilAcl::canCap($memb, 'cap.recursos_contratos_upload')) {
             return redirect()->to($back)->with('error', 'Sin permiso para subir contratos.');
         }
 
