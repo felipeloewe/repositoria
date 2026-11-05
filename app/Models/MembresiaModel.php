@@ -13,8 +13,7 @@ class MembresiaModel extends Model
     protected $useAutoIncrement = false;
     protected $returnType       = 'array';
     protected $useTimestamps    = true;
-    protected $allowedFields    = ['id', 'empresa_id', 'usuario_id', 'rol', 'sucursal_id', 'activa', 'es_socio'];
-
+    protected $allowedFields    = ['id', 'empresa_id', 'usuario_id', 'rol', 'sucursal_id', 'activa', 'es_socio', 'perfil_id'];
     /**
      * Active memberships for a user, with empresa + sucursal labels.
      *

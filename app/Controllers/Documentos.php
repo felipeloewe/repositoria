@@ -654,7 +654,7 @@ class Documentos extends BaseController
         if (! is_array($memb)) {
             return $memb;
         }
-        if (! Roles::isMaster($memb['rol'])) {
+        if (! Roles::isMaster($memb['rol']) || ! \App\Libraries\PerfilAcl::canCap($memb, 'cap.docs_archive')) {
             return redirect()->to('/documentos/' . $id)->with('error', 'Solo Master puede archivar.');
         }
 
