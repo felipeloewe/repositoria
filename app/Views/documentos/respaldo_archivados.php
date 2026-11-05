@@ -14,11 +14,9 @@
     <div class="alert alert-error"><?= esc($error) ?></div>
 <?php endif; ?>
 
-<div class="admin-subnav">
-    <a href="<?= site_url('documentos') ?>">Documentos</a>
-    <a href="<?= site_url('documentos/archivados') ?>">Archivados</a>
-    <a href="<?= site_url('documentos/archivados/respaldo') ?>" class="active">Respaldo mensual</a>
-</div>
+<?php $tab = 'respaldo'; ?>
+<?= $this->include('documentos/_ciclo_tabs') ?>
+<p class="hint">Al <strong>descargar</strong> un ZIP se registra la descarga; eso habilita al Master a validar solicitudes de <strong>Baja</strong>.</p>
 
 <div class="card section-card">
     <h3>Periodos pendientes (blob aún en disco)</h3>
