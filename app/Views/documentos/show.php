@@ -116,16 +116,42 @@ $cadena = $cadena ?? [];
     <?php endif; ?>
 </div>
 
+<?php
+$canRequestCiclo = \App\Libraries\DocumentoSolicitudService::canRequestForDoc($memb, $doc);
+?>
 <?php if (! empty($isMaster) && $estado !== DocumentLifecycle::ARCHIVADO): ?>
 <div class="card section-card">
     <h3>Archivar / desactivar</h3>
-    <p class="muted">Mueve el archivo a <code>{empresa}/archivados/</code> y lo saca del listado activo. Luego puedes respaldarlo en ZIP mensual.</p>
+    <p class="muted">Mueve el archivo a <code>{empresa}/archivados/</code> y lo saca del listado activo. Luego puedes respaldarlo en ZIP mensual. Las solicitudes de no-Master se validan en Documentos → Archivado.</p>
     <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/archivar') ?>" onsubmit="return confirm('¿Archivar este documento y mover el archivo a archivados/?')">
         <?= csrf_field() ?>
         <label for="nota_arch">Nota</label>
         <input id="nota_arch" type="text" name="nota" value="Archivado por administración">
         <button class="btn btn-sm" type="submit" style="margin-top:.75rem;background:#fee2e2;color:#991b1b">Archivar documento</button>
     </form>
+</div>
+<?php elseif ($canRequestCiclo && $estado !== DocumentLifecycle::ARCHIVADO): ?>
+<div class="card section-card">
+    <h3>Solicitar archivo o baja</h3>
+    <p class="muted">Como no eres Master, la acción queda pendiente de validación (Archivo: Master/Jefe · Baja: Master + ZIP descargado).</p>
+    <div class="form-row">
+        <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/solicitar-ciclo') ?>">
+            <?= csrf_field() ?>
+            <input type="hidden" name="tipo" value="ARCHIVO">
+            <label>Nota archivo
+                <input type="text" name="nota" placeholder="Motivo (opcional)">
+            </label>
+            <button class="btn btn-primary btn-sm" type="submit">Solicitar archivo</button>
+        </form>
+        <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/solicitar-ciclo') ?>">
+            <?= csrf_field() ?>
+            <input type="hidden" name="tipo" value="BAJA">
+            <label>Nota baja
+                <input type="text" name="nota" placeholder="Motivo (opcional)">
+            </label>
+            <button class="btn btn-sm" type="submit" style="background:#fee2e2;color:#991b1b">Solicitar baja</button>
+        </form>
+    </div>
 </div>
 <?php elseif ($estado === DocumentLifecycle::ARCHIVADO): ?>
 <div class="alert alert-info">

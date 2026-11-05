@@ -57,6 +57,13 @@
                 <?php if ($nav('menu.documentos_respaldo')): ?>
                     <a href="<?= site_url('documentos/archivados/respaldo') ?>" class="nav-sub <?= ($title ?? '') === 'Respaldo archivados' ? 'active' : '' ?>" data-nav="respaldo"><span class="nav-label">Respaldo</span></a>
                 <?php endif; ?>
+                <?php if ($nav('menu.documentos') && ! \App\Libraries\Roles::isMaster($memb['rol'])): ?>
+                    <a href="<?= site_url('documentos/archivado') ?>" class="nav-sub <?= ($title ?? '') === 'Archivado' ? 'active' : '' ?>" data-nav="cola-archivo"><span class="nav-label">Archivado</span></a>
+                    <a href="<?= site_url('documentos/en-baja') ?>" class="nav-sub <?= ($title ?? '') === 'En Baja' ? 'active' : '' ?>" data-nav="cola-baja"><span class="nav-label">En Baja</span></a>
+                <?php elseif ($nav('menu.documentos_archivados') || \App\Libraries\DocumentoSolicitudService::canValidateArchivo($memb)): ?>
+                    <a href="<?= site_url('documentos/archivado') ?>" class="nav-sub <?= ($title ?? '') === 'Archivado' ? 'active' : '' ?>" data-nav="cola-archivo"><span class="nav-label">Cola archivo</span></a>
+                    <a href="<?= site_url('documentos/en-baja') ?>" class="nav-sub <?= ($title ?? '') === 'En Baja' ? 'active' : '' ?>" data-nav="cola-baja"><span class="nav-label">Cola baja</span></a>
+                <?php endif; ?>
                 <?php if ($nav('menu.formularios')): ?>
                     <a href="<?= site_url('formularios') ?>" class="<?= ($title ?? '') === 'Formulario' ? 'active' : '' ?>" data-nav="formularios"><span class="nav-label">Formulario</span></a>
                 <?php endif; ?>

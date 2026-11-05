@@ -34,6 +34,7 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('empresa/cambiar', 'Auth::doSwitchEmpresa');
 
     $routes->get('organizacion', 'Organizacion::index');
+    $routes->get('organizacion/log', 'Organizacion::log');
     $routes->post('organizacion/departamento', 'Organizacion::storeDepartamento'); // legacy → redirige a /departamentos
     $routes->post('organizacion/sucursal', 'Organizacion::storeSucursal');
     $routes->post('organizacion/actividad', 'Organizacion::storeActividad'); // legacy → /departamentos/actividades
@@ -124,6 +125,10 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('documentos/archivados/respaldo', 'DocumentosArchivados::respaldo');
     $routes->post('documentos/archivados/respaldo', 'DocumentosArchivados::generarRespaldo');
     $routes->get('documentos/archivados/respaldo/(:segment)/download', 'DocumentosArchivados::downloadRespaldo/$1');
+    $routes->get('documentos/archivado', 'DocumentoSolicitudes::archivado');
+    $routes->get('documentos/en-baja', 'DocumentoSolicitudes::enBaja');
+    $routes->post('documentos/(:segment)/solicitar-ciclo', 'DocumentoSolicitudes::solicitar/$1');
+    $routes->post('documentos/solicitudes/(:segment)/resolver', 'DocumentoSolicitudes::resolver/$1');
     $routes->get('documentos/(:segment)', 'Documentos::show/$1');
     $routes->get('documentos/(:segment)/download', 'Documentos::download/$1');
     $routes->get('documentos/(:segment)/versiones/(:segment)/download', 'Documentos::downloadVersion/$1/$2');

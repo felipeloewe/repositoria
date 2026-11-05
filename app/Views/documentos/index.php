@@ -254,10 +254,16 @@
                 <td style="white-space:nowrap">
                     <a class="btn btn-ghost btn-sm" href="<?= site_url('documentos/' . $doc['id']) ?>">Abrir</a>
                     <a class="btn btn-ghost btn-sm" href="<?= site_url('documentos/' . $doc['id'] . '/download') ?>">Descargar</a>
-                    <?php if (! empty($doc['can_delete'])): ?>
+                    <?php if (! empty($doc['can_delete']) && \App\Libraries\Roles::isMaster($memb['rol'] ?? '')): ?>
                         <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/delete') ?>" style="display:inline" onsubmit="return confirm('¿Eliminar documento?')">
                             <?= csrf_field() ?>
                             <button class="btn btn-sm" type="submit" style="background:#fee2e2;color:#991b1b">Eliminar</button>
+                        </form>
+                    <?php elseif (! \App\Libraries\Roles::isMaster($memb['rol'] ?? '')): ?>
+                        <form method="post" action="<?= site_url('documentos/' . $doc['id'] . '/solicitar-ciclo') ?>" style="display:inline" onsubmit="return confirm('¿Solicitar baja de este documento?')">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="tipo" value="BAJA">
+                            <button class="btn btn-sm" type="submit" style="background:#fee2e2;color:#991b1b">Solicitar baja</button>
                         </form>
                     <?php endif; ?>
                 </td>

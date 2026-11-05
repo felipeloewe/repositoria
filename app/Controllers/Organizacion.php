@@ -89,6 +89,37 @@ class Organizacion extends BaseController
         ]);
     }
 
+    /** Pestaña Log: historial de solicitudes archivo/baja. */
+    public function log()
+    {
+        $memb = $this->requireMaster();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $eventos = [];
+        if (db_connect()->tableExists('documento_solicitudes')) {
+            $eventos = db_connect()->table('documento_solicitudes s')
+                ->select('s.*, d.titulo AS doc_titulo, u.nombre AS solicitante_nombre, uv.nombre AS validador_nombre')
+                ->join('documentos d', 'd.id = s.documento_id', 'left')
+                ->join('usuarios u', 'u.id = s.solicitante_usuario_id', 'left')
+                ->join('usuarios uv', 'uv.id = s.validador_usuario_id', 'left')
+                ->where('s.empresa_id', $memb['empresa_id'])
+                ->orderBy('s.created_at', 'DESC')
+                ->limit(200)
+                ->get()
+                ->getResultArray();
+        }
+
+        return view('organizacion/log', [
+            'title'   => 'Organización',
+            'memb'    => $memb,
+            'eventos' => $eventos,
+            'success' => session()->getFlashdata('success'),
+            'error'   => session()->getFlashdata('error'),
+        ]);
+    }
+
     /**
      * Master: activa/desactiva un recurso genérico de sistema para esta empresa (default ON).
      */

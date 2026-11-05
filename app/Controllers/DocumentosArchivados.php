@@ -164,6 +164,12 @@ class DocumentosArchivados extends BaseController
             return redirect()->to('/documentos/archivados/respaldo')->with('error', 'ZIP no disponible en disco.');
         }
 
+        // Marca descarga: habilita validación de Baja.
+        model(DocumentoArchivoRespaldoModel::class)->update($id, [
+            'descargado_at'    => date('Y-m-d H:i:s'),
+            'descargado_por_id' => $memb['usuario_id'],
+        ]);
+
         $name = 'archivados-' . $row['periodo'] . '.zip';
 
         return $this->response

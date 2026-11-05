@@ -17,5 +17,6 @@ class DocumentoArchivoRespaldoModel extends Model
     protected $allowedFields    = [
         'id', 'empresa_id', 'periodo', 'ruta_zip', 'tamano_bytes',
         'docs_count', 'creado_por_id', 'created_at',
+        'descargado_at', 'descargado_por_id',
     ];
 }

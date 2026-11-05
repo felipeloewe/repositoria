@@ -14,11 +14,8 @@
     <div class="alert alert-error"><?= esc($error) ?></div>
 <?php endif; ?>
 
-<div class="admin-subnav">
-    <a href="<?= site_url('documentos') ?>">Documentos</a>
-    <a href="<?= site_url('documentos/archivados') ?>" class="active">Archivados</a>
-    <a href="<?= site_url('documentos/archivados/respaldo') ?>">Respaldo mensual</a>
-</div>
+<?php $tab = 'archivados'; ?>
+<?= $this->include('documentos/_ciclo_tabs') ?>
 
 <div class="card section-card">
     <h3>Archivados (<?= count($docs) ?>)</h3>
