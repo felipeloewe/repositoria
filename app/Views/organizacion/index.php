@@ -8,7 +8,6 @@
         <a href="<?= site_url('departamentos') ?>">Administración → Departamentos</a>.</p>
 </section>
 
-<?php $tab = 'empresa'; ?>
 <?= $this->include('organizacion/_tabs') ?>
 
 <?php if (! empty($success)): ?>
