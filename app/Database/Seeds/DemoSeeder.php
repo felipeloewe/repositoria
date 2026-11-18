@@ -29,6 +29,7 @@ class DemoSeeder extends Seeder
             'promocion_sucursal_auditoria',
             'canal_paquete_auditoria', 'canal_paquete_documentos', 'canal_paquetes',
             'fiscalizacion_auditoria', 'fiscalizacion_documentos', 'fiscalizacion_solicitudes',
+            'equity_respaldos', 'equity_fichas', 'equity_personas',
             'socio_form_instancias', 'socio_form_shares', 'socio_form_campos', 'socio_form_plantillas',
             'empresa_recurso_sistema',
             'documento_archivo_respaldos',
@@ -567,6 +568,72 @@ class DemoSeeder extends Seeder
             'estado_desde' => 'EN_ELABORACION', 'estado_hasta' => 'VIGENTE',
             'actor_id' => $users['admin']['id'], 'nota' => 'Publicado (seed)', 'created_at' => $now,
         ]);
+
+        // Equity — socio + gerente con ficha y respaldo demo
+        if ($this->db->tableExists('equity_personas')) {
+            $eqSocioId   = new_id();
+            $eqGerenteId = new_id();
+            $this->db->table('equity_personas')->insertBatch([
+                [
+                    'id' => $eqSocioId, 'empresa_id' => $empresaDemo, 'tipo' => 'socio',
+                    'nombre' => 'Camila', 'apellido' => 'Rojas', 'rut' => '11.222.333-4',
+                    'email' => 'camila.rojas@demo.local', 'cargo' => 'Socio fundador',
+                    'usuario_id' => null, 'activo' => 1, 'notas' => 'Seed Equity',
+                    'creado_por_id' => $users['admin']['id'], 'created_at' => $now, 'updated_at' => $now,
+                ],
+                [
+                    'id' => $eqGerenteId, 'empresa_id' => $empresaDemo, 'tipo' => 'gerente',
+                    'nombre' => 'Diego', 'apellido' => 'Vargas', 'rut' => '15.444.555-6',
+                    'email' => 'diego.vargas@demo.local', 'cargo' => 'Gerente General',
+                    'usuario_id' => null, 'activo' => 1, 'notas' => null,
+                    'creado_por_id' => $users['admin']['id'], 'created_at' => $now, 'updated_at' => $now,
+                ],
+            ]);
+
+            $fichaId = new_id();
+            $this->db->table('equity_fichas')->insert([
+                'id' => $fichaId, 'empresa_id' => $empresaDemo, 'persona_id' => $eqSocioId,
+                'fecha_corte' => date('Y-m-d', strtotime('-30 days')), 'moneda' => 'CLP',
+                'renta_liquida' => 2500000, 'ingreso_fijo' => 2200000, 'ingreso_honorarios' => 0,
+                'ingreso_arriendos' => 300000, 'ingreso_variable' => 0, 'ingreso_comisiones' => 0,
+                'ingreso_pensiones' => 0, 'ingreso_bonos' => 0, 'ingreso_otros' => 0,
+                'ingreso_mensual_total' => 2500000,
+                'activos_total' => 180000000, 'pasivos_total' => 45000000, 'patrimonio_neto' => 135000000,
+                'notas' => 'Ficha demo', 'creado_por_id' => $users['admin']['id'],
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+
+            $docEquity = new_id();
+            $eqBody = "Liquidación de sueldo — respaldo Equity demo.\n";
+            $eqSaved = DocumentStorage::save($empresaDemo, $docEquity, 'liquidacion-camila.txt', $eqBody, 'equity');
+            $this->db->table('documentos')->insert([
+                'id' => $docEquity, 'empresa_id' => $empresaDemo, 'departamento_id' => $deptoOps,
+                'seccion_id' => null, 'sucursal_id' => null, 'ambito' => 'equity',
+                'tipo_id' => $tipoIds['VIGENTE'], 'estado' => 'VIGENTE', 'version_actual' => 1,
+                'vence_at' => null, 'alerta_dias' => 30, 'fecha_termino' => null,
+                'renueva_de_id' => null, 'cadena_id' => $docEquity,
+                'cabecera_partes' => 'Camila Rojas', 'cabecera_asunto' => 'Liquidación de sueldo',
+                'cabecera_inicio' => null, 'cabecera_termino' => null, 'cabecera_autorizantes' => null,
+                'titulo' => 'Liquidación — Camila Rojas', 'nombre_archivo' => 'liquidacion-camila.txt',
+                'ruta_relativa' => $eqSaved['ruta_relativa'], 'mime' => 'text/plain',
+                'tamano_bytes' => $eqSaved['tamano_bytes'], 'subido_por_id' => $users['admin']['id'],
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+            $this->db->table('documento_versiones')->insert([
+                'id' => new_id(), 'empresa_id' => $empresaDemo, 'documento_id' => $docEquity,
+                'version_num' => 1, 'nombre_archivo' => 'liquidacion-camila.txt',
+                'ruta_relativa' => $eqSaved['ruta_relativa'], 'mime' => 'text/plain',
+                'tamano_bytes' => $eqSaved['tamano_bytes'],
+                'notas' => 'Versión inicial (equity)', 'creado_por_id' => $users['admin']['id'],
+                'created_at' => $now,
+            ]);
+            $this->db->table('equity_respaldos')->insert([
+                'id' => new_id(), 'empresa_id' => $empresaDemo, 'persona_id' => $eqSocioId,
+                'ficha_id' => $fichaId, 'documento_id' => $docEquity,
+                'tipo_respaldo' => 'Liquidación de sueldo', 'descripcion' => 'Seed demo',
+                'creado_por_id' => $users['admin']['id'], 'created_at' => $now,
+            ]);
+        }
 
         // Plantilla demo Formularios de socios (custom) + re-seed genérica de sistema
         if ($this->db->tableExists('socio_form_plantillas')) {

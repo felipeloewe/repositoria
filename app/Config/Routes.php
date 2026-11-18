@@ -107,6 +107,19 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('socios/contratos', 'ContratosSocios::index');
     $routes->post('socios/contratos/upload', 'ContratosSocios::upload');
 
+    // Menú Equity — personas (socio/gerente) + fichas financieras + respaldos (ambito=equity)
+    $routes->get('equity', 'Equity::index');
+    $routes->get('equity/nueva', 'Equity::createForm');
+    $routes->post('equity', 'Equity::store');
+    $routes->get('equity/(:segment)', 'Equity::show/$1');
+    $routes->get('equity/(:segment)/editar', 'Equity::editForm/$1');
+    $routes->post('equity/(:segment)', 'Equity::update/$1');
+    $routes->get('equity/(:segment)/fichas/nueva', 'Equity::fichaForm/$1');
+    $routes->post('equity/(:segment)/fichas', 'Equity::storeFicha/$1');
+    $routes->get('equity/(:segment)/fichas/(:segment)/editar', 'Equity::editFichaForm/$1/$2');
+    $routes->post('equity/(:segment)/fichas/(:segment)', 'Equity::updateFicha/$1/$2');
+    $routes->post('equity/(:segment)/respaldos', 'Equity::uploadRespaldo/$1');
+
     // Admin central — empresas/planes + promoción filial (b) → empresa (a)
     $routes->get('admin/empresas', 'AdminCentral::empresas');
     $routes->post('admin/empresas/asignar-plan', 'AdminCentral::assignPlan');

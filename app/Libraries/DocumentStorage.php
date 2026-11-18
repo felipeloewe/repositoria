@@ -60,6 +60,7 @@ final class DocumentStorage
      * socio → {empresaId}/socios/{docId}/…
      * contrato → {empresaId}/contratos/{docId}/…
      * socio_contrato → {empresaId}/socios/contratos/{docId}/…
+     * equity → {empresaId}/equity/{docId}/…
      */
     public static function docDirPrefix(string $empresaId, string $documentoId, string $ambito = 'general'): string
     {
@@ -75,6 +76,7 @@ final class DocumentStorage
             DocumentAcl::AMBITO_SOCIO          => $empresaId . '/socios/' . $documentoId,
             DocumentAcl::AMBITO_CONTRATO       => $empresaId . '/contratos/' . $documentoId,
             DocumentAcl::AMBITO_SOCIO_CONTRATO => $empresaId . '/socios/contratos/' . $documentoId,
+            DocumentAcl::AMBITO_EQUITY         => $empresaId . '/equity/' . $documentoId,
             default                            => $empresaId . '/' . $documentoId,
         };
     }

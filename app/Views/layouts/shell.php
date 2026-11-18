@@ -3,7 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= esc($title ?? 'Repositoria') ?> · Repositoria</title>
+    <?php $productName = \App\Libraries\Product::name(); ?>
+    <title><?= esc($title ?? $productName) ?> · <?= esc($productName) ?></title>
     <link rel="icon" href="<?= base_url('assets/brand/mark.svg') ?>" type="image/svg+xml">
     <link rel="icon" href="<?= base_url('favicon.ico') ?>?v=20261104b" sizes="any">
     <link rel="icon" type="image/png" href="<?= base_url('assets/brand/favicon-32.png') ?>?v=20261104b" sizes="32x32">
@@ -28,8 +29,8 @@
                 <div class="brand">
                     <img class="brand-mark" src="<?= base_url('assets/brand/mark-on-dark.svg') ?>" width="42" height="42" alt="">
                     <div class="brand-text">
-                        <h1>Repositoria</h1>
-                        <p>Gestor documental</p>
+                        <h1><?= esc(\App\Libraries\Product::name()) ?></h1>
+                        <p><?= esc(\App\Libraries\Product::tagline()) ?></p>
                     </div>
                 </div>
                 <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-expanded="true" aria-controls="app-sidebar" aria-label="Contraer menú" title="Contraer menú">
@@ -73,6 +74,9 @@
                 <?php if ($nav('menu.socios')): ?>
                     <a href="<?= site_url('socios') ?>" class="<?= in_array(($title ?? ''), ['Socios', 'Formularios socios'], true) ? 'active' : '' ?>" data-nav="socios"><span class="nav-label">Socios</span></a>
                 <?php endif; ?>
+                <?php if ($nav('menu.equity')): ?>
+                    <a href="<?= site_url('equity') ?>" class="<?= ($title ?? '') === 'Equity' ? 'active' : '' ?>" data-nav="equity"><span class="nav-label">Equity</span></a>
+                <?php endif; ?>
 
 
                 <p class="nav-section">Canales</p>
@@ -104,8 +108,7 @@
                 <a href="<?= site_url('logout') ?>" class="nav-exit" data-nav="salir"><span class="nav-label">Salir</span></a>
             </nav>
             <div class="sidebar-foot">
-                MVP Fases 1–4<br>
-                CI4 + MySQL
+                <?= \App\Libraries\Product::footNote() ?>
             </div>
         </div>
     </aside>

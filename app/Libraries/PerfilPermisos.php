@@ -35,6 +35,7 @@ final class PerfilPermisos
             ['clave' => 'menu.formularios', 'grupo' => 'Menú · Principal', 'label' => 'Formulario'],
             ['clave' => 'menu.contratos', 'grupo' => 'Menú · Principal', 'label' => 'Contratos'],
             ['clave' => 'menu.socios', 'grupo' => 'Menú · Principal', 'label' => 'Socios'],
+            ['clave' => 'menu.equity', 'grupo' => 'Menú · Principal', 'label' => 'Equity'],
             // Canales
             ['clave' => 'menu.correo', 'grupo' => 'Menú · Canales', 'label' => 'Correo'],
             ['clave' => 'menu.flujos', 'grupo' => 'Menú · Canales', 'label' => 'Flujos'],
@@ -53,6 +54,9 @@ final class PerfilPermisos
             ['clave' => 'cap.socios_delete', 'grupo' => 'Socios', 'label' => 'Eliminar docs de socios'],
             ['clave' => 'cap.socios_contratos_upload', 'grupo' => 'Socios', 'label' => 'Subir contratos de socios'],
             ['clave' => 'cap.socios_contratos_delete', 'grupo' => 'Socios', 'label' => 'Eliminar contratos de socios'],
+            ['clave' => 'cap.equity_manage', 'grupo' => 'Equity', 'label' => 'Gestionar personas y fichas'],
+            ['clave' => 'cap.equity_upload', 'grupo' => 'Equity', 'label' => 'Subir respaldos Equity'],
+            ['clave' => 'cap.equity_delete', 'grupo' => 'Equity', 'label' => 'Eliminar respaldos Equity'],
             ['clave' => 'cap.recursos_contratos_upload', 'grupo' => 'Recursos', 'label' => 'Subir contratos desde Recursos'],
         ];
     }
