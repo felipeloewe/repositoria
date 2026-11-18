@@ -18,11 +18,12 @@ final class EquityCatalogo
         return [
             [
                 'clave'       => 'personas',
-                'label'       => 'Personas',
+                'label'       => 'Grupo Familiar',
                 'grupo'       => 'Principal',
                 'path'        => '/equity',
-                'descripcion' => 'Socios y gerentes de la empresa',
+                'descripcion' => 'Antecedentes personales y laborales del grupo familiar',
             ],
+
             [
                 'clave'       => 'resumen',
                 'label'       => 'Resumen patrimonial',
@@ -102,10 +103,11 @@ final class EquityCatalogo
         return [
             'Principal' => [
                 ['clave' => 'inicio', 'label' => 'Inicio', 'path' => '/dashboard'],
-                ['clave' => 'personas', 'label' => 'Personas', 'path' => '/equity'],
-                ['clave' => 'socios', 'label' => 'Socios', 'path' => '/equity?tipo=socio'],
-                ['clave' => 'gerentes', 'label' => 'Gerentes', 'path' => '/equity?tipo=gerente'],
+                ['clave' => 'personas', 'label' => 'Grupo Familiar', 'path' => '/equity'],
+                ['clave' => 'socios', 'label' => 'Antecedentes Personales', 'path' => '/equity?tipo=socio'],
+                ['clave' => 'gerentes', 'label' => 'Antecedentes Laborales', 'path' => '/equity?tipo=gerente'],
             ],
+
             'Estado de situación' => [
                 ['clave' => 'resumen', 'label' => 'Resumen', 'path' => '/equity/resumen'],
                 ['clave' => 'ingresos', 'label' => 'Ingresos', 'path' => '/equity/ingresos'],

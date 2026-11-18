@@ -21,8 +21,8 @@ El prototipo Next.js (rama `cursor/scaffold-repositoria-e946` / PR #1) queda com
 
 Módulo en el mismo stack CI4 (look idéntico a Repositoria) para información financiera de **socios** y **gerentes**, con respaldos documentales.
 
-- UI Inicio / sidebar: **Activos** (bienes raíces, vehículos, sociedades, otros), **Pasivos** (inmuebles, circulantes, otros), **Ingresos**, **Respaldos**, más Personas y Resumen patrimonial
-- `/equity` — personas (socio/gerente); fichas de ingreso y upload de respaldos por persona
+- UI Inicio / sidebar: **Grupo Familiar** (Antecedentes Personales / Laborales), **Activos**, **Pasivos**, **Ingresos**, **Respaldos**, Resumen patrimonial
+- `/equity` — grupo familiar; fichas de ingreso y upload de respaldos por integrante
 - Pool documental aislado `ambito=equity` → disco `{STORAGE_ROOT}/{empresa}/equity/{docId}/`
 - Acceso por defecto: Administrador Master (`menu.equity` + caps en Perfiles)
 - Marca: host `equity.*` o `PRODUCT_KEY=equity` en `.env` (sidebar “Equity · Información financiera”)

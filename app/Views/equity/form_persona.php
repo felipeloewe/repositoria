@@ -9,8 +9,8 @@ $action = $isEdit ? site_url('equity/' . $persona['id']) : site_url('equity');
 ?>
 
 <section class="banner">
-    <h2><?= $isEdit ? 'Editar persona' : 'Nueva persona' ?></h2>
-    <p>Socio o gerente cuya información financiera y respaldos se gestionan en Equity.</p>
+    <h2><?= $isEdit ? 'Editar integrante' : 'Nuevo integrante' ?></h2>
+    <p>Miembro del grupo familiar (antecedentes personales o laborales) con ficha financiera y respaldos.</p>
 </section>
 
 <?php if (! empty($error)): ?>

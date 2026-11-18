@@ -136,7 +136,7 @@ $action = match ($clave) {
     </form>
 </div>
 <?php elseif (empty($personas)): ?>
-    <div class="alert alert-info">Primero <a href="<?= site_url('equity/nueva') ?>">crea una persona</a> (socio o gerente).</div>
+    <div class="alert alert-info">Primero <a href="<?= site_url('equity/nueva') ?>">agrega un integrante</a> al grupo familiar.</div>
 <?php endif; ?>
 
 <div class="card section-card">

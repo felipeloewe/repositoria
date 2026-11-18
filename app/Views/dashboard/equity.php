@@ -31,9 +31,9 @@ foreach ($menus as $m) {
 
 <div class="grid">
     <div class="card">
-        <h3>Personas</h3>
+        <h3>Grupo Familiar</h3>
         <div class="value"><?= (int) $stats['personas'] ?></div>
-        <div class="hint"><?= (int) $stats['socios'] ?> socios · <?= (int) $stats['gerentes'] ?> gerentes</div>
+        <div class="hint"><?= (int) $stats['socios'] ?> personales · <?= (int) $stats['gerentes'] ?> laborales</div>
     </div>
     <div class="card">
         <h3>Fichas / ingresos</h3>

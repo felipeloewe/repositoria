@@ -5,14 +5,14 @@
 <?php use App\Libraries\EquityAcl; ?>
 
 <?php
-$bannerTitle = 'Personas';
-$bannerLead  = 'Socios y gerentes con ficha financiera y respaldos.';
+$bannerTitle = 'Grupo Familiar';
+$bannerLead  = 'Antecedentes personales y laborales con ficha financiera y respaldos.';
 if (($filters['tipo'] ?? '') === EquityAcl::TIPO_SOCIO) {
-    $bannerTitle = 'Socios';
-    $bannerLead  = 'Información financiera y respaldos de socios.';
+    $bannerTitle = 'Antecedentes Personales';
+    $bannerLead  = 'Información personal y financiera del grupo familiar.';
 } elseif (($filters['tipo'] ?? '') === EquityAcl::TIPO_GERENTE) {
-    $bannerTitle = 'Gerentes';
-    $bannerLead  = 'Información financiera y respaldos de gerentes.';
+    $bannerTitle = 'Antecedentes Laborales';
+    $bannerLead  = 'Información laboral y financiera del grupo familiar.';
 }
 ?>
 <section class="banner">
@@ -58,14 +58,14 @@ if (($filters['tipo'] ?? '') === EquityAcl::TIPO_SOCIO) {
 
 <?php if (! empty($canManage)): ?>
 <div class="card section-card">
-    <h3>Nueva persona</h3>
-    <p class="muted" style="margin-top:0">Registra un socio o gerente para cargar su ficha financiera y respaldos.</p>
-    <a class="btn btn-primary" href="<?= site_url('equity/nueva') ?>">Agregar persona</a>
+    <h3>Nuevo integrante</h3>
+    <p class="muted" style="margin-top:0">Registra un integrante del grupo familiar (antecedentes personales o laborales).</p>
+    <a class="btn btn-primary" href="<?= site_url('equity/nueva') ?>">Agregar al grupo</a>
 </div>
 <?php endif; ?>
 
 <div class="card section-card">
-    <h3>Personas (<?= count($personas) ?>)</h3>
+    <h3>Grupo Familiar (<?= count($personas) ?>)</h3>
     <?php if ($personas === []): ?>
         <p class="muted">Aún no hay socios ni gerentes en Equity.</p>
     <?php else: ?>

@@ -21,8 +21,8 @@ final class EquityAcl
     public static function labelTipo(string $tipo): string
     {
         return match ($tipo) {
-            self::TIPO_GERENTE => 'Gerente',
-            default            => 'Socio',
+            self::TIPO_GERENTE => 'Antecedentes Laborales',
+            default            => 'Antecedentes Personales',
         };
     }
 
