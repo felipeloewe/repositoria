@@ -289,9 +289,71 @@ final class EquityCatalogo
         ];
     }
 
+    /** @return array<int|string, string> */
+    public static function opcionesTipoInmueble(): array
+    {
+        return [
+            1 => 'Casa',
+            2 => 'Departamento',
+            3 => 'Oficina',
+            4 => 'Local Comercial',
+            5 => 'Estacionamiento',
+            6 => 'Bodega',
+            7 => 'Terreno',
+        ];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesGarantiaInmueble(): array
+    {
+        return [
+            1 => 'Gtía. en Consorcio',
+            2 => 'Gtía. en otra Inst.',
+            3 => 'Deja en Gtía.',
+            4 => 'No está en Gtía.',
+        ];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesSiNo(): array
+    {
+        return [
+            1 => 'Sí',
+            2 => 'No',
+        ];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesTipoVehiculo(): array
+    {
+        return [
+            1 => 'Automóvil',
+            2 => 'Camioneta',
+            3 => 'Jeep',
+            4 => 'Station Wagon',
+            5 => 'Furgón',
+            6 => 'Minibus',
+            7 => 'Bus',
+            8 => 'Camión',
+        ];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesTipoOtroActivo(): array
+    {
+        return [
+            1 => 'Depósito a Plazo',
+            2 => 'Acciones',
+            3 => 'Bonos',
+            4 => 'Cuentas de Ahorro',
+            5 => 'Otros',
+        ];
+    }
+
 
     public static function labelOpcion(array $opts, mixed $value): string
     {
+
         if ($value === null || $value === '') {
             return '—';
         }

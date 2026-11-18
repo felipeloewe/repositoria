@@ -289,70 +289,96 @@ class EquityPatrimonio extends BaseController
 
         $id = new_id();
 
+        $intOrNull = static function ($raw): ?int {
+            $v = trim((string) $raw);
+            if ($v === '' || ! is_numeric($v)) {
+                return null;
+            }
+
+            return (int) $v;
+        };
+
         if ($clave === 'bienes-raices') {
-            $desc = trim((string) $this->request->getPost('descripcion'));
-            if ($desc === '') {
-                return redirect()->to($redirectPath)->with('error', 'La descripción es obligatoria.');
+            $direccion = trim((string) $this->request->getPost('direccion'));
+            $tipoInm   = $intOrNull($this->request->getPost('tipo_inmueble'));
+            if ($direccion === '' || $tipoInm === null) {
+                return redirect()->to($redirectPath)->with('error', 'Tipo y dirección son obligatorios.');
             }
             model(EquityBienRaizModel::class)->insert([
                 'id'             => $id,
                 'empresa_id'     => $memb['empresa_id'],
                 'persona_id'     => $personaId,
-                'descripcion'    => $desc,
-                'valor_clp'      => $money($this->request->getPost('valor_clp')),
-                'valor_uf'       => $money($this->request->getPost('valor_uf')),
-                'fecha_tasacion' => trim((string) $this->request->getPost('fecha_tasacion')) ?: null,
+                'tipo_inmueble'  => $tipoInm,
+                'direccion'      => $direccion,
+                'descripcion'    => $direccion,
                 'rol'            => trim((string) $this->request->getPost('rol')) ?: null,
-                'avaluo_fiscal'  => $money($this->request->getPost('avaluo_fiscal')),
-                'contribuciones' => trim((string) $this->request->getPost('contribuciones')) ?: null,
+                'garantia'       => $intOrNull($this->request->getPost('garantia')),
+                'asegurado'      => $intOrNull($this->request->getPost('asegurado')),
+                'valor_clp'      => $money($this->request->getPost('valor_clp')),
                 'notas'          => trim((string) $this->request->getPost('notas')) ?: null,
                 'creado_por_id'  => $memb['usuario_id'],
             ]);
         } elseif ($clave === 'vehiculos') {
+            $tipoVeh = $intOrNull($this->request->getPost('tipo_vehiculo'));
+            if ($tipoVeh === null) {
+                return redirect()->to($redirectPath)->with('error', 'El tipo de vehículo es obligatorio.');
+            }
+            $tipoLabel = EquityCatalogo::opcionesTipoVehiculo()[$tipoVeh] ?? (string) $tipoVeh;
             model(EquityVehiculoModel::class)->insert([
                 'id'            => $id,
                 'empresa_id'    => $memb['empresa_id'],
                 'persona_id'    => $personaId,
-                'tipo'          => trim((string) $this->request->getPost('tipo')) ?: null,
+                'tipo_vehiculo' => $tipoVeh,
+                'tipo'          => $tipoLabel,
                 'marca'         => trim((string) $this->request->getPost('marca')) ?: null,
                 'modelo'        => trim((string) $this->request->getPost('modelo')) ?: null,
-                'anio'          => ($a = trim((string) $this->request->getPost('anio'))) !== '' ? (int) $a : null,
+                'anio'          => $intOrNull($this->request->getPost('anio')),
                 'patente'       => trim((string) $this->request->getPost('patente')) ?: null,
+                'garantia'      => $intOrNull($this->request->getPost('garantia')),
+                'asegurado'     => $intOrNull($this->request->getPost('asegurado')),
                 'valor_clp'     => $money($this->request->getPost('valor_clp')),
-                'asegurado'     => (int) $this->request->getPost('asegurado') === 1 ? 1 : 0,
                 'notas'         => trim((string) $this->request->getPost('notas')) ?: null,
                 'creado_por_id' => $memb['usuario_id'],
             ]);
         } elseif ($clave === 'sociedades') {
             $nombre = trim((string) $this->request->getPost('nombre_sociedad'));
             if ($nombre === '') {
-                return redirect()->to($redirectPath)->with('error', 'El nombre de la sociedad es obligatorio.');
+                return redirect()->to($redirectPath)->with('error', 'La razón social es obligatoria.');
             }
             model(EquitySociedadModel::class)->insert([
-                'id'              => $id,
-                'empresa_id'      => $memb['empresa_id'],
-                'persona_id'      => $personaId,
-                'nombre_sociedad' => $nombre,
-                'tipo'            => trim((string) $this->request->getPost('tipo')) ?: 'Directo',
-                'porcentaje'      => $money($this->request->getPost('porcentaje')),
-                'valor_clp'       => $money($this->request->getPost('valor_clp')),
-                'valor_uf'        => $money($this->request->getPost('valor_uf')),
-                'pais_detalle'    => trim((string) $this->request->getPost('pais_detalle')) ?: null,
-                'notas'           => trim((string) $this->request->getPost('notas')) ?: null,
-                'creado_por_id'   => $memb['usuario_id'],
+                'id'                 => $id,
+                'empresa_id'         => $memb['empresa_id'],
+                'persona_id'         => $personaId,
+                'nombre_sociedad'    => $nombre,
+                'rut_sociedad'       => trim((string) $this->request->getPost('rut_sociedad')) ?: null,
+                'giro_rubro'         => trim((string) $this->request->getPost('giro_rubro')) ?: null,
+                'porcentaje'         => $money($this->request->getPost('porcentaje')),
+                'valor_clp'          => $money($this->request->getPost('valor_clp')),
+                'emp_relacionada'    => $intOrNull($this->request->getPost('emp_relacionada')),
+                'cumple_articulo_84' => (int) $this->request->getPost('cumple_articulo_84') === 1 ? 1 : 0,
+                'tipo'               => 'Directo',
+                'notas'              => trim((string) $this->request->getPost('notas')) ?: null,
+                'creado_por_id'      => $memb['usuario_id'],
             ]);
         } elseif ($clave === 'otros-activos') {
+            $tipoAct = $intOrNull($this->request->getPost('tipo_activo'));
+            if ($tipoAct === null) {
+                return redirect()->to($redirectPath)->with('error', 'El tipo de activo es obligatorio.');
+            }
+            $tipoLabel = EquityCatalogo::opcionesTipoOtroActivo()[$tipoAct] ?? (string) $tipoAct;
             model(EquityOtroActivoModel::class)->insert([
                 'id'            => $id,
                 'empresa_id'    => $memb['empresa_id'],
                 'persona_id'    => $personaId,
-                'tipo'          => trim((string) $this->request->getPost('tipo')) ?: null,
+                'tipo_activo'   => $tipoAct,
+                'tipo'          => $tipoLabel,
                 'institucion'   => trim((string) $this->request->getPost('institucion')) ?: null,
                 'saldo_clp'     => $money($this->request->getPost('saldo_clp')),
                 'notas'         => trim((string) $this->request->getPost('notas')) ?: null,
                 'creado_por_id' => $memb['usuario_id'],
             ]);
         } else {
+
             $desc = trim((string) $this->request->getPost('banco_descripcion'));
             if ($desc === '') {
                 return redirect()->to($redirectPath)->with('error', 'La descripción / banco es obligatoria.');

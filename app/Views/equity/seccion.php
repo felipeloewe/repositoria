@@ -3,6 +3,8 @@
 <?= $this->section('content') ?>
 
 <?php
+use App\Libraries\EquityCatalogo;
+
 $clave = $meta['clave'];
 $fmt = static function ($v): string {
     if ($v === null || $v === '') {
@@ -70,49 +72,136 @@ $action = match ($clave) {
         </select>
 
         <?php if ($clave === 'bienes-raices'): ?>
-            <label for="descripcion">Descripción *</label>
-            <input id="descripcion" name="descripcion" type="text" required>
-            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
-                <div><label for="valor_clp">Valor CLP</label><input id="valor_clp" name="valor_clp" type="text" inputmode="decimal"></div>
-                <div><label for="valor_uf">Valor UF</label><input id="valor_uf" name="valor_uf" type="text" inputmode="decimal"></div>
-                <div><label for="fecha_tasacion">Fecha tasación</label><input id="fecha_tasacion" name="fecha_tasacion" type="date"></div>
-                <div><label for="rol">Rol</label><input id="rol" name="rol" type="text"></div>
-                <div><label for="avaluo_fiscal">Avalúo fiscal</label><input id="avaluo_fiscal" name="avaluo_fiscal" type="text" inputmode="decimal"></div>
-                <div><label for="contribuciones">Contribuciones</label><input id="contribuciones" name="contribuciones" type="text" placeholder="afecto / exento"></div>
+            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+                <div>
+                    <label for="tipo_inmueble">Tipo *</label>
+                    <select id="tipo_inmueble" name="tipo_inmueble" required>
+                        <option value="">—</option>
+                        <?php foreach (EquityCatalogo::opcionesTipoInmueble() as $k => $lab): ?>
+                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div style="grid-column:1/-1">
+                    <label for="direccion">Dirección *</label>
+                    <input id="direccion" name="direccion" type="text" required placeholder="calle, número, comuna, otros datos">
+                </div>
+                <div>
+                    <label for="rol">Rol</label>
+                    <input id="rol" name="rol" type="text">
+                </div>
+                <div>
+                    <label for="garantia">Garantía</label>
+                    <select id="garantia" name="garantia">
+                        <option value="">—</option>
+                        <?php foreach (EquityCatalogo::opcionesGarantiaInmueble() as $k => $lab): ?>
+                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label for="asegurado">Está asegurado</label>
+                    <select id="asegurado" name="asegurado">
+                        <option value="">—</option>
+                        <?php foreach (EquityCatalogo::opcionesSiNo() as $k => $lab): ?>
+                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label for="valor_clp">Valor comercial $</label>
+                    <input id="valor_clp" name="valor_clp" type="text" inputmode="decimal">
+                </div>
             </div>
         <?php elseif ($clave === 'vehiculos'): ?>
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
-                <div><label for="tipo">Tipo</label><input id="tipo" name="tipo" type="text" placeholder="Automóvil, camioneta…"></div>
+                <div>
+                    <label for="tipo_vehiculo">Tipo *</label>
+                    <select id="tipo_vehiculo" name="tipo_vehiculo" required>
+                        <option value="">—</option>
+                        <?php foreach (EquityCatalogo::opcionesTipoVehiculo() as $k => $lab): ?>
+                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
                 <div><label for="marca">Marca</label><input id="marca" name="marca" type="text"></div>
                 <div><label for="modelo">Modelo</label><input id="modelo" name="modelo" type="text"></div>
                 <div><label for="anio">Año</label><input id="anio" name="anio" type="number"></div>
                 <div><label for="patente">Patente</label><input id="patente" name="patente" type="text"></div>
-                <div><label for="valor_clp">Valor CLP</label><input id="valor_clp" name="valor_clp" type="text" inputmode="decimal"></div>
-            </div>
-            <label style="display:flex;gap:.5rem;align-items:center;margin:.75rem 0">
-                <input type="checkbox" name="asegurado" value="1"> Asegurado
-            </label>
-        <?php elseif ($clave === 'sociedades'): ?>
-            <label for="nombre_sociedad">Nombre sociedad *</label>
-            <input id="nombre_sociedad" name="nombre_sociedad" type="text" required>
-            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
                 <div>
-                    <label for="tipo">Tipo</label>
-                    <select id="tipo" name="tipo">
-                        <option value="Directo">Directo</option>
-                        <option value="Indirecto">Indirecto</option>
+                    <label for="garantia_v">Garantía</label>
+                    <select id="garantia_v" name="garantia">
+                        <option value="">—</option>
+                        <?php foreach (EquityCatalogo::opcionesGarantiaInmueble() as $k => $lab): ?>
+                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
-                <div><label for="porcentaje">% participación</label><input id="porcentaje" name="porcentaje" type="text" inputmode="decimal"></div>
-                <div><label for="valor_clp">Valor CLP</label><input id="valor_clp" name="valor_clp" type="text" inputmode="decimal"></div>
-                <div><label for="valor_uf">Valor UF</label><input id="valor_uf" name="valor_uf" type="text" inputmode="decimal"></div>
-                <div><label for="pais_detalle">País / detalle</label><input id="pais_detalle" name="pais_detalle" type="text"></div>
+                <div>
+                    <label for="asegurado_v">Está asegurado</label>
+                    <select id="asegurado_v" name="asegurado">
+                        <option value="">—</option>
+                        <?php foreach (EquityCatalogo::opcionesSiNo() as $k => $lab): ?>
+                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div><label for="valor_clp_v">Valor comercial $</label><input id="valor_clp_v" name="valor_clp" type="text" inputmode="decimal"></div>
             </div>
+        <?php elseif ($clave === 'sociedades'): ?>
+            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+                <div style="grid-column:1/-1">
+                    <label for="nombre_sociedad">Razón social *</label>
+                    <input id="nombre_sociedad" name="nombre_sociedad" type="text" required>
+                </div>
+                <div>
+                    <label for="rut_sociedad">RUT sociedad</label>
+                    <input id="rut_sociedad" name="rut_sociedad" type="text">
+                </div>
+                <div>
+                    <label for="giro_rubro">Giro / Rubro</label>
+                    <input id="giro_rubro" name="giro_rubro" type="text">
+                </div>
+                <div>
+                    <label for="porcentaje">% participación</label>
+                    <input id="porcentaje" name="porcentaje" type="text" inputmode="decimal">
+                </div>
+                <div>
+                    <label for="valor_clp_s">Valor comercial $</label>
+                    <input id="valor_clp_s" name="valor_clp" type="text" inputmode="decimal">
+                </div>
+                <div>
+                    <label for="emp_relacionada">Emp. relacionada</label>
+                    <select id="emp_relacionada" name="emp_relacionada">
+                        <option value="">—</option>
+                        <?php foreach (EquityCatalogo::opcionesSiNo() as $k => $lab): ?>
+                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+            <label style="display:flex;gap:.5rem;align-items:center;margin:.75rem 0">
+                <input type="checkbox" name="cumple_articulo_84" value="1"> Cumple artículo N° 84
+            </label>
         <?php elseif ($clave === 'otros-activos'): ?>
-            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
-                <div><label for="tipo">Tipo</label><input id="tipo" name="tipo" type="text" placeholder="Depósito, acciones…"></div>
-                <div><label for="institucion">Institución</label><input id="institucion" name="institucion" type="text"></div>
-                <div><label for="saldo_clp">Saldo CLP</label><input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal"></div>
+            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+                <div>
+                    <label for="tipo_activo">Tipo *</label>
+                    <select id="tipo_activo" name="tipo_activo" required>
+                        <option value="">—</option>
+                        <?php foreach (EquityCatalogo::opcionesTipoOtroActivo() as $k => $lab): ?>
+                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label for="institucion">Institución</label>
+                    <input id="institucion" name="institucion" type="text">
+                </div>
+                <div>
+                    <label for="saldo_clp">Saldo $</label>
+                    <input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal">
+                </div>
             </div>
         <?php else: ?>
             <label for="banco_descripcion">Banco / descripción *</label>
@@ -144,6 +233,18 @@ $action = match ($clave) {
     <?php if ($rows === []): ?>
         <p class="muted">Sin registros en esta sección.</p>
     <?php else: ?>
+        <?php
+            $totalSeccion = 0.0;
+            foreach ($rows as $rTot) {
+                $vTot = match ($clave) {
+                    'bienes-raices', 'vehiculos', 'sociedades' => $rTot['valor_clp'] ?? null,
+                    default => $rTot['saldo_clp'] ?? null,
+                };
+                if ($vTot !== null && $vTot !== '') {
+                    $totalSeccion += (float) $vTot;
+                }
+            }
+        ?>
         <table class="table">
             <thead>
                 <tr>
@@ -158,10 +259,35 @@ $action = match ($clave) {
                     $persona = $row['persona'] ?? null;
                     $nombreP = $persona ? trim(($persona['nombre'] ?? '') . ' ' . ($persona['apellido'] ?? '')) : '—';
                     $detalle = match ($clave) {
-                        'bienes-raices' => (string) ($row['descripcion'] ?? ''),
-                        'vehiculos' => trim(($row['marca'] ?? '') . ' ' . ($row['modelo'] ?? '') . ' ' . ($row['patente'] ?? '')),
-                        'sociedades' => (string) ($row['nombre_sociedad'] ?? ''),
-                        'otros-activos' => trim(($row['tipo'] ?? '') . ' · ' . ($row['institucion'] ?? ''), ' ·'),
+                        'bienes-raices' => trim(
+                            EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoInmueble(), $row['tipo_inmueble'] ?? null)
+                            . ' · '
+                            . (($row['direccion'] ?? '') !== '' ? (string) $row['direccion'] : (string) ($row['descripcion'] ?? ''))
+                            . (! empty($row['rol']) ? ' · Rol ' . $row['rol'] : '')
+                            . (! empty($row['garantia']) ? ' · ' . EquityCatalogo::labelOpcion(EquityCatalogo::opcionesGarantiaInmueble(), $row['garantia']) : ''),
+                            ' ·'
+                        ),
+                        'vehiculos' => trim(
+                            EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoVehiculo(), $row['tipo_vehiculo'] ?? null)
+                            . ' · '
+                            . trim(($row['marca'] ?? '') . ' ' . ($row['modelo'] ?? '') . ' ' . ($row['patente'] ?? ''))
+                            . (! empty($row['garantia']) ? ' · ' . EquityCatalogo::labelOpcion(EquityCatalogo::opcionesGarantiaInmueble(), $row['garantia']) : ''),
+                            ' ·'
+                        ),
+                        'sociedades' => trim(
+                            (string) ($row['nombre_sociedad'] ?? '')
+                            . (! empty($row['rut_sociedad']) ? ' · ' . $row['rut_sociedad'] : '')
+                            . (! empty($row['porcentaje']) ? ' · ' . $row['porcentaje'] . '%' : '')
+                            . (! empty($row['emp_relacionada']) ? ' · Relacionada: ' . EquityCatalogo::labelOpcion(EquityCatalogo::opcionesSiNo(), $row['emp_relacionada']) : '')
+                            . (! empty($row['cumple_articulo_84']) ? ' · Art. 84' : ''),
+                            ' ·'
+                        ),
+                        'otros-activos' => trim(
+                            EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoOtroActivo(), $row['tipo_activo'] ?? null)
+                            . ' · '
+                            . (string) ($row['institucion'] ?? ''),
+                            ' ·'
+                        ),
                         default => (string) ($row['banco_descripcion'] ?? ''),
                     };
                     $valor = match ($clave) {
@@ -183,6 +309,12 @@ $action = match ($clave) {
                 </tr>
             <?php endforeach; ?>
             </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="2" style="text-align:right"><strong>Total $</strong></td>
+                    <td><strong><?= esc($fmt($totalSeccion)) ?></strong></td>
+                </tr>
+            </tfoot>
         </table>
     <?php endif; ?>
 </div>

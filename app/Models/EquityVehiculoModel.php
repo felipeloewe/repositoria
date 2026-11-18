@@ -14,7 +14,7 @@ class EquityVehiculoModel extends Model
     protected $returnType       = 'array';
     protected $useTimestamps    = true;
     protected $allowedFields    = [
-        'id', 'empresa_id', 'persona_id', 'tipo', 'marca', 'modelo', 'anio',
-        'patente', 'valor_clp', 'asegurado', 'notas', 'creado_por_id',
+        'id', 'empresa_id', 'persona_id', 'tipo', 'tipo_vehiculo', 'marca', 'modelo', 'anio',
+        'patente', 'garantia', 'valor_clp', 'asegurado', 'notas', 'creado_por_id',
     ];
 }
