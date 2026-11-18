@@ -107,7 +107,16 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('socios/contratos', 'ContratosSocios::index');
     $routes->post('socios/contratos/upload', 'ContratosSocios::upload');
 
-    // Menú Equity — personas (socio/gerente) + fichas financieras + respaldos (ambito=equity)
+    // Menú Equity — patrimonio (rutas fijas ANTES de equity/(:segment))
+    $routes->get('equity/resumen', 'EquityPatrimonio::resumen');
+    $routes->get('equity/ingresos', 'EquityPatrimonio::ingresos');
+    $routes->get('equity/respaldos', 'EquityPatrimonio::respaldos');
+    $routes->get('equity/activos/(:segment)', 'EquityPatrimonio::activos/$1');
+    $routes->post('equity/activos/(:segment)', 'EquityPatrimonio::storeActivo/$1');
+    $routes->get('equity/pasivos/(:segment)', 'EquityPatrimonio::pasivos/$1');
+    $routes->post('equity/pasivos/(:segment)', 'EquityPatrimonio::storePasivo/$1');
+
+    // Menú Equity — personas (socio/gerente) + fichas + respaldos por persona
     $routes->get('equity', 'Equity::index');
     $routes->get('equity/nueva', 'Equity::createForm');
     $routes->post('equity', 'Equity::store');

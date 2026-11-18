@@ -28,7 +28,8 @@ class AuthFilter implements FilterInterface
         $path = '/' . ltrim($request->getUri()->getPath(), '/');
         if (! Product::isPathAllowed($path)) {
             return redirect()->to(Product::homePath())
-                ->with('error', 'Esa sección pertenece a Repositoria. En Equity el flujo es Personas → Fichas → Respaldos.');
+                ->with('error', 'Esa sección pertenece a Repositoria. En Equity usa Activos, Pasivos, Ingresos y Respaldos.');
+
         }
 
         return null;

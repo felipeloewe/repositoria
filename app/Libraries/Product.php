@@ -58,7 +58,8 @@ final class Product
     public static function footNote(): string
     {
         return match (self::key()) {
-            self::KEY_EQUITY => 'equity.booklet.cl<br>Socios · Gerentes · Respaldos',
+            self::KEY_EQUITY => 'equity.booklet.cl<br>Activos · Pasivos · Ingresos · Respaldos',
+
             default          => 'MVP Fases 1–4<br>CI4 + MySQL',
         };
     }

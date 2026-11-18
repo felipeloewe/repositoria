@@ -43,6 +43,9 @@ final class ProductTest extends CIUnitTestCase
         $this->assertSame(Product::KEY_EQUITY, Product::key());
         $this->assertTrue(Product::isPathAllowed('/equity'));
         $this->assertTrue(Product::isPathAllowed('/equity/abc'));
+        $this->assertTrue(Product::isPathAllowed('/equity/activos/bienes-raices'));
+        $this->assertTrue(Product::isPathAllowed('/equity/pasivos/inmuebles'));
+        $this->assertTrue(Product::isPathAllowed('/equity/resumen'));
         $this->assertTrue(Product::isPathAllowed('/documentos/abc123'));
         $this->assertTrue(Product::isPathAllowed('/documentos/abc123/download'));
         $this->assertFalse(Product::isPathAllowed('/documentos'));

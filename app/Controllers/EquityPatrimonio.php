@@ -1,0 +1,452 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controllers;
+
+use App\Libraries\EquityAcl;
+use App\Libraries\EquityCatalogo;
+use App\Libraries\MembershipAuth;
+use App\Models\EquityBienRaizModel;
+use App\Models\EquityFichaModel;
+use App\Models\EquityOtroActivoModel;
+use App\Models\EquityPasivoModel;
+use App\Models\EquityPersonaModel;
+use App\Models\EquityRespaldoModel;
+use App\Models\EquitySociedadModel;
+use App\Models\EquityVehiculoModel;
+use App\Models\DocumentoModel;
+
+/**
+ * Menús patrimoniales Equity: resumen, activos, pasivos, ingresos, respaldos.
+ */
+class EquityPatrimonio extends BaseController
+{
+    /**
+     * @return array<string, mixed>|\CodeIgniter\HTTP\RedirectResponse
+     */
+    private function requireAccess()
+    {
+        $memb = (new MembershipAuth())->membresia();
+        if ($memb === null) {
+            return redirect()->to('/login');
+        }
+        if (! EquityAcl::canAccess($memb)) {
+            return redirect()->to('/dashboard')->with('error', 'Sin acceso a Equity.');
+        }
+
+        return $memb;
+    }
+
+    public function resumen()
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $empresaId = $memb['empresa_id'];
+        $personaId = trim((string) $this->request->getGet('persona_id'));
+        $personas  = $this->personas($empresaId);
+
+        $totales = [
+            'bienes_raices' => $this->sumValor($empresaId, 'equity_bienes_raices', 'valor_clp', $personaId),
+            'vehiculos'     => $this->sumValor($empresaId, 'equity_vehiculos', 'valor_clp', $personaId),
+            'sociedades'    => $this->sumValor($empresaId, 'equity_sociedades', 'valor_clp', $personaId),
+            'otros_activos' => $this->sumValor($empresaId, 'equity_otros_activos', 'saldo_clp', $personaId),
+            'pasivos_inm'   => $this->sumPasivo($empresaId, 'inmueble', $personaId),
+            'pasivos_circ'  => $this->sumPasivo($empresaId, 'circulante', $personaId),
+            'pasivos_otro'  => $this->sumPasivo($empresaId, 'otro', $personaId),
+        ];
+        $totales['activos']    = $totales['bienes_raices'] + $totales['vehiculos'] + $totales['sociedades'] + $totales['otros_activos'];
+        $totales['pasivos']    = $totales['pasivos_inm'] + $totales['pasivos_circ'] + $totales['pasivos_otro'];
+        $totales['patrimonio'] = $totales['activos'] - $totales['pasivos'];
+
+        return view('equity/resumen', [
+            'title'     => 'Resumen',
+            'memb'      => $memb,
+            'equityNav' => 'resumen',
+            'personas'  => $personas,
+            'personaId' => $personaId,
+            'totales'   => $totales,
+            'menus'     => EquityCatalogo::menusInicio(),
+            'canManage' => EquityAcl::canManage($memb),
+        ]);
+    }
+
+    public function activos(string $seccion)
+    {
+        return $this->seccionLista($this->claveActivo($seccion));
+    }
+
+    public function pasivos(string $seccion)
+    {
+        return $this->seccionLista($this->clavePasivo($seccion));
+    }
+
+    public function storeActivo(string $seccion)
+    {
+        return $this->storeSeccion($this->claveActivo($seccion));
+    }
+
+    public function storePasivo(string $seccion)
+    {
+        return $this->storeSeccion($this->clavePasivo($seccion));
+    }
+
+    private function claveActivo(string $seccion): string
+    {
+        return match ($seccion) {
+            'bienes-raices' => 'bienes-raices',
+            'vehiculos'     => 'vehiculos',
+            'sociedades'    => 'sociedades',
+            'otros'         => 'otros-activos',
+            default         => '',
+        };
+    }
+
+    private function clavePasivo(string $seccion): string
+    {
+        return match ($seccion) {
+            'inmuebles'   => 'pasivos-inmuebles',
+            'circulantes' => 'pasivos-circulantes',
+            'otros'       => 'otros-pasivos',
+            default       => '',
+        };
+    }
+
+    public function ingresos()
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $empresaId = $memb['empresa_id'];
+        $personaId = trim((string) $this->request->getGet('persona_id'));
+        $q = model(EquityFichaModel::class)
+            ->where('empresa_id', $empresaId)
+            ->orderBy('fecha_corte', 'DESC');
+        if ($personaId !== '') {
+            $q->where('persona_id', $personaId);
+        }
+        $fichas = $q->findAll();
+        $personas = $this->personas($empresaId);
+        $personaMap = [];
+        foreach ($personas as $p) {
+            $personaMap[$p['id']] = $p;
+        }
+        foreach ($fichas as &$f) {
+            $f['persona'] = $personaMap[$f['persona_id']] ?? null;
+        }
+        unset($f);
+
+        return view('equity/ingresos', [
+            'title'     => 'Ingresos',
+            'memb'      => $memb,
+            'equityNav' => 'ingresos',
+            'fichas'    => $fichas,
+            'personas'  => $personas,
+            'personaId' => $personaId,
+            'canManage' => EquityAcl::canManage($memb),
+        ]);
+    }
+
+    public function respaldos()
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $empresaId = $memb['empresa_id'];
+        $personaId = trim((string) $this->request->getGet('persona_id'));
+        $q = model(EquityRespaldoModel::class)
+            ->where('empresa_id', $empresaId)
+            ->orderBy('created_at', 'DESC');
+        if ($personaId !== '') {
+            $q->where('persona_id', $personaId);
+        }
+        $respaldos = $q->findAll();
+        $personas = $this->personas($empresaId);
+        $personaMap = [];
+        foreach ($personas as $p) {
+            $personaMap[$p['id']] = $p;
+        }
+        $docIds = array_values(array_filter(array_column($respaldos, 'documento_id')));
+        $docsById = [];
+        if ($docIds !== []) {
+            foreach (model(DocumentoModel::class)->whereIn('id', $docIds)->findAll() as $d) {
+                $docsById[$d['id']] = $d;
+            }
+        }
+        foreach ($respaldos as &$r) {
+            $r['persona']   = $personaMap[$r['persona_id']] ?? null;
+            $r['documento'] = $docsById[$r['documento_id']] ?? null;
+        }
+        unset($r);
+
+        return view('equity/respaldos', [
+            'title'     => 'Respaldos',
+            'memb'      => $memb,
+            'equityNav' => 'respaldos',
+            'respaldos' => $respaldos,
+            'personas'  => $personas,
+            'personaId' => $personaId,
+            'canManage' => EquityAcl::canManage($memb),
+        ]);
+    }
+
+    private function seccionLista(string $clave)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $meta = EquityCatalogo::seccion($clave);
+        if ($meta === null) {
+            return redirect()->to('/dashboard')->with('error', 'Sección no válida.');
+        }
+
+        $empresaId = $memb['empresa_id'];
+        $personaId = trim((string) $this->request->getGet('persona_id'));
+        $rows = $this->loadRows($meta, $empresaId, $personaId);
+        $personas = $this->personas($empresaId);
+        $personaMap = [];
+        foreach ($personas as $p) {
+            $personaMap[$p['id']] = $p;
+        }
+        foreach ($rows as &$row) {
+            $row['persona'] = $personaMap[$row['persona_id']] ?? null;
+        }
+        unset($row);
+
+        return view('equity/seccion', [
+            'title'     => $meta['label'],
+            'memb'      => $memb,
+            'equityNav' => $clave,
+            'meta'      => $meta,
+            'rows'      => $rows,
+            'personas'  => $personas,
+            'personaId' => $personaId,
+            'canManage' => EquityAcl::canManage($memb),
+            'success'   => session()->getFlashdata('success'),
+            'error'     => session()->getFlashdata('error'),
+        ]);
+    }
+
+    private function storeSeccion(string $clave)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        if (! EquityAcl::canManage($memb)) {
+            return redirect()->to('/dashboard')->with('error', 'Sin permiso para editar.');
+        }
+
+        $meta = EquityCatalogo::seccion($clave);
+        if ($meta === null) {
+            return redirect()->to('/dashboard')->with('error', 'Sección no válida.');
+        }
+
+        $personaId = trim((string) $this->request->getPost('persona_id'));
+        $persona = model(EquityPersonaModel::class)
+            ->where('id', $personaId)
+            ->where('empresa_id', $memb['empresa_id'])
+            ->first();
+        if ($persona === null) {
+            return redirect()->back()->with('error', 'Selecciona una persona válida.');
+        }
+
+        helper('id');
+        $money = static function ($raw): ?string {
+            $v = trim((string) $raw);
+            if ($v === '') {
+                return null;
+            }
+            if (str_contains($v, ',') && str_contains($v, '.')) {
+                $v = str_replace('.', '', $v);
+                $v = str_replace(',', '.', $v);
+            } elseif (str_contains($v, ',')) {
+                $v = str_replace(',', '.', $v);
+            }
+
+            return is_numeric($v) ? number_format((float) $v, 2, '.', '') : null;
+        };
+
+        $redirectPath = match ($clave) {
+            'bienes-raices'       => '/equity/activos/bienes-raices',
+            'vehiculos'           => '/equity/activos/vehiculos',
+            'sociedades'          => '/equity/activos/sociedades',
+            'otros-activos'       => '/equity/activos/otros',
+            'pasivos-inmuebles'   => '/equity/pasivos/inmuebles',
+            'pasivos-circulantes' => '/equity/pasivos/circulantes',
+            'otros-pasivos'       => '/equity/pasivos/otros',
+            default               => '/dashboard',
+        };
+
+        $id = new_id();
+
+        if ($clave === 'bienes-raices') {
+            $desc = trim((string) $this->request->getPost('descripcion'));
+            if ($desc === '') {
+                return redirect()->to($redirectPath)->with('error', 'La descripción es obligatoria.');
+            }
+            model(EquityBienRaizModel::class)->insert([
+                'id'             => $id,
+                'empresa_id'     => $memb['empresa_id'],
+                'persona_id'     => $personaId,
+                'descripcion'    => $desc,
+                'valor_clp'      => $money($this->request->getPost('valor_clp')),
+                'valor_uf'       => $money($this->request->getPost('valor_uf')),
+                'fecha_tasacion' => trim((string) $this->request->getPost('fecha_tasacion')) ?: null,
+                'rol'            => trim((string) $this->request->getPost('rol')) ?: null,
+                'avaluo_fiscal'  => $money($this->request->getPost('avaluo_fiscal')),
+                'contribuciones' => trim((string) $this->request->getPost('contribuciones')) ?: null,
+                'notas'          => trim((string) $this->request->getPost('notas')) ?: null,
+                'creado_por_id'  => $memb['usuario_id'],
+            ]);
+        } elseif ($clave === 'vehiculos') {
+            model(EquityVehiculoModel::class)->insert([
+                'id'            => $id,
+                'empresa_id'    => $memb['empresa_id'],
+                'persona_id'    => $personaId,
+                'tipo'          => trim((string) $this->request->getPost('tipo')) ?: null,
+                'marca'         => trim((string) $this->request->getPost('marca')) ?: null,
+                'modelo'        => trim((string) $this->request->getPost('modelo')) ?: null,
+                'anio'          => ($a = trim((string) $this->request->getPost('anio'))) !== '' ? (int) $a : null,
+                'patente'       => trim((string) $this->request->getPost('patente')) ?: null,
+                'valor_clp'     => $money($this->request->getPost('valor_clp')),
+                'asegurado'     => (int) $this->request->getPost('asegurado') === 1 ? 1 : 0,
+                'notas'         => trim((string) $this->request->getPost('notas')) ?: null,
+                'creado_por_id' => $memb['usuario_id'],
+            ]);
+        } elseif ($clave === 'sociedades') {
+            $nombre = trim((string) $this->request->getPost('nombre_sociedad'));
+            if ($nombre === '') {
+                return redirect()->to($redirectPath)->with('error', 'El nombre de la sociedad es obligatorio.');
+            }
+            model(EquitySociedadModel::class)->insert([
+                'id'              => $id,
+                'empresa_id'      => $memb['empresa_id'],
+                'persona_id'      => $personaId,
+                'nombre_sociedad' => $nombre,
+                'tipo'            => trim((string) $this->request->getPost('tipo')) ?: 'Directo',
+                'porcentaje'      => $money($this->request->getPost('porcentaje')),
+                'valor_clp'       => $money($this->request->getPost('valor_clp')),
+                'valor_uf'        => $money($this->request->getPost('valor_uf')),
+                'pais_detalle'    => trim((string) $this->request->getPost('pais_detalle')) ?: null,
+                'notas'           => trim((string) $this->request->getPost('notas')) ?: null,
+                'creado_por_id'   => $memb['usuario_id'],
+            ]);
+        } elseif ($clave === 'otros-activos') {
+            model(EquityOtroActivoModel::class)->insert([
+                'id'            => $id,
+                'empresa_id'    => $memb['empresa_id'],
+                'persona_id'    => $personaId,
+                'tipo'          => trim((string) $this->request->getPost('tipo')) ?: null,
+                'institucion'   => trim((string) $this->request->getPost('institucion')) ?: null,
+                'saldo_clp'     => $money($this->request->getPost('saldo_clp')),
+                'notas'         => trim((string) $this->request->getPost('notas')) ?: null,
+                'creado_por_id' => $memb['usuario_id'],
+            ]);
+        } else {
+            $desc = trim((string) $this->request->getPost('banco_descripcion'));
+            if ($desc === '') {
+                return redirect()->to($redirectPath)->with('error', 'La descripción / banco es obligatoria.');
+            }
+            model(EquityPasivoModel::class)->insert([
+                'id'                => $id,
+                'empresa_id'        => $memb['empresa_id'],
+                'persona_id'        => $personaId,
+                'categoria'         => $meta['categoria'] ?? 'otro',
+                'banco_descripcion' => $desc,
+                'saldo_clp'         => $money($this->request->getPost('saldo_clp')),
+                'saldo_uf'          => $money($this->request->getPost('saldo_uf')),
+                'cuotas_totales'    => ($v = trim((string) $this->request->getPost('cuotas_totales'))) !== '' ? (int) $v : null,
+                'cuotas_pagadas'    => ($v = trim((string) $this->request->getPost('cuotas_pagadas'))) !== '' ? (int) $v : null,
+                'cuota_mensual'     => $money($this->request->getPost('cuota_mensual')),
+                'asociacion'        => trim((string) $this->request->getPost('asociacion')) ?: null,
+                'tipo'              => trim((string) $this->request->getPost('tipo')) ?: null,
+                'notas'             => trim((string) $this->request->getPost('notas')) ?: null,
+                'creado_por_id'     => $memb['usuario_id'],
+            ]);
+        }
+
+        return redirect()->to($redirectPath . ($personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : ''))
+            ->with('success', 'Registro agregado.');
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function personas(string $empresaId): array
+    {
+        return model(EquityPersonaModel::class)
+            ->where('empresa_id', $empresaId)
+            ->where('activo', 1)
+            ->orderBy('apellido', 'ASC')
+            ->orderBy('nombre', 'ASC')
+            ->findAll();
+    }
+
+    /**
+     * @param array{table: string, categoria?: string} $meta
+     * @return list<array<string, mixed>>
+     */
+    private function loadRows(array $meta, string $empresaId, string $personaId): array
+    {
+        $model = match ($meta['table']) {
+            'equity_bienes_raices'  => model(EquityBienRaizModel::class),
+            'equity_vehiculos'      => model(EquityVehiculoModel::class),
+            'equity_sociedades'     => model(EquitySociedadModel::class),
+            'equity_otros_activos'  => model(EquityOtroActivoModel::class),
+            'equity_pasivos'        => model(EquityPasivoModel::class),
+            default                 => null,
+        };
+        if ($model === null) {
+            return [];
+        }
+
+        $q = $model->where('empresa_id', $empresaId)->orderBy('created_at', 'DESC');
+        if ($personaId !== '') {
+            $q->where('persona_id', $personaId);
+        }
+        if (($meta['table'] ?? '') === 'equity_pasivos' && isset($meta['categoria'])) {
+            $q->where('categoria', $meta['categoria']);
+        }
+
+        return $q->findAll();
+    }
+
+    private function sumValor(string $empresaId, string $table, string $col, string $personaId): float
+    {
+        if (! db_connect()->tableExists($table)) {
+            return 0.0;
+        }
+        $builder = db_connect()->table($table)->selectSum($col, 'total')->where('empresa_id', $empresaId);
+        if ($personaId !== '') {
+            $builder->where('persona_id', $personaId);
+        }
+        $row = $builder->get()->getRowArray();
+
+        return (float) ($row['total'] ?? 0);
+    }
+
+    private function sumPasivo(string $empresaId, string $categoria, string $personaId): float
+    {
+        if (! db_connect()->tableExists('equity_pasivos')) {
+            return 0.0;
+        }
+        $builder = db_connect()->table('equity_pasivos')
+            ->selectSum('saldo_clp', 'total')
+            ->where('empresa_id', $empresaId)
+            ->where('categoria', $categoria);
+        if ($personaId !== '') {
+            $builder->where('persona_id', $personaId);
+        }
+        $row = $builder->get()->getRowArray();
+
+        return (float) ($row['total'] ?? 0);
+    }
+}

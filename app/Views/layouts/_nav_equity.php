@@ -1,17 +1,61 @@
 <?php
 /** @var array<string, mixed> $memb */
-$nav = static fn (string $key): bool => \App\Libraries\PerfilAcl::canMenu($memb, $key);
+use App\Libraries\EquityCatalogo;
+use App\Libraries\PerfilAcl;
+
+$nav = static fn (string $key): bool => PerfilAcl::canMenu($memb, $key);
 $title = $title ?? '';
+$equityNav = $equityNav ?? '';
 $canOrg = $nav('menu.organizacion');
 $canEquity = $nav('menu.equity');
 $canPerfiles = $nav('menu.perfiles');
+
+$isActive = static function (string $clave) use ($title, $equityNav): bool {
+    if ($clave === 'inicio') {
+        return $title === 'Inicio';
+    }
+    if ($clave === 'personas') {
+        return $title === 'Equity' && $equityNav === '';
+    }
+    if ($clave === 'socios') {
+        return $equityNav === 'socio';
+    }
+    if ($clave === 'gerentes') {
+        return $equityNav === 'gerente';
+    }
+
+    return $equityNav === $clave || $title === match ($clave) {
+        'resumen' => 'Resumen',
+        'ingresos' => 'Ingresos',
+        'respaldos' => 'Respaldos',
+        'bienes-raices' => 'Bienes raíces',
+        'vehiculos' => 'Vehículos',
+        'sociedades' => 'Sociedades',
+        'otros-activos' => 'Otros activos',
+        'pasivos-inmuebles' => 'Pasivos inmuebles',
+        'pasivos-circulantes' => 'Pasivos circulantes',
+        'otros-pasivos' => 'Otros pasivos',
+        default => '',
+    };
+};
 ?>
-<p class="nav-section">Principal</p>
-<a href="<?= site_url('dashboard') ?>" class="<?= $title === 'Inicio' ? 'active' : '' ?>" data-nav="inicio"><span class="nav-label">Inicio</span></a>
 <?php if ($canEquity): ?>
-    <a href="<?= site_url('equity') ?>" class="<?= $title === 'Equity' && empty($equityNav) ? 'active' : '' ?>" data-nav="personas"><span class="nav-label">Personas</span></a>
-    <a href="<?= site_url('equity?tipo=socio') ?>" class="nav-sub <?= ($equityNav ?? '') === 'socio' ? 'active' : '' ?>" data-nav="socios"><span class="nav-label">Socios</span></a>
-    <a href="<?= site_url('equity?tipo=gerente') ?>" class="nav-sub <?= ($equityNav ?? '') === 'gerente' ? 'active' : '' ?>" data-nav="gerentes"><span class="nav-label">Gerentes</span></a>
+    <?php foreach (EquityCatalogo::navGroups() as $grupo => $items): ?>
+        <p class="nav-section"><?= esc($grupo) ?></p>
+        <?php foreach ($items as $item): ?>
+            <?php
+                $sub = in_array($item['clave'], ['socios', 'gerentes', 'bienes-raices', 'vehiculos', 'sociedades', 'otros-activos', 'pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos'], true);
+            ?>
+            <a href="<?= site_url(ltrim($item['path'], '/')) ?>"
+               class="<?= $sub ? 'nav-sub ' : '' ?><?= $isActive($item['clave']) ? 'active' : '' ?>"
+               data-nav="<?= esc($item['clave']) ?>">
+                <span class="nav-label"><?= esc($item['label']) ?></span>
+            </a>
+        <?php endforeach; ?>
+    <?php endforeach; ?>
+<?php else: ?>
+    <p class="nav-section">Principal</p>
+    <a href="<?= site_url('dashboard') ?>" class="<?= $title === 'Inicio' ? 'active' : '' ?>" data-nav="inicio"><span class="nav-label">Inicio</span></a>
 <?php endif; ?>
 
 <?php if ($canOrg || $canPerfiles): ?>

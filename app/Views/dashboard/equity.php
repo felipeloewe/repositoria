@@ -2,6 +2,15 @@
 
 <?= $this->section('content') ?>
 
+<?php
+use App\Libraries\EquityCatalogo;
+$menus = EquityCatalogo::menusInicio();
+$grupos = [];
+foreach ($menus as $m) {
+    $grupos[$m['grupo']][] = $m;
+}
+?>
+
 <?php if (! empty($notice)): ?>
     <div class="alert alert-info"><?= esc($notice) ?></div>
 <?php endif; ?>
@@ -13,11 +22,10 @@
 <?php endif; ?>
 
 <section class="banner">
-    <h2>Hola, <?= esc($memb['usuario_nombre']) ?></h2>
+    <h2>Estado de situación</h2>
     <p>
-        Equity en <strong><?= esc($memb['empresa_nombre']) ?></strong>
-        · <?= esc($rolLabel) ?>.
-        Flujo: personas (socio/gerente) → ficha financiera → respaldos.
+        <?= esc($memb['empresa_nombre']) ?> · <?= esc($rolLabel) ?>.
+        Menú patrimonial: activos, pasivos, ingresos y respaldos por socio o gerente.
     </p>
 </section>
 
@@ -25,46 +33,36 @@
     <div class="card">
         <h3>Personas</h3>
         <div class="value"><?= (int) $stats['personas'] ?></div>
-        <div class="hint"><?= (int) $stats['activos'] ?> activas</div>
+        <div class="hint"><?= (int) $stats['socios'] ?> socios · <?= (int) $stats['gerentes'] ?> gerentes</div>
     </div>
     <div class="card">
-        <h3>Socios</h3>
-        <div class="value"><?= (int) $stats['socios'] ?></div>
-        <div class="hint">Perfiles de socio</div>
-    </div>
-    <div class="card">
-        <h3>Gerentes</h3>
-        <div class="value"><?= (int) $stats['gerentes'] ?></div>
-        <div class="hint">Perfiles de gerente</div>
-    </div>
-</div>
-
-<div class="grid" style="margin-top:1rem">
-    <div class="card">
-        <h3>Fichas</h3>
+        <h3>Fichas / ingresos</h3>
         <div class="value"><?= (int) $stats['fichas'] ?></div>
-        <div class="hint">Cortes financieros</div>
+        <div class="hint">Cortes de ingreso registrados</div>
     </div>
     <div class="card">
         <h3>Respaldos</h3>
         <div class="value"><?= (int) $stats['respaldos'] ?></div>
-        <div class="hint">Documentos de respaldo</div>
+        <div class="hint">Documentos de evidencia</div>
     </div>
 </div>
 
-<div class="card section-card" style="animation-delay:.08s">
-    <h3>Empezar</h3>
-    <p class="muted" style="margin-top:0">Registra socios o gerentes y carga su información financiera con evidencias.</p>
-    <?php if (! empty($canEquity)): ?>
-        <a class="btn btn-primary btn-sm" href="<?= site_url('equity') ?>">Ver personas</a>
-        <?php if (! empty($canManage)): ?>
-            <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/nueva') ?>">Nueva persona</a>
-        <?php endif; ?>
-        <a class="btn btn-ghost btn-sm" href="<?= site_url('equity?tipo=socio') ?>">Socios</a>
-        <a class="btn btn-ghost btn-sm" href="<?= site_url('equity?tipo=gerente') ?>">Gerentes</a>
-    <?php else: ?>
-        <div class="alert alert-info">Tu membresía aún no tiene acceso a Equity. Pide al Master que active el permiso.</div>
-    <?php endif; ?>
-</div>
+<?php if (empty($canEquity)): ?>
+    <div class="alert alert-info" style="margin-top:1rem">Tu membresía aún no tiene acceso a Equity.</div>
+<?php else: ?>
+    <?php foreach ($grupos as $grupo => $items): ?>
+        <div class="card section-card" style="margin-top:1rem">
+            <h3><?= esc($grupo) ?></h3>
+            <div class="grid" style="margin-top:.75rem;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+                <?php foreach ($items as $item): ?>
+                    <a class="card" href="<?= site_url(ltrim($item['path'], '/')) ?>" style="text-decoration:none;color:inherit;display:block">
+                        <h3 style="margin:0 0 .35rem"><?= esc($item['label']) ?></h3>
+                        <div class="hint"><?= esc($item['descripcion']) ?></div>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endforeach; ?>
+<?php endif; ?>
 
 <?= $this->endSection() ?>
