@@ -31,8 +31,6 @@ $fmt = static function ($v): string {
     </p>
 </section>
 
-<?= view('equity/_tabs', ['tab' => 'personas']) ?>
-
 <?php if (! empty($success)): ?>
     <div class="alert alert-ok"><?= esc($success) ?></div>
 <?php endif; ?>

@@ -26,8 +26,6 @@ $val = static function (string $key) use ($ficha): string {
     </p>
 </section>
 
-<?= view('equity/_tabs', ['tab' => 'personas']) ?>
-
 <?php if (! empty($error)): ?>
     <div class="alert alert-error"><?= esc($error) ?></div>
 <?php endif; ?>

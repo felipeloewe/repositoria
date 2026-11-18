@@ -13,8 +13,6 @@ $action = $isEdit ? site_url('equity/' . $persona['id']) : site_url('equity');
     <p>Socio o gerente cuya información financiera y respaldos se gestionan en Equity.</p>
 </section>
 
-<?= view('equity/_tabs', ['tab' => 'personas']) ?>
-
 <?php if (! empty($error)): ?>
     <div class="alert alert-error"><?= esc($error) ?></div>
 <?php endif; ?>

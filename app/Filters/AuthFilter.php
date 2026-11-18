@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filters;
 
 use App\Libraries\MembershipAuth;
+use App\Libraries\Product;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -21,6 +22,13 @@ class AuthFilter implements FilterInterface
             }
 
             return redirect()->to('/login');
+        }
+
+        // Host Equity: no exponer menús/flujos de Repositoria.
+        $path = '/' . ltrim($request->getUri()->getPath(), '/');
+        if (! Product::isPathAllowed($path)) {
+            return redirect()->to(Product::homePath())
+                ->with('error', 'Esa sección pertenece a Repositoria. En Equity el flujo es Personas → Fichas → Respaldos.');
         }
 
         return null;

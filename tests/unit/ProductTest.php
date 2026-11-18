@@ -41,6 +41,13 @@ final class ProductTest extends CIUnitTestCase
         $_SERVER['HTTP_HOST'] = 'equity.booklet.cl';
 
         $this->assertSame(Product::KEY_EQUITY, Product::key());
+        $this->assertTrue(Product::isPathAllowed('/equity'));
+        $this->assertTrue(Product::isPathAllowed('/equity/abc'));
+        $this->assertTrue(Product::isPathAllowed('/documentos/abc123'));
+        $this->assertTrue(Product::isPathAllowed('/documentos/abc123/download'));
+        $this->assertFalse(Product::isPathAllowed('/documentos'));
+        $this->assertFalse(Product::isPathAllowed('/correo'));
+        $this->assertFalse(Product::isPathAllowed('/socios'));
 
         unset($_SERVER['HTTP_HOST']);
     }

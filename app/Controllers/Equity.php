@@ -97,12 +97,18 @@ class Equity extends BaseController
         }
         unset($p);
 
+        $equityNav = '';
+        if ($rawTipo !== '' && in_array($rawTipo, EquityAcl::TIPOS, true)) {
+            $equityNav = $rawTipo;
+        }
+
         return view('equity/index', [
             'title'     => 'Equity',
             'memb'      => $memb,
             'personas'  => $personas,
             'canManage' => EquityAcl::canManage($memb),
             'tipos'     => EquityAcl::TIPOS,
+            'equityNav' => $equityNav,
             'filters'   => [
                 'tipo'   => $rawTipo,
                 'activo' => $filterActivo,

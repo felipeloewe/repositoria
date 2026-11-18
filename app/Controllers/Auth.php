@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Libraries\MembershipAuth;
+use App\Libraries\Product;
 use App\Libraries\Roles;
 use App\Models\MembresiaModel;
 
@@ -14,7 +15,7 @@ class Auth extends BaseController
     {
         $auth = new MembershipAuth();
         if ($auth->check()) {
-            return redirect()->to('/dashboard');
+            return redirect()->to(Product::homePath());
         }
         if ($auth->usuarioId() !== null) {
             return redirect()->to('/login/empresa');
@@ -41,7 +42,7 @@ class Auth extends BaseController
             return redirect()->to('/login/empresa');
         }
 
-        return redirect()->to('/dashboard');
+        return redirect()->to(Product::homePath());
     }
 
     public function selectEmpresa()
@@ -52,7 +53,7 @@ class Auth extends BaseController
             return redirect()->to('/login');
         }
         if ($auth->check()) {
-            return redirect()->to('/dashboard');
+            return redirect()->to(Product::homePath());
         }
 
         $membresias = model(MembresiaModel::class)->forUsuario($uid);
@@ -79,7 +80,7 @@ class Auth extends BaseController
             return redirect()->to('/login/empresa')->with('error', $result['error'] ?? 'No se pudo seleccionar.');
         }
 
-        return redirect()->to('/dashboard');
+        return redirect()->to(Product::homePath());
     }
 
     public function switchEmpresa()
@@ -91,7 +92,7 @@ class Auth extends BaseController
 
         $membresias = model(MembresiaModel::class)->forUsuario((string) $auth->usuarioId());
         if (count($membresias) < 2) {
-            return redirect()->to('/dashboard');
+            return redirect()->to(Product::homePath());
         }
 
         return view('auth/select_empresa', [
@@ -118,7 +119,7 @@ class Auth extends BaseController
             return redirect()->to('/empresa/cambiar')->with('error', $result['error'] ?? 'No se pudo cambiar.');
         }
 
-        return redirect()->to('/dashboard');
+        return redirect()->to(Product::homePath());
     }
 
     public function logout()

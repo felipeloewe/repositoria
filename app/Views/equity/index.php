@@ -4,12 +4,21 @@
 
 <?php use App\Libraries\EquityAcl; ?>
 
+<?php
+$bannerTitle = 'Personas';
+$bannerLead  = 'Socios y gerentes con ficha financiera y respaldos.';
+if (($filters['tipo'] ?? '') === EquityAcl::TIPO_SOCIO) {
+    $bannerTitle = 'Socios';
+    $bannerLead  = 'Información financiera y respaldos de socios.';
+} elseif (($filters['tipo'] ?? '') === EquityAcl::TIPO_GERENTE) {
+    $bannerTitle = 'Gerentes';
+    $bannerLead  = 'Información financiera y respaldos de gerentes.';
+}
+?>
 <section class="banner">
-    <h2>Equity</h2>
-    <p>Información financiera de socios y gerentes de la empresa, con sus respaldos documentales.</p>
+    <h2><?= esc($bannerTitle) ?></h2>
+    <p><?= esc($bannerLead) ?></p>
 </section>
-
-<?= view('equity/_tabs', ['tab' => 'personas']) ?>
 
 <?php if (! empty($success)): ?>
     <div class="alert alert-ok"><?= esc($success) ?></div>

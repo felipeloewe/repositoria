@@ -27,7 +27,13 @@
             <?php endif; ?>
         </div>
         <h2>Bienvenido</h2>
-        <p class="lead">Usa tu correo y contraseña. El perfil sale de tu membresía activa — sin switcher de roles.</p>
+        <p class="lead">
+            <?php if (\App\Libraries\Product::isEquity()): ?>
+                Accede para gestionar fichas financieras de socios y gerentes, con sus respaldos.
+            <?php else: ?>
+                Usa tu correo y contraseña. El perfil sale de tu membresía activa — sin switcher de roles.
+            <?php endif; ?>
+        </p>
 
         <?php if (! empty($error)): ?>
             <div class="alert alert-error"><?= esc($error) ?></div>
@@ -36,7 +42,7 @@
         <form method="post" action="<?= site_url('login') ?>">
             <?= csrf_field() ?>
             <label for="email">Correo</label>
-            <input id="email" type="email" name="email" required autocomplete="username" placeholder="admin@repositoria.local">
+            <input id="email" type="email" name="email" required autocomplete="username" placeholder="correo@empresa.cl">
 
             <label for="password">Contraseña</label>
             <input id="password" type="password" name="password" required autocomplete="current-password" placeholder="••••••••">
@@ -44,14 +50,16 @@
             <button class="btn btn-primary" type="submit">Ingresar</button>
         </form>
 
-        <p class="auth-alt">
-            ¿Nueva empresa? <a href="<?= site_url('registro') ?>">Inicia FREE</a>
-        </p>
+        <?php if (! \App\Libraries\Product::isEquity()): ?>
+            <p class="auth-alt">
+                ¿Nueva empresa? <a href="<?= site_url('registro') ?>">Inicia FREE</a>
+            </p>
 
-        <div class="demo-hint">
-            Seed: <code>admin@repositoria.local</code> / <code>demo123</code><br>
-            Multi-empresa: <code>multi@repositoria.local</code>
-        </div>
+            <div class="demo-hint">
+                Seed: <code>admin@repositoria.local</code> / <code>demo123</code><br>
+                Multi-empresa: <code>multi@repositoria.local</code>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 </body>
