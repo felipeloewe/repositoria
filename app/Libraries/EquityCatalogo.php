@@ -21,7 +21,7 @@ final class EquityCatalogo
                 'label'       => 'Grupo Familiar',
                 'grupo'       => 'Principal',
                 'path'        => '/equity',
-                'descripcion' => 'Antecedentes personales y laborales del grupo familiar',
+                'descripcion' => 'Antecedentes personales, laborales y cónyuge/conviviente',
             ],
 
             [
@@ -106,7 +106,9 @@ final class EquityCatalogo
                 ['clave' => 'personas', 'label' => 'Grupo Familiar', 'path' => '/equity'],
                 ['clave' => 'socios', 'label' => 'Antecedentes Personales', 'path' => '/equity?tipo=socio'],
                 ['clave' => 'gerentes', 'label' => 'Antecedentes Laborales', 'path' => '/equity?tipo=gerente'],
+                ['clave' => 'familiares', 'label' => 'Antecedentes Grupo Familiar', 'path' => '/equity?tipo=familiar'],
             ],
+
 
             'Estado de situación' => [
                 ['clave' => 'resumen', 'label' => 'Resumen', 'path' => '/equity/resumen'],
@@ -182,4 +184,120 @@ final class EquityCatalogo
 
         return $map[$clave] ?? null;
     }
+
+    /** @return array<int|string, string> */
+    public static function opcionesSexo(): array
+    {
+        return [1 => 'Masculino', 2 => 'Femenino'];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesNacionalidad(): array
+    {
+        return [
+            1 => 'Chilena',
+            2 => 'Extranjera',
+            3 => 'Extranjera c/ Permanencia',
+        ];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesEstadoCivil(): array
+    {
+        return [
+            1 => 'Soltero',
+            2 => 'Casado',
+            3 => 'Viudo',
+            4 => 'Divorciado',
+            5 => 'Conviviente Civil',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public static function opcionesRegimenPatrimonial(): array
+    {
+        return [
+            '2.1' => 'Casado · Separación total de Bienes',
+            '2.2' => 'Casado · Sociedad Conyugal',
+            '2.3' => 'Casado · Participación en los Gananciales',
+            '5.1' => 'Conviviente Civil · Separación de Bienes',
+            '5.2' => 'Conviviente Civil · Comunidad de Bienes',
+        ];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesLugarHabita(): array
+    {
+        return [
+            1 => 'Propia sin deuda',
+            2 => 'Propia con deuda',
+            3 => 'Propia de Cónyuge',
+            4 => 'Arrendada',
+            5 => 'Familiar / Padres',
+            6 => 'Fiscal / Empleador',
+        ];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesNivelEstudios(): array
+    {
+        return [
+            1 => 'Básica',
+            2 => 'Media',
+            3 => 'Técnica',
+            4 => 'Univ. Incompleta',
+            5 => 'Univ. Completa',
+        ];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesTipoActividad(): array
+    {
+        return [
+            1 => 'Dependiente',
+            2 => 'Independiente',
+            3 => 'Pensionado',
+            4 => 'No trabaja',
+        ];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesTipoContrato(): array
+    {
+        return [
+            1 => 'Indefinido',
+            2 => 'Plazo Fijo',
+            3 => 'A contrata',
+        ];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesTipoRenta(): array
+    {
+        return [
+            1 => 'Fija',
+            2 => 'Variable',
+        ];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesComplementaRenta(): array
+    {
+        return [
+            1 => 'Sí',
+            2 => 'No',
+        ];
+    }
+
+
+    public static function labelOpcion(array $opts, mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '—';
+        }
+        $key = is_numeric($value) ? (int) $value : (string) $value;
+
+        return (string) ($opts[$key] ?? $opts[(string) $value] ?? $value);
+    }
 }
+

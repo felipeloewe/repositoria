@@ -10,26 +10,34 @@ namespace App\Libraries;
  */
 final class EquityAcl
 {
-    public const TIPO_SOCIO   = 'socio';
-    public const TIPO_GERENTE = 'gerente';
+    public const TIPO_SOCIO    = 'socio';
+    public const TIPO_GERENTE  = 'gerente';
+    public const TIPO_FAMILIAR = 'familiar';
 
     public const TIPOS = [
         self::TIPO_SOCIO,
         self::TIPO_GERENTE,
+        self::TIPO_FAMILIAR,
     ];
 
     public static function labelTipo(string $tipo): string
     {
         return match ($tipo) {
-            self::TIPO_GERENTE => 'Antecedentes Laborales',
-            default            => 'Antecedentes Personales',
+            self::TIPO_GERENTE  => 'Antecedentes Laborales',
+            self::TIPO_FAMILIAR => 'Antecedentes Grupo Familiar',
+            default             => 'Antecedentes Personales',
         };
     }
 
     public static function normalizeTipo(?string $tipo): string
     {
-        return $tipo === self::TIPO_GERENTE ? self::TIPO_GERENTE : self::TIPO_SOCIO;
+        return match ($tipo) {
+            self::TIPO_GERENTE  => self::TIPO_GERENTE,
+            self::TIPO_FAMILIAR => self::TIPO_FAMILIAR,
+            default             => self::TIPO_SOCIO,
+        };
     }
+
 
     /** @param array<string, mixed> $memb */
     public static function canAccess(array $memb): bool

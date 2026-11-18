@@ -33,7 +33,7 @@ foreach ($menus as $m) {
     <div class="card">
         <h3>Grupo Familiar</h3>
         <div class="value"><?= (int) $stats['personas'] ?></div>
-        <div class="hint"><?= (int) $stats['socios'] ?> personales · <?= (int) $stats['gerentes'] ?> laborales</div>
+        <div class="hint"><?= (int) $stats['socios'] ?> personales · <?= (int) $stats['gerentes'] ?> laborales · <?= (int) ($stats['familiares'] ?? 0) ?> familiares</div>
     </div>
     <div class="card">
         <h3>Fichas / ingresos</h3>

@@ -25,6 +25,9 @@ $isActive = static function (string $clave) use ($title, $equityNav): bool {
     if ($clave === 'gerentes') {
         return $equityNav === 'gerente';
     }
+    if ($clave === 'familiares') {
+        return $equityNav === 'familiar';
+    }
 
     return $equityNav === $clave || $title === match ($clave) {
         'resumen' => 'Resumen',
@@ -46,7 +49,7 @@ $isActive = static function (string $clave) use ($title, $equityNav): bool {
         <p class="nav-section"><?= esc($grupo) ?></p>
         <?php foreach ($items as $item): ?>
             <?php
-                $sub = in_array($item['clave'], ['socios', 'gerentes', 'bienes-raices', 'vehiculos', 'sociedades', 'otros-activos', 'pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos'], true);
+                $sub = in_array($item['clave'], ['socios', 'gerentes', 'familiares', 'bienes-raices', 'vehiculos', 'sociedades', 'otros-activos', 'pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos'], true);
             ?>
             <a href="<?= site_url(ltrim($item['path'], '/')) ?>"
                class="<?= $sub ? 'nav-sub ' : '' ?><?= $isActive($item['clave']) ? 'active' : '' ?>"

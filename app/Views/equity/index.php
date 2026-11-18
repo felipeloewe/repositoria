@@ -6,13 +6,16 @@
 
 <?php
 $bannerTitle = 'Grupo Familiar';
-$bannerLead  = 'Antecedentes personales y laborales con ficha financiera y respaldos.';
+$bannerLead  = 'Antecedentes personales, laborales y cónyuge/conviviente.';
 if (($filters['tipo'] ?? '') === EquityAcl::TIPO_SOCIO) {
     $bannerTitle = 'Antecedentes Personales';
     $bannerLead  = 'Información personal y financiera del grupo familiar.';
 } elseif (($filters['tipo'] ?? '') === EquityAcl::TIPO_GERENTE) {
     $bannerTitle = 'Antecedentes Laborales';
     $bannerLead  = 'Información laboral y financiera del grupo familiar.';
+} elseif (($filters['tipo'] ?? '') === EquityAcl::TIPO_FAMILIAR) {
+    $bannerTitle = 'Antecedentes Grupo Familiar';
+    $bannerLead  = 'Datos de cónyuge o conviviente civil.';
 }
 ?>
 <section class="banner">
@@ -60,7 +63,7 @@ if (($filters['tipo'] ?? '') === EquityAcl::TIPO_SOCIO) {
 <div class="card section-card">
     <h3>Nuevo integrante</h3>
     <p class="muted" style="margin-top:0">Registra un integrante del grupo familiar (antecedentes personales o laborales).</p>
-    <a class="btn btn-primary" href="<?= site_url('equity/nueva') ?>">Agregar al grupo</a>
+    <a class="btn btn-primary" href="<?= site_url('equity/nueva' . (($filters['tipo'] ?? '') !== '' ? '?tipo=' . rawurlencode((string) $filters['tipo']) : '')) ?>">Agregar al grupo</a>
 </div>
 <?php endif; ?>
 

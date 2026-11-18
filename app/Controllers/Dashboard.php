@@ -76,15 +76,19 @@ class Dashboard extends BaseController
     {
         $empresaId = $memb['empresa_id'];
         $personas  = model(EquityPersonaModel::class)->where('empresa_id', $empresaId)->findAll();
-        $socios    = 0;
-        $gerentes  = 0;
-        $activos   = 0;
+        $socios     = 0;
+        $gerentes   = 0;
+        $familiares = 0;
+        $activos    = 0;
         foreach ($personas as $p) {
             if ((int) ($p['activo'] ?? 1) === 1) {
                 $activos++;
             }
-            if (($p['tipo'] ?? '') === EquityAcl::TIPO_GERENTE) {
+            $t = (string) ($p['tipo'] ?? '');
+            if ($t === EquityAcl::TIPO_GERENTE) {
                 $gerentes++;
+            } elseif ($t === EquityAcl::TIPO_FAMILIAR) {
+                $familiares++;
             } else {
                 $socios++;
             }
@@ -101,13 +105,15 @@ class Dashboard extends BaseController
             'canEquity' => EquityAcl::canAccess($memb),
             'canManage' => EquityAcl::canManage($memb),
             'stats'     => [
-                'personas'  => count($personas),
-                'activos'   => $activos,
-                'socios'    => $socios,
-                'gerentes'  => $gerentes,
-                'fichas'    => $fichas,
-                'respaldos' => $respaldos,
+                'personas'   => count($personas),
+                'activos'    => $activos,
+                'socios'     => $socios,
+                'gerentes'   => $gerentes,
+                'familiares' => $familiares,
+                'fichas'     => $fichas,
+                'respaldos'  => $respaldos,
             ],
+
             'success'   => session()->getFlashdata('success'),
             'error'     => session()->getFlashdata('error'),
         ]);

@@ -128,12 +128,15 @@ class Equity extends BaseController
             return redirect()->to('/equity')->with('error', 'Sin permiso para crear personas Equity.');
         }
 
+        $tipoPref = EquityAcl::normalizeTipo((string) $this->request->getGet('tipo'));
+
         return view('equity/form_persona', [
-            'title'   => 'Equity',
-            'memb'    => $memb,
-            'persona' => null,
-            'tipos'   => EquityAcl::TIPOS,
-            'error'   => session()->getFlashdata('error'),
+            'title'     => 'Equity',
+            'memb'      => $memb,
+            'persona'   => ['tipo' => $tipoPref],
+            'tipos'     => EquityAcl::TIPOS,
+            'equityNav' => $tipoPref,
+            'error'     => session()->getFlashdata('error'),
         ]);
     }
 
@@ -154,22 +157,16 @@ class Equity extends BaseController
         }
 
         $id = new_id();
-        model(EquityPersonaModel::class)->insert([
+        $row = array_merge($data, [
             'id'            => $id,
             'empresa_id'    => $memb['empresa_id'],
-            'tipo'          => $data['tipo'],
-            'nombre'        => $data['nombre'],
-            'apellido'      => $data['apellido'],
-            'rut'           => $data['rut'],
-            'email'         => $data['email'],
-            'cargo'         => $data['cargo'],
             'usuario_id'    => null,
             'activo'        => 1,
-            'notas'         => $data['notas'],
             'creado_por_id' => $memb['usuario_id'],
         ]);
+        model(EquityPersonaModel::class)->insert($row);
 
-        return redirect()->to('/equity/' . $id)->with('success', 'Persona Equity creada.');
+        return redirect()->to('/equity/' . $id)->with('success', 'Integrante creado.');
     }
 
     public function show(string $id)
@@ -285,19 +282,11 @@ class Equity extends BaseController
         }
 
         $activo = (int) $this->request->getPost('activo') === 1 ? 1 : 0;
+        $row = $data;
+        $row['activo'] = $activo;
+        model(EquityPersonaModel::class)->update($id, $row);
 
-        model(EquityPersonaModel::class)->update($id, [
-            'tipo'     => $data['tipo'],
-            'nombre'   => $data['nombre'],
-            'apellido' => $data['apellido'],
-            'rut'      => $data['rut'],
-            'email'    => $data['email'],
-            'cargo'    => $data['cargo'],
-            'activo'   => $activo,
-            'notas'    => $data['notas'],
-        ]);
-
-        return redirect()->to('/equity/' . $id)->with('success', 'Persona actualizada.');
+        return redirect()->to('/equity/' . $id)->with('success', 'Integrante actualizado.');
     }
 
     public function fichaForm(string $personaId)
@@ -555,24 +544,101 @@ class Equity extends BaseController
     }
 
     /**
-     * @return array{tipo: string, nombre: string, apellido: ?string, rut: ?string, email: ?string, cargo: ?string, notas: ?string}
+     * @return array<string, mixed>
      */
     private function readPersonaFromRequest(): array
     {
-        $trimOrNull = static function (string $v): ?string {
-            $v = trim($v);
+        $trimOrNull = static function (?string $v): ?string {
+            $v = trim((string) $v);
 
             return $v === '' ? null : $v;
         };
+        $intOrNull = static function ($raw): ?int {
+            $v = trim((string) $raw);
+            if ($v === '' || ! is_numeric($v)) {
+                return null;
+            }
+
+            return (int) $v;
+        };
+        $money = static function ($raw): ?string {
+            $v = trim((string) $raw);
+            if ($v === '') {
+                return null;
+            }
+            if (str_contains($v, ',') && str_contains($v, '.')) {
+                $v = str_replace('.', '', $v);
+                $v = str_replace(',', '.', $v);
+            } elseif (str_contains($v, ',')) {
+                $v = str_replace(',', '.', $v);
+            }
+
+            return is_numeric($v) ? number_format((float) $v, 2, '.', '') : null;
+        };
+
+        $fecha = $trimOrNull((string) $this->request->getPost('fecha_nacimiento'));
 
         return [
-            'tipo'     => EquityAcl::normalizeTipo((string) $this->request->getPost('tipo')),
-            'nombre'   => trim((string) $this->request->getPost('nombre')),
-            'apellido' => $trimOrNull((string) $this->request->getPost('apellido')),
-            'rut'      => $trimOrNull((string) $this->request->getPost('rut')),
-            'email'    => $trimOrNull((string) $this->request->getPost('email')),
-            'cargo'    => $trimOrNull((string) $this->request->getPost('cargo')),
-            'notas'    => $trimOrNull((string) $this->request->getPost('notas')),
+            'tipo'                       => EquityAcl::normalizeTipo((string) $this->request->getPost('tipo')),
+            'nombre'                     => trim((string) $this->request->getPost('nombre')),
+            'apellido'                   => $trimOrNull((string) $this->request->getPost('apellido')),
+            'apellido_materno'           => $trimOrNull((string) $this->request->getPost('apellido_materno')),
+            'rut'                        => $trimOrNull((string) $this->request->getPost('rut')),
+            'email'                      => $trimOrNull((string) $this->request->getPost('email')),
+            'cargo'                      => $trimOrNull((string) $this->request->getPost('cargo')),
+            'notas'                      => $trimOrNull((string) $this->request->getPost('notas')),
+            'fecha_nacimiento'           => $fecha,
+            'sexo'                       => $intOrNull($this->request->getPost('sexo')),
+            'nacionalidad'               => $intOrNull($this->request->getPost('nacionalidad')),
+            'nacionalidad_detalle'       => $trimOrNull((string) $this->request->getPost('nacionalidad_detalle')),
+            'grupo_familiar_n'           => $intOrNull($this->request->getPost('grupo_familiar_n')),
+            'estado_civil'               => $intOrNull($this->request->getPost('estado_civil')),
+            'regimen_patrimonial'        => $trimOrNull((string) $this->request->getPost('regimen_patrimonial')),
+            'lugar_habita'               => $intOrNull($this->request->getPost('lugar_habita')),
+            'antiguedad_domicilio_meses' => $intOrNull($this->request->getPost('antiguedad_domicilio_meses')),
+            'antiguedad_domicilio_anos'  => $intOrNull($this->request->getPost('antiguedad_domicilio_anos')),
+            'nivel_estudios'             => $intOrNull($this->request->getPost('nivel_estudios')),
+            'profesion'                  => $trimOrNull((string) $this->request->getPost('profesion')),
+            'universidad_instituto'      => $trimOrNull((string) $this->request->getPost('universidad_instituto')),
+            'dir_calle'                  => $trimOrNull((string) $this->request->getPost('dir_calle')),
+            'dir_numero'                 => $trimOrNull((string) $this->request->getPost('dir_numero')),
+            'dir_otros'                  => $trimOrNull((string) $this->request->getPost('dir_otros')),
+            'dir_comuna'                 => $trimOrNull((string) $this->request->getPost('dir_comuna')),
+            'dir_ciudad'                 => $trimOrNull((string) $this->request->getPost('dir_ciudad')),
+            'dir_region'                 => $trimOrNull((string) $this->request->getPost('dir_region')),
+            'telefono_particular'        => $trimOrNull((string) $this->request->getPost('telefono_particular')),
+            'telefono_celular'           => $trimOrNull((string) $this->request->getPost('telefono_celular')),
+            'tipo_actividad'             => $intOrNull($this->request->getPost('tipo_actividad')),
+            'tipo_contrato'              => $intOrNull($this->request->getPost('tipo_contrato')),
+            'tipo_renta'                 => $intOrNull($this->request->getPost('tipo_renta')),
+            'fecha_ingreso_mes'          => $intOrNull($this->request->getPost('fecha_ingreso_mes')),
+            'fecha_ingreso_anio'         => $intOrNull($this->request->getPost('fecha_ingreso_anio')),
+            'antiguedad_cargo_meses'     => $intOrNull($this->request->getPost('antiguedad_cargo_meses')),
+            'antiguedad_cargo_anos'      => $intOrNull($this->request->getPost('antiguedad_cargo_anos')),
+            'rut_empleador'              => $trimOrNull((string) $this->request->getPost('rut_empleador')),
+            'nombre_empleador'           => $trimOrNull((string) $this->request->getPost('nombre_empleador')),
+            'giro_empleador'             => $trimOrNull((string) $this->request->getPost('giro_empleador')),
+            'renta_liquida_persona'      => $money($this->request->getPost('renta_liquida_persona')),
+            'dir_com_calle'              => $trimOrNull((string) $this->request->getPost('dir_com_calle')),
+            'dir_com_numero'             => $trimOrNull((string) $this->request->getPost('dir_com_numero')),
+            'dir_com_otros'              => $trimOrNull((string) $this->request->getPost('dir_com_otros')),
+            'dir_com_comuna'             => $trimOrNull((string) $this->request->getPost('dir_com_comuna')),
+            'dir_com_ciudad'             => $trimOrNull((string) $this->request->getPost('dir_com_ciudad')),
+            'dir_com_region'             => $trimOrNull((string) $this->request->getPost('dir_com_region')),
+            'tel_comercial'              => $trimOrNull((string) $this->request->getPost('tel_comercial')),
+            'tel_anexo'                  => $trimOrNull((string) $this->request->getPost('tel_anexo')),
+            'segunda_actividad'          => $trimOrNull((string) $this->request->getPost('segunda_actividad')),
+            'segunda_actividad_mes'      => $intOrNull($this->request->getPost('segunda_actividad_mes')),
+            'segunda_actividad_anio'     => $intOrNull($this->request->getPost('segunda_actividad_anio')),
+            'renta_liquida_2'            => $money($this->request->getPost('renta_liquida_2')),
+            'empleo_ant_cargo'           => $trimOrNull((string) $this->request->getPost('empleo_ant_cargo')),
+            'empleo_ant_empleador'       => $trimOrNull((string) $this->request->getPost('empleo_ant_empleador')),
+            'empleo_ant_ingreso_mes'     => $intOrNull($this->request->getPost('empleo_ant_ingreso_mes')),
+            'empleo_ant_ingreso_anio'    => $intOrNull($this->request->getPost('empleo_ant_ingreso_anio')),
+            'empleo_ant_salida_mes'      => $intOrNull($this->request->getPost('empleo_ant_salida_mes')),
+            'empleo_ant_salida_anio'     => $intOrNull($this->request->getPost('empleo_ant_salida_anio')),
+            'empleo_ant_renta'           => $money($this->request->getPost('empleo_ant_renta')),
+            'complementa_renta'          => $intOrNull($this->request->getPost('complementa_renta')),
         ];
     }
 

@@ -4,8 +4,10 @@
 
 <?php
 use App\Libraries\EquityAcl;
+use App\Libraries\EquityCatalogo;
 
-$nombre = trim(($persona['nombre'] ?? '') . ' ' . ($persona['apellido'] ?? ''));
+$nombre = trim(($persona['nombre'] ?? '') . ' ' . ($persona['apellido'] ?? '') . ' ' . ($persona['apellido_materno'] ?? ''));
+$tipo = (string) ($persona['tipo'] ?? 'socio');
 $fmt = static function ($v): string {
     if ($v === null || $v === '') {
         return '—';
@@ -13,12 +15,22 @@ $fmt = static function ($v): string {
 
     return number_format((float) $v, 0, ',', '.');
 };
+$mesAnio = static function ($mes, $anio): string {
+    if (($mes === null || $mes === '') && ($anio === null || $anio === '')) {
+        return '—';
+    }
+
+    return trim(($mes !== null && $mes !== '' ? (string) (int) $mes : '—') . '/' . ($anio !== null && $anio !== '' ? (string) (int) $anio : '—'));
+};
+$row = static function (string $label, string $value): void {
+    echo '<div><label>' . esc($label) . '</label><div>' . $value . '</div></div>';
+};
 ?>
 
 <section class="banner">
     <h2><?= esc($nombre) ?></h2>
     <p>
-        <?= esc(EquityAcl::labelTipo((string) ($persona['tipo'] ?? 'socio'))) ?>
+        <?= esc(EquityAcl::labelTipo($tipo)) ?>
         <?php if (! empty($persona['cargo'])): ?>
             · <?= esc($persona['cargo']) ?>
         <?php endif; ?>
@@ -39,29 +51,99 @@ $fmt = static function ($v): string {
 <?php endif; ?>
 
 <div class="admin-subnav">
-    <a href="<?= site_url('equity') ?>">← Volver a Equity</a>
+    <a href="<?= site_url('equity') ?>">← Volver a Grupo Familiar</a>
     <?php if (! empty($canManage)): ?>
-        <a href="<?= site_url('equity/' . $persona['id'] . '/editar') ?>">Editar persona</a>
+        <a href="<?= site_url('equity/' . $persona['id'] . '/editar') ?>">Editar</a>
     <?php endif; ?>
 </div>
 
+<?php if ($tipo === EquityAcl::TIPO_SOCIO): ?>
 <div class="card section-card">
-    <h3>Datos</h3>
+    <h3>Antecedentes Personales</h3>
     <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
-        <div>
-            <label>Email</label>
-            <div><?= esc($persona['email'] ?? '—') ?></div>
-        </div>
-        <div>
-            <label>Cargo</label>
-            <div><?= esc($persona['cargo'] ?? '—') ?></div>
-        </div>
-        <div>
-            <label>Notas</label>
-            <div class="muted"><?= esc($persona['notas'] ?? '—') ?></div>
-        </div>
+        <?php
+            $row('Fecha nacimiento', esc($persona['fecha_nacimiento'] ?? '—'));
+            $row('Sexo', esc(EquityCatalogo::labelOpcion(EquityCatalogo::opcionesSexo(), $persona['sexo'] ?? null)));
+            $row('Nacionalidad', esc(EquityCatalogo::labelOpcion(EquityCatalogo::opcionesNacionalidad(), $persona['nacionalidad'] ?? null)));
+            $row('Nacionalidad detalle', esc($persona['nacionalidad_detalle'] ?? '—'));
+            $row('N° integrantes', esc((string) ($persona['grupo_familiar_n'] ?? '—')));
+            $row('Estado civil', esc(EquityCatalogo::labelOpcion(EquityCatalogo::opcionesEstadoCivil(), $persona['estado_civil'] ?? null)));
+            $row('Régimen', esc(EquityCatalogo::labelOpcion(EquityCatalogo::opcionesRegimenPatrimonial(), $persona['regimen_patrimonial'] ?? null)));
+            $row('Lugar habita', esc(EquityCatalogo::labelOpcion(EquityCatalogo::opcionesLugarHabita(), $persona['lugar_habita'] ?? null)));
+            $row('Antigüedad domicilio', esc($mesAnio($persona['antiguedad_domicilio_meses'] ?? null, $persona['antiguedad_domicilio_anos'] ?? null)));
+            $row('Nivel estudios', esc(EquityCatalogo::labelOpcion(EquityCatalogo::opcionesNivelEstudios(), $persona['nivel_estudios'] ?? null)));
+            $row('Profesión', esc($persona['profesion'] ?? '—'));
+            $row('Universidad / Instituto', esc($persona['universidad_instituto'] ?? '—'));
+            $row('Dirección', esc(trim(($persona['dir_calle'] ?? '') . ' ' . ($persona['dir_numero'] ?? '') . ' ' . ($persona['dir_otros'] ?? '')) ?: '—'));
+            $row('Comuna / Ciudad / Región', esc(trim(($persona['dir_comuna'] ?? '') . ' · ' . ($persona['dir_ciudad'] ?? '') . ' · ' . ($persona['dir_region'] ?? ''), ' ·') ?: '—'));
+            $row('Tel. particular', esc($persona['telefono_particular'] ?? '—'));
+            $row('Celular', esc($persona['telefono_celular'] ?? '—'));
+            $row('E-mail', esc($persona['email'] ?? '—'));
+        ?>
     </div>
 </div>
+<?php elseif ($tipo === EquityAcl::TIPO_GERENTE): ?>
+<div class="card section-card">
+    <h3>Antecedentes Laborales</h3>
+    <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+        <?php
+            $row('Tipo actividad', esc(EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoActividad(), $persona['tipo_actividad'] ?? null)));
+            $row('Tipo contrato', esc(EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoContrato(), $persona['tipo_contrato'] ?? null)));
+            $row('Tipo renta', esc(EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoRenta(), $persona['tipo_renta'] ?? null)));
+            $row('Fecha ingreso', esc($mesAnio($persona['fecha_ingreso_mes'] ?? null, $persona['fecha_ingreso_anio'] ?? null)));
+            $row('Cargo / actividad', esc($persona['cargo'] ?? '—'));
+            $row('Antigüedad cargo', esc($mesAnio($persona['antiguedad_cargo_meses'] ?? null, $persona['antiguedad_cargo_anos'] ?? null)));
+            $row('RUT empleador', esc($persona['rut_empleador'] ?? '—'));
+            $row('Nombre empleador', esc($persona['nombre_empleador'] ?? '—'));
+            $row('Giro / rubro', esc($persona['giro_empleador'] ?? '—'));
+            $row('Renta líquida $', esc($fmt($persona['renta_liquida_persona'] ?? null)));
+            $row('Dir. comercial', esc(trim(($persona['dir_com_calle'] ?? '') . ' ' . ($persona['dir_com_numero'] ?? '') . ' ' . ($persona['dir_com_otros'] ?? '')) ?: '—'));
+            $row('Comuna / Ciudad / Región', esc(trim(($persona['dir_com_comuna'] ?? '') . ' · ' . ($persona['dir_com_ciudad'] ?? '') . ' · ' . ($persona['dir_com_region'] ?? ''), ' ·') ?: '—'));
+            $row('Tel. comercial', esc(trim(($persona['tel_comercial'] ?? '') . (($persona['tel_anexo'] ?? '') !== '' && ($persona['tel_anexo'] ?? '') !== null ? ' anexo ' . $persona['tel_anexo'] : '')) ?: '—'));
+            $row('2° act. remunerada', esc($persona['segunda_actividad'] ?? '—'));
+            $row('Inicio 2° act.', esc($mesAnio($persona['segunda_actividad_mes'] ?? null, $persona['segunda_actividad_anio'] ?? null)));
+            $row('Renta líquida 2° $', esc($fmt($persona['renta_liquida_2'] ?? null)));
+            $row('E-mail', esc($persona['email'] ?? '—'));
+        ?>
+    </div>
+</div>
+<div class="card section-card">
+    <h3>Empleo Anterior</h3>
+    <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+        <?php
+            $row('Cargo o actividad', esc($persona['empleo_ant_cargo'] ?? '—'));
+            $row('Nombre empleador', esc($persona['empleo_ant_empleador'] ?? '—'));
+            $row('Fecha ingreso', esc($mesAnio($persona['empleo_ant_ingreso_mes'] ?? null, $persona['empleo_ant_ingreso_anio'] ?? null)));
+            $row('Fecha salida', esc($mesAnio($persona['empleo_ant_salida_mes'] ?? null, $persona['empleo_ant_salida_anio'] ?? null)));
+            $row('Renta líquida $', esc($fmt($persona['empleo_ant_renta'] ?? null)));
+        ?>
+    </div>
+</div>
+<?php else: ?>
+<div class="card section-card">
+    <h3>Datos Cónyuge o Conviviente Civil</h3>
+    <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+        <?php
+            $row('Fecha nacimiento', esc($persona['fecha_nacimiento'] ?? '—'));
+            $row('Tipo actividad', esc(EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoActividad(), $persona['tipo_actividad'] ?? null)));
+            $row('Cargo / actividad', esc($persona['cargo'] ?? '—'));
+            $row('Fecha ingreso', esc($mesAnio($persona['fecha_ingreso_mes'] ?? null, $persona['fecha_ingreso_anio'] ?? null)));
+            $row('Complementa renta', esc(EquityCatalogo::labelOpcion(EquityCatalogo::opcionesComplementaRenta(), $persona['complementa_renta'] ?? null)));
+            $row('RUT empleador', esc($persona['rut_empleador'] ?? '—'));
+            $row('Nombre empleador', esc($persona['nombre_empleador'] ?? '—'));
+            $row('Teléfono comercial', esc($persona['tel_comercial'] ?? '—'));
+            $row('Renta líquida $', esc($fmt($persona['renta_liquida_persona'] ?? null)));
+        ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php if (! empty($persona['notas'])): ?>
+<div class="card section-card">
+    <h3>Notas</h3>
+    <p class="muted"><?= esc($persona['notas']) ?></p>
+</div>
+<?php endif; ?>
 
 <div class="card section-card">
     <h3>Fichas financieras (<?= count($fichas) ?>)</h3>
@@ -78,21 +160,17 @@ $fmt = static function ($v): string {
             <tr>
                 <th>Corte</th>
                 <th>Ingreso mensual</th>
-                <th>Activos</th>
-                <th>Pasivos</th>
-                <th>Patrimonio</th>
+                <th>Renta líquida</th>
                 <th></th>
             </tr>
         </thead>
         <tbody>
         <?php foreach ($fichas as $f): ?>
             <tr>
-                <td><?= esc($f['fecha_corte'] ?? '—') ?><br><span class="muted" style="font-size:.8rem"><?= esc($f['moneda'] ?? 'CLP') ?></span></td>
-                <td><?= esc($fmt($f['ingreso_mensual_total'] ?? $f['renta_liquida'] ?? null)) ?></td>
-                <td><?= esc($fmt($f['activos_total'] ?? null)) ?></td>
-                <td><?= esc($fmt($f['pasivos_total'] ?? null)) ?></td>
-                <td><strong><?= esc($fmt($f['patrimonio_neto'] ?? null)) ?></strong></td>
-                <td style="white-space:nowrap">
+                <td><?= esc($f['fecha_corte'] ?? '—') ?></td>
+                <td><?= esc($fmt($f['ingreso_mensual_total'] ?? null)) ?></td>
+                <td><?= esc($fmt($f['renta_liquida'] ?? null)) ?></td>
+                <td>
                     <?php if (! empty($canManage)): ?>
                         <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/' . $persona['id'] . '/fichas/' . $f['id'] . '/editar') ?>">Editar</a>
                     <?php endif; ?>
