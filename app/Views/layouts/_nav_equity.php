@@ -7,7 +7,9 @@ $nav = static fn (string $key): bool => PerfilAcl::canMenu($memb, $key);
 $title = $title ?? '';
 $equityNav = $equityNav ?? '';
 $canOrg = $nav('menu.organizacion');
-$canEquity = $nav('menu.equity');
+// En host Equity la IA patrimonial es el producto: se muestra siempre.
+// menu.equity / EquityAcl siguen gobernando el acceso a las rutas.
+$canEquity = true;
 $canPerfiles = $nav('menu.perfiles');
 
 $isActive = static function (string $clave) use ($title, $equityNav): bool {
