@@ -1465,6 +1465,7 @@ class EquityPatrimonio extends BaseController
                 'direccion'         => $direccion,
                 'descripcion'       => $direccion,
                 'rol'               => trim((string) $this->request->getPost('rol')) ?: null,
+                'avaluo_fiscal'     => $money($this->request->getPost('avaluo_fiscal')),
                 'garantia'          => $intOrNull($this->request->getPost('garantia')),
                 'asegurado'         => $intOrNull($this->request->getPost('asegurado')),
                 'valor_clp'         => $parValor['clp'],

@@ -135,6 +135,10 @@ foreach ($personas as $p) {
                     <input id="rol" name="rol" type="text" value="<?= esc($val('rol')) ?>">
                 </div>
                 <div>
+                    <label for="avaluo_fiscal">Avalúo fiscal $</label>
+                    <input id="avaluo_fiscal" name="avaluo_fiscal" type="text" inputmode="decimal" placeholder="41.516.722" value="<?= esc($val('avaluo_fiscal', 0)) ?>">
+                </div>
+                <div>
                     <label for="garantia">Garantía</label>
                     <select id="garantia" name="garantia">
                         <option value="">—</option>
