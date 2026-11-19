@@ -60,6 +60,18 @@ class EquityGrupo extends BaseController
                 $usuariosGrupo[$u['id']] = $u;
             }
         }
+        // Incluir usuarios referenciados por personas (propia o representante) aunque falte membresía listada.
+        foreach ($personas as $p) {
+            foreach (['usuario_id', 'representado_por_usuario_id'] as $uk) {
+                $uid = (string) ($p[$uk] ?? '');
+                if ($uid !== '' && ! isset($usuariosGrupo[$uid])) {
+                    $u = model(UsuarioModel::class)->find($uid);
+                    if (is_array($u)) {
+                        $usuariosGrupo[$uid] = $u;
+                    }
+                }
+            }
+        }
 
         $empresasMap = [];
         foreach (model(EmpresaModel::class)->whereIn('id', $grupoIds)->findAll() as $e) {
