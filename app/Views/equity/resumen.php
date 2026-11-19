@@ -20,7 +20,7 @@ $ufRate = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
 </section>
 
 <div class="card section-card">
-    <form method="get" action="<?= site_url('equity/resumen') ?>" class="form-row" style="grid-template-columns:1fr auto">
+    <form method="get" action="<?= site_url('equity/resumen') ?>" class="form-row" style="grid-template-columns:1fr auto auto">
         <div>
             <label for="persona_id">Persona</label>
             <select id="persona_id" name="persona_id">
@@ -36,6 +36,10 @@ $ufRate = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
         <div>
             <label>&nbsp;</label>
             <button class="btn btn-primary btn-sm" type="submit">Filtrar</button>
+        </div>
+        <div>
+            <label>&nbsp;</label>
+            <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/reporte/balance' . ($personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : '')) ?>">Reportería · Balance</a>
         </div>
     </form>
 </div>

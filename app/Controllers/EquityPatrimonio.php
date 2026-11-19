@@ -88,6 +88,181 @@ class EquityPatrimonio extends BaseController
         ]);
     }
 
+    /**
+     * Reporte tipo Balance: activos / pasivos / patrimonio + ingresos vs egresos mensuales.
+     */
+    public function reporteBalance()
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $empresaId = $memb['empresa_id'];
+        $personaId = trim((string) $this->request->getGet('persona_id'));
+        $personas  = $this->personas($empresaId);
+        $personaMap = [];
+        foreach ($personas as $p) {
+            $personaMap[$p['id']] = $p;
+        }
+        $personaNombre = null;
+        if ($personaId !== '' && isset($personaMap[$personaId])) {
+            $p = $personaMap[$personaId];
+            $personaNombre = trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''));
+        }
+
+        $ufVigente = EquityUf::vigente($empresaId);
+        $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+
+        $totalesUf = [
+            'bienes_raices'     => $this->sumUfCol($empresaId, 'equity_bienes_raices', 'valor_uf', 'valor_clp', $personaId, $ufRate),
+            'vehiculos'         => $this->sumUfCol($empresaId, 'equity_vehiculos', 'valor_uf', 'valor_clp', $personaId, $ufRate),
+            'sociedades'        => $this->sumUfCol($empresaId, 'equity_sociedades', 'valor_uf', 'valor_clp', $personaId, $ufRate),
+            'otros_activos'     => $this->sumUfCol($empresaId, 'equity_otros_activos', 'saldo_uf', 'saldo_clp', $personaId, $ufRate),
+            'pasivos_inm'       => $this->sumPasivoCategoria($empresaId, 'inmueble', $personaId, $ufRate),
+            'pasivos_circ'      => $this->sumPasivoCategoria($empresaId, 'circulante', $personaId, $ufRate),
+            'pasivos_otro'      => $this->sumPasivoCategoria($empresaId, 'otro', $personaId, $ufRate),
+            'pasivos_indirecta' => $this->sumDeudaIndirecta($empresaId, $personaId, $ufRate),
+            'pasivos_lineas'    => $this->sumLineasDisponibles($empresaId, $personaId, $ufRate),
+        ];
+        $totalesUf['activos']    = $totalesUf['bienes_raices'] + $totalesUf['vehiculos'] + $totalesUf['sociedades'] + $totalesUf['otros_activos'];
+        $totalesUf['pasivos']    = $totalesUf['pasivos_inm'] + $totalesUf['pasivos_circ'] + $totalesUf['pasivos_otro'] + $totalesUf['pasivos_indirecta'];
+        $totalesUf['patrimonio'] = $totalesUf['activos'] - $totalesUf['pasivos'];
+
+        $totales = [];
+        foreach ($totalesUf as $k => $uf) {
+            $totales[$k] = round($uf * $ufRate, 2);
+        }
+
+        // Ingresos mensuales: fichas (última por persona) + cánones de arriendo
+        $fq = model(EquityFichaModel::class)
+            ->where('empresa_id', $empresaId)
+            ->orderBy('fecha_corte', 'DESC')
+            ->orderBy('created_at', 'DESC');
+        if ($personaId !== '') {
+            $fq->where('persona_id', $personaId);
+        }
+        $ingresosDetalle = [];
+        $seenPersona     = [];
+        $totalIngresosFichas = 0.0;
+        foreach ($fq->findAll() as $ing) {
+            $pid = (string) ($ing['persona_id'] ?? '');
+            if ($pid !== '' && isset($seenPersona[$pid])) {
+                continue; // solo última ficha por persona
+            }
+            $seenPersona[$pid] = true;
+            $v = $ing['ingreso_mensual_total'] ?? $ing['renta_liquida'] ?? null;
+            if ($v === null || $v === '') {
+                continue;
+            }
+            $ingresosDetalle[] = [
+                'concepto' => 'Ficha de ingreso' . (! empty($ing['fecha_corte']) ? ' · corte ' . $ing['fecha_corte'] : ''),
+                'persona'  => $personaMap[$pid] ?? null,
+                'monto'    => (float) $v,
+            ];
+            $totalIngresosFichas += (float) $v;
+        }
+
+        $bq = model(EquityBienRaizModel::class)
+            ->where('empresa_id', $empresaId)
+            ->orderBy('direccion', 'ASC');
+        if ($personaId !== '') {
+            $bq->where('persona_id', $personaId);
+        }
+        $totalArriendos = 0.0;
+        $arriendosDetalle = [];
+        foreach ($bq->findAll() as $br) {
+            $canon = $br['canon_mensual_clp'] ?? null;
+            if (($canon === null || $canon === '') && ! empty($br['canon_mensual_uf']) && $ufRate > 0) {
+                $canon = round((float) $br['canon_mensual_uf'] * $ufRate, 2);
+            }
+            if ($canon === null || $canon === '' || (float) $canon <= 0) {
+                continue;
+            }
+            $arriendosDetalle[] = [
+                'concepto' => trim((string) ($br['direccion'] ?? $br['descripcion'] ?? 'Arriendo'))
+                    . (! empty($br['arrendatario']) ? ' · ' . $br['arrendatario'] : ''),
+                'monto'    => (float) $canon,
+            ];
+            $totalArriendos += (float) $canon;
+        }
+
+        // Si no hay fichas, sumar rentas laborales de la ficha personal
+        $totalLaboral = 0.0;
+        if ($totalIngresosFichas <= 0) {
+            foreach ($personas as $p) {
+                if ($personaId !== '' && $p['id'] !== $personaId) {
+                    continue;
+                }
+                $s = (float) ($p['renta_liquida_persona'] ?? 0) + (float) ($p['renta_liquida_2'] ?? 0);
+                if ($s <= 0) {
+                    continue;
+                }
+                $ingresosDetalle[] = [
+                    'concepto' => 'Antecedentes laborales'
+                        . (! empty($p['nombre_empleador']) ? ' · ' . $p['nombre_empleador'] : ''),
+                    'persona'  => $p,
+                    'monto'    => $s,
+                ];
+                $totalLaboral += $s;
+            }
+        }
+
+        $totalIngresos = $totalIngresosFichas + $totalLaboral + $totalArriendos;
+
+        // Egresos: cuotas mensuales de créditos (excluye líneas)
+        $pq = model(EquityPasivoModel::class)
+            ->where('empresa_id', $empresaId)
+            ->whereIn('categoria', ['inmueble', 'circulante', 'otro', 'indirecta'])
+            ->orderBy('banco_descripcion', 'ASC');
+        if ($personaId !== '') {
+            $pq->where('persona_id', $personaId);
+        }
+        $egresosDetalle = [];
+        $totalEgresos   = 0.0;
+        foreach ($pq->findAll() as $row) {
+            $cuota = $this->montoClpPreferido(
+                $row['cuota_mensual'] ?? null,
+                null,
+                $row['dividendo_clp'] ?? null,
+                $row['dividendo_uf'] ?? null,
+                $ufRate
+            );
+            if ($cuota === null || (float) $cuota <= 0) {
+                continue;
+            }
+            $egresosDetalle[] = [
+                'concepto' => trim(
+                    (string) ($row['banco_descripcion'] ?? 'Crédito')
+                    . (! empty($row['numero_credito']) ? ' · Nº ' . $row['numero_credito'] : '')
+                    . ' · ' . $this->tipoCreditoSituacion($row)
+                ),
+                'monto'    => (float) $cuota,
+            ];
+            $totalEgresos += (float) $cuota;
+        }
+
+        return view('equity/reporte_balance', [
+            'title'             => 'Reporte Balance',
+            'memb'              => $memb,
+            'equityNav'         => 'resumen',
+            'personas'          => $personas,
+            'personaId'         => $personaId,
+            'personaNombre'     => $personaNombre,
+            'totales'           => $totales,
+            'totalesUf'         => $totalesUf,
+            'ufVigente'         => $ufVigente,
+            'ingresosDetalle'   => $ingresosDetalle,
+            'arriendosDetalle'  => $arriendosDetalle,
+            'egresosDetalle'    => $egresosDetalle,
+            'totalIngresos'     => $totalIngresos,
+            'totalArriendos'    => $totalArriendos,
+            'totalEgresos'      => $totalEgresos,
+            'resultadoMensual'  => $totalIngresos - $totalEgresos,
+            'canManage'         => EquityAcl::canManage($memb),
+        ]);
+    }
+
     public function activos(string $seccion)
     {
         return $this->seccionLista($this->claveActivo($seccion));
@@ -242,8 +417,30 @@ class EquityPatrimonio extends BaseController
             ];
         }
 
+        $bq = model(EquityBienRaizModel::class)
+            ->where('empresa_id', $empresaId)
+            ->orderBy('direccion', 'ASC');
+        if ($personaId !== '') {
+            $bq->where('persona_id', $personaId);
+        }
+        $arriendos = [];
+        $totalArriendos = 0.0;
+        foreach ($bq->findAll() as $br) {
+            $canon = $br['canon_mensual_clp'] ?? null;
+            if (($canon === null || $canon === '') && ! empty($br['canon_mensual_uf']) && $ufRate > 0) {
+                $canon = round((float) $br['canon_mensual_uf'] * $ufRate, 2);
+            }
+            if ($canon === null || $canon === '' || (float) $canon <= 0) {
+                continue;
+            }
+            $br['persona'] = $personaMap[$br['persona_id']] ?? null;
+            $br['canon_show'] = (float) $canon;
+            $arriendos[] = $br;
+            $totalArriendos += (float) $canon;
+        }
+
         $ingresoMensual = null;
-        $totalIngresosReportados = 0.0;
+        $totalFichasIngresos = 0.0;
         if ($personaId !== '') {
             foreach ($ingresos as $ing) {
                 $v = $ing['ingreso_mensual_total'] ?? $ing['renta_liquida'] ?? null;
@@ -265,8 +462,13 @@ class EquityPatrimonio extends BaseController
         foreach ($ingresos as $ing) {
             $v = $ing['ingreso_mensual_total'] ?? $ing['renta_liquida'] ?? null;
             if ($v !== null && $v !== '') {
-                $totalIngresosReportados += (float) $v;
+                $totalFichasIngresos += (float) $v;
             }
+        }
+        // Total reportado = fichas + cánones de bienes raíces (sin doble contar rentas laborales)
+        $totalIngresosReportados = $totalFichasIngresos + $totalArriendos;
+        if ($personaId !== '' && $totalArriendos > 0) {
+            $ingresoMensual = ($ingresoMensual !== null ? (float) $ingresoMensual : 0.0) + $totalArriendos;
         }
 
         $totalCuotas = 0.0;
@@ -283,6 +485,9 @@ class EquityPatrimonio extends BaseController
             'rows'                    => $rows,
             'ingresos'                => $ingresos,
             'ingresosLaborales'       => $ingresosLaborales,
+            'arriendos'               => $arriendos,
+            'totalArriendos'          => $totalArriendos,
+            'totalFichasIngresos'     => $totalFichasIngresos,
             'personas'                => $personas,
             'personaId'               => $personaId,
             'ufVigente'               => $ufVigente,
@@ -609,18 +814,28 @@ class EquityPatrimonio extends BaseController
             if ($direccion === '' || $tipoInm === null) {
                 return redirect()->to($redirectPath)->with('error', 'Tipo y dirección son obligatorios.');
             }
+            $parCanon = EquityUf::resolverPar(
+                (string) $this->request->getPost('canon_mensual_uf'),
+                (string) $this->request->getPost('canon_mensual_clp'),
+                $memb['empresa_id']
+            );
             $model = model(EquityBienRaizModel::class);
             $data  = [
-                'persona_id'    => $personaId,
-                'tipo_inmueble' => $tipoInm,
-                'direccion'     => $direccion,
-                'descripcion'   => $direccion,
-                'rol'           => trim((string) $this->request->getPost('rol')) ?: null,
-                'garantia'      => $intOrNull($this->request->getPost('garantia')),
-                'asegurado'     => $intOrNull($this->request->getPost('asegurado')),
-                'valor_clp'     => $parValor['clp'],
-                'valor_uf'      => $parValor['uf'],
-                'notas'         => trim((string) $this->request->getPost('notas')) ?: null,
+                'persona_id'        => $personaId,
+                'tipo_inmueble'     => $tipoInm,
+                'direccion'         => $direccion,
+                'descripcion'       => $direccion,
+                'rol'               => trim((string) $this->request->getPost('rol')) ?: null,
+                'garantia'          => $intOrNull($this->request->getPost('garantia')),
+                'asegurado'         => $intOrNull($this->request->getPost('asegurado')),
+                'valor_clp'         => $parValor['clp'],
+                'valor_uf'          => $parValor['uf'],
+                'arrendatario'      => trim((string) $this->request->getPost('arrendatario')) ?: null,
+                'canon_mensual_clp' => $parCanon['clp'],
+                'canon_mensual_uf'  => $parCanon['uf'],
+                'mes_canon'         => $intOrNull($this->request->getPost('mes_canon')),
+                'medio_pago'        => trim((string) $this->request->getPost('medio_pago')) ?: null,
+                'notas'             => trim((string) $this->request->getPost('notas')) ?: null,
             ];
         } elseif ($clave === 'vehiculos') {
             $tipoVeh = $intOrNull($this->request->getPost('tipo_vehiculo'));

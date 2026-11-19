@@ -74,7 +74,7 @@ if ($ingresoMensual !== null && (float) $ingresoMensual > 0) {
     <div class="card">
         <h3>Ingresos reportados</h3>
         <div class="value" style="font-size:1.25rem"><?= esc($fmtPesos($totalIngresosReportados ?? 0)) ?></div>
-        <div class="hint"><?= count($ingresos ?? []) ?> ficha(s)</div>
+        <div class="hint"><?= count($ingresos ?? []) ?> ficha(s)<?= ! empty($arriendos) ? ' + ' . count($arriendos) . ' arriendo(s)' : '' ?></div>
     </div>
     <div class="card">
         <h3>Ingreso de referencia</h3>
@@ -151,12 +151,58 @@ if ($ingresoMensual !== null && (float) $ingresoMensual > 0) {
                 <tfoot>
                     <tr>
                         <td colspan="11" style="text-align:right"><strong>Suma totales fichas</strong></td>
-                        <td><strong><?= esc($fmtPesos($totalIngresosReportados ?? 0)) ?></strong></td>
+                        <td><strong><?= esc($fmtPesos($totalFichasIngresos ?? 0)) ?></strong></td>
                         <td></td>
                     </tr>
                 </tfoot>
             </table>
         </div>
+    <?php endif; ?>
+
+    <?php if (($arriendos ?? []) !== []): ?>
+        <h3 style="margin-top:1.5rem">Ingresos por arriendo — bienes raíces (<?= count($arriendos) ?>)</h3>
+        <p class="muted" style="margin-top:0">Cánones mensuales informados en Activos → Bienes raíces.</p>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Dirección</th>
+                    <th>Arrendatario</th>
+                    <th>Mes</th>
+                    <th>Pago</th>
+                    <th>Cánon mensual</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php
+            $mesesNom = [1=>'Ene',2=>'Feb',3=>'Mar',4=>'Abr',5=>'May',6=>'Jun',7=>'Jul',8=>'Ago',9=>'Sep',10=>'Oct',11=>'Nov',12=>'Dic'];
+            foreach ($arriendos as $ar):
+                $mesLab = isset($ar['mes_canon'], $mesesNom[(int) $ar['mes_canon']])
+                    ? ((int) $ar['mes_canon']) . '. ' . $mesesNom[(int) $ar['mes_canon']]
+                    : '—';
+            ?>
+                <tr>
+                    <td><?= esc($ar['direccion'] ?? $ar['descripcion'] ?? '—') ?></td>
+                    <td><?= esc($ar['arrendatario'] ?? '—') ?></td>
+                    <td><?= esc($mesLab) ?></td>
+                    <td><?= esc($ar['medio_pago'] ?? '—') ?></td>
+                    <td><strong><?= esc($fmtDual($ar['canon_show'] ?? null)) ?></strong></td>
+                    <td>
+                        <?php if (! empty($canManage)): ?>
+                            <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/activos/bienes-raices/' . $ar['id'] . '/editar') ?>">Editar</a>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="4" style="text-align:right"><strong>Total cánones</strong></td>
+                    <td><strong><?= esc($fmtPesos($totalArriendos ?? 0)) ?></strong></td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
     <?php endif; ?>
 
     <?php if (($ingresosLaborales ?? []) !== []): ?>

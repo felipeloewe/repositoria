@@ -165,12 +165,40 @@ $chk = static function (string $key) use ($edit): string {
                     </select>
                 </div>
                 <div>
-                    <label for="valor_uf">Valor comercial UF *</label>
+                    <label for="valor_uf">Valor comercial UF</label>
                     <input id="valor_uf" name="valor_uf" type="text" inputmode="decimal" placeholder="UF fijas" value="<?= esc($val('valor_uf', 4)) ?>">
                 </div>
                 <div>
                     <label for="valor_clp">Valor comercial $ <span class="muted">(opcional)</span></label>
                     <input id="valor_clp" name="valor_clp" type="text" inputmode="decimal" placeholder="si no ingresas UF" value="<?= esc($val('valor_clp', 0)) ?>">
+                </div>
+                <div style="grid-column:1/-1">
+                    <label for="arrendatario">Arrendatario</label>
+                    <input id="arrendatario" name="arrendatario" type="text" placeholder="Nombre del arrendatario" value="<?= esc($val('arrendatario')) ?>">
+                </div>
+                <div>
+                    <label for="canon_mensual_clp">Cánon / arriendo mensual $</label>
+                    <input id="canon_mensual_clp" name="canon_mensual_clp" type="text" inputmode="decimal" placeholder="340.000" value="<?= esc($val('canon_mensual_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="canon_mensual_uf">Cánon mensual UF <span class="muted">(opc.)</span></label>
+                    <input id="canon_mensual_uf" name="canon_mensual_uf" type="text" inputmode="decimal" value="<?= esc($val('canon_mensual_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="mes_canon">Mes (cánon)</label>
+                    <select id="mes_canon" name="mes_canon">
+                        <option value="">—</option>
+                        <?php
+                        $mesesCanon = [1=>'Enero',2=>'Febrero',3=>'Marzo',4=>'Abril',5=>'Mayo',6=>'Junio',7=>'Julio',8=>'Agosto',9=>'Septiembre',10=>'Octubre',11=>'Noviembre',12=>'Diciembre'];
+                        foreach ($mesesCanon as $n => $lab):
+                        ?>
+                            <option value="<?= $n ?>" <?= $sel('mes_canon', $n) ?>><?= $n ?>. <?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label for="medio_pago">Medio / banco de pago</label>
+                    <input id="medio_pago" name="medio_pago" type="text" placeholder="BCI, MUNAY…" value="<?= esc($val('medio_pago')) ?>">
                 </div>
             </div>
         <?php elseif ($clave === 'vehiculos'): ?>
@@ -553,6 +581,10 @@ $chk = static function (string $key) use ($edit): string {
                             EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoInmueble(), $row['tipo_inmueble'] ?? null)
                             . ' · '
                             . (($row['direccion'] ?? '') !== '' ? (string) $row['direccion'] : (string) ($row['descripcion'] ?? ''))
+                            . (! empty($row['arrendatario']) ? ' · Arr. ' . $row['arrendatario'] : '')
+                            . (! empty($row['canon_mensual_clp']) ? ' · Cánon $' . number_format((float) $row['canon_mensual_clp'], 0, ',', '.') : '')
+                            . (! empty($row['medio_pago']) ? ' · Pago ' . $row['medio_pago'] : '')
+                            . (! empty($row['mes_canon']) ? ' · Mes ' . $row['mes_canon'] : '')
                             . (! empty($row['rol']) ? ' · Rol ' . $row['rol'] : '')
                             . (! empty($row['garantia']) ? ' · ' . EquityCatalogo::labelOpcion(EquityCatalogo::opcionesGarantiaInmueble(), $row['garantia']) : ''),
                             ' ·'
