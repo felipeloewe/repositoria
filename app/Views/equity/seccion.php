@@ -331,8 +331,16 @@ foreach ($personas as $p) {
                     <input id="dividendo_n" name="dividendo_n" type="number" min="1" value="<?= esc($val('dividendo_n')) ?>">
                 </div>
                 <div>
-                    <label for="fecha_vencimiento">Fecha vencimiento / cargo</label>
+                    <label for="fecha_otorgamiento_h">Fecha de otorgamiento</label>
+                    <input id="fecha_otorgamiento_h" name="fecha_otorgamiento" type="date" value="<?= esc($val('fecha_otorgamiento')) ?>">
+                </div>
+                <div>
+                    <label for="fecha_vencimiento">Fecha de vencimiento</label>
                     <input id="fecha_vencimiento" name="fecha_vencimiento" type="date" value="<?= esc($val('fecha_vencimiento')) ?>">
+                </div>
+                <div>
+                    <label for="total_credito_uf_h">Monto otorgado UF</label>
+                    <input id="total_credito_uf_h" name="total_credito_uf" type="text" inputmode="decimal" placeholder="1.457" value="<?= esc($val('total_credito_uf', 4)) ?>">
                 </div>
                 <div>
                     <label for="dividendo_uf">Total dividendo UF</label>
