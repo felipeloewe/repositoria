@@ -1,5 +1,6 @@
 <?php
 /** @var array<string, mixed> $memb */
+use App\Libraries\EquityAcl;
 use App\Libraries\EquityCatalogo;
 use App\Libraries\PerfilAcl;
 
@@ -11,6 +12,7 @@ $canOrg = $nav('menu.organizacion');
 // menu.equity / EquityAcl siguen gobernando el acceso a las rutas.
 $canEquity = true;
 $canPerfiles = $nav('menu.perfiles');
+$canConfig = EquityAcl::canManage($memb);
 
 $isActive = static function (string $clave) use ($title, $equityNav): bool {
     if ($clave === 'inicio') {
@@ -63,11 +65,14 @@ $isActive = static function (string $clave) use ($title, $equityNav): bool {
     <a href="<?= site_url('dashboard') ?>" class="<?= $title === 'Inicio' ? 'active' : '' ?>" data-nav="inicio"><span class="nav-label">Inicio</span></a>
 <?php endif; ?>
 
-<?php if ($canOrg || $canPerfiles): ?>
+<?php if ($canOrg || $canPerfiles || $canConfig): ?>
     <p class="nav-section">Administración</p>
 <?php endif; ?>
 <?php if ($canOrg): ?>
     <a href="<?= site_url('organizacion') ?>" class="<?= $title === 'Organización' ? 'active' : '' ?>" data-nav="org"><span class="nav-label">Organización</span></a>
+<?php endif; ?>
+<?php if ($canConfig): ?>
+    <a href="<?= site_url('equity/configuracion') ?>" class="<?= ($title === 'Configuración' || $equityNav === 'configuracion') ? 'active' : '' ?>" data-nav="configuracion"><span class="nav-label">Configuración</span></a>
 <?php endif; ?>
 <?php if ($canPerfiles): ?>
     <a href="<?= site_url('perfiles') ?>" class="<?= $title === 'Perfiles' ? 'active' : '' ?>" data-nav="perfiles"><span class="nav-label">Perfiles</span></a>

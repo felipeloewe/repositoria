@@ -8,6 +8,7 @@ use App\Libraries\DocumentAcl;
 use App\Libraries\DocumentLifecycle;
 use App\Libraries\DocumentStorage;
 use App\Libraries\EquityAcl;
+use App\Libraries\EquityUf;
 use App\Libraries\MembershipAuth;
 use App\Libraries\PlanEntitlement;
 use App\Models\DepartamentoModel;
@@ -380,6 +381,7 @@ class Equity extends BaseController
             'fichas'      => $fichas,
             'respaldos'   => $respaldos,
             'tipos'       => $tipos,
+            'ufVigente'   => EquityUf::vigente($memb['empresa_id']),
             'canManage'   => EquityAcl::canManage($memb),
             'canUpload'   => EquityAcl::canUpload($memb) && $tipos !== [],
             'tiposRespaldo' => $this->tiposRespaldo(),

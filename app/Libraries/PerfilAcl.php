@@ -65,6 +65,7 @@ final class PerfilAcl
             'menu.organizacion',
             'menu.departamentos',
             'menu.recursos',
+            'menu.configuracion',
             'menu.perfiles' => Roles::isMaster($rol),
             'menu.formularios' => EmpresaFormService::canAccess($memb),
             'menu.socios' => DocumentAcl::isSocio($memb),

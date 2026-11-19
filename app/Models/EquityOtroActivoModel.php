@@ -14,7 +14,7 @@ class EquityOtroActivoModel extends Model
     protected $returnType       = 'array';
     protected $useTimestamps    = true;
     protected $allowedFields    = [
-        'id', 'empresa_id', 'persona_id', 'tipo', 'tipo_activo', 'institucion', 'saldo_clp',
+        'id', 'empresa_id', 'persona_id', 'tipo', 'tipo_activo', 'institucion', 'saldo_clp', 'saldo_uf',
         'notas', 'creado_por_id',
     ];
 }

@@ -43,6 +43,7 @@ final class PerfilPermisos
             ['clave' => 'menu.organizacion', 'grupo' => 'Menú · Administración', 'label' => 'Organización'],
             ['clave' => 'menu.departamentos', 'grupo' => 'Menú · Administración', 'label' => 'Departamentos'],
             ['clave' => 'menu.recursos', 'grupo' => 'Menú · Administración', 'label' => 'Recursos'],
+            ['clave' => 'menu.configuracion', 'grupo' => 'Menú · Administración', 'label' => 'Configuración (Equity)'],
             ['clave' => 'menu.perfiles', 'grupo' => 'Menú · Administración', 'label' => 'Perfiles'],
             // Capacidades documentos / contratos
             ['clave' => 'cap.docs_upload', 'grupo' => 'Documentos', 'label' => 'Subir documentos (general)'],

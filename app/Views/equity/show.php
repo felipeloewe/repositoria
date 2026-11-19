@@ -5,15 +5,19 @@
 <?php
 use App\Libraries\EquityAcl;
 use App\Libraries\EquityCatalogo;
+use App\Libraries\EquityUf;
 
 $nombre = trim(($persona['nombre'] ?? '') . ' ' . ($persona['apellido'] ?? '') . ' ' . ($persona['apellido_materno'] ?? ''));
 $tipo = (string) ($persona['tipo'] ?? 'socio');
-$fmt = static function ($v): string {
+$ufRate = (float) (($ufVigente['valor_clp'] ?? null) ?: EquityUf::DEFAULT_VALOR_CLP);
+$fmt = static function ($v) use ($ufRate): string {
     if ($v === null || $v === '') {
         return '—';
     }
+    $clp = (float) $v;
+    $uf  = $ufRate > 0 ? round($clp / $ufRate, 2) : null;
 
-    return number_format((float) $v, 0, ',', '.');
+    return number_format($clp, 0, ',', '.') . ($uf !== null ? ' · ' . number_format($uf, 2, ',', '.') . ' UF' : '');
 };
 $mesAnio = static function ($mes, $anio): string {
     if (($mes === null || $mes === '') && ($anio === null || $anio === '')) {

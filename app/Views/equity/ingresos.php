@@ -3,18 +3,23 @@
 <?= $this->section('content') ?>
 
 <?php
-$fmt = static function ($v): string {
+use App\Libraries\EquityUf;
+
+$ufRate = (float) (($ufVigente['valor_clp'] ?? null) ?: EquityUf::DEFAULT_VALOR_CLP);
+$fmt = static function ($v) use ($ufRate): string {
     if ($v === null || $v === '') {
         return '—';
     }
+    $clp = (float) $v;
+    $uf  = $ufRate > 0 ? round($clp / $ufRate, 2) : null;
 
-    return number_format((float) $v, 0, ',', '.');
+    return '$' . number_format($clp, 0, ',', '.') . ($uf !== null ? ' · ' . number_format($uf, 2, ',', '.') . ' UF' : '');
 };
 ?>
 
 <section class="banner">
     <h2>Ingresos</h2>
-    <p>Antecedentes financieros / fichas de ingreso mensual por persona.</p>
+    <p>Fichas de ingreso mensual. Montos en $ con equivalente UF (tasa vigente <?= esc(EquityUf::fmtPesos($ufRate, 2)) ?>).</p>
 </section>
 
 <div class="card section-card">

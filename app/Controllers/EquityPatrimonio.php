@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Libraries\EquityAcl;
 use App\Libraries\EquityCatalogo;
+use App\Libraries\EquityUf;
 use App\Libraries\MembershipAuth;
 use App\Models\EquityBienRaizModel;
 use App\Models\EquityFichaModel;
@@ -49,18 +50,26 @@ class EquityPatrimonio extends BaseController
         $personaId = trim((string) $this->request->getGet('persona_id'));
         $personas  = $this->personas($empresaId);
 
-        $totales = [
-            'bienes_raices' => $this->sumValor($empresaId, 'equity_bienes_raices', 'valor_clp', $personaId),
-            'vehiculos'     => $this->sumValor($empresaId, 'equity_vehiculos', 'valor_clp', $personaId),
-            'sociedades'    => $this->sumValor($empresaId, 'equity_sociedades', 'valor_clp', $personaId),
-            'otros_activos' => $this->sumValor($empresaId, 'equity_otros_activos', 'saldo_clp', $personaId),
-            'pasivos_inm'   => $this->sumPasivo($empresaId, 'inmueble', $personaId),
-            'pasivos_circ'  => $this->sumPasivo($empresaId, 'circulante', $personaId),
-            'pasivos_otro'  => $this->sumPasivo($empresaId, 'otro', $personaId),
+        $ufVigente = EquityUf::vigente($empresaId);
+        $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+
+        $totalesUf = [
+            'bienes_raices' => $this->sumUfCol($empresaId, 'equity_bienes_raices', 'valor_uf', 'valor_clp', $personaId, $ufRate),
+            'vehiculos'     => $this->sumUfCol($empresaId, 'equity_vehiculos', 'valor_uf', 'valor_clp', $personaId, $ufRate),
+            'sociedades'    => $this->sumUfCol($empresaId, 'equity_sociedades', 'valor_uf', 'valor_clp', $personaId, $ufRate),
+            'otros_activos' => $this->sumUfCol($empresaId, 'equity_otros_activos', 'saldo_uf', 'saldo_clp', $personaId, $ufRate),
+            'pasivos_inm'   => $this->sumPasivoCategoria($empresaId, 'inmueble', $personaId, $ufRate),
+            'pasivos_circ'  => $this->sumPasivoCategoria($empresaId, 'circulante', $personaId, $ufRate),
+            'pasivos_otro'  => $this->sumPasivoCategoria($empresaId, 'otro', $personaId, $ufRate),
         ];
-        $totales['activos']    = $totales['bienes_raices'] + $totales['vehiculos'] + $totales['sociedades'] + $totales['otros_activos'];
-        $totales['pasivos']    = $totales['pasivos_inm'] + $totales['pasivos_circ'] + $totales['pasivos_otro'];
-        $totales['patrimonio'] = $totales['activos'] - $totales['pasivos'];
+        $totalesUf['activos']    = $totalesUf['bienes_raices'] + $totalesUf['vehiculos'] + $totalesUf['sociedades'] + $totalesUf['otros_activos'];
+        $totalesUf['pasivos']    = $totalesUf['pasivos_inm'] + $totalesUf['pasivos_circ'] + $totalesUf['pasivos_otro'];
+        $totalesUf['patrimonio'] = $totalesUf['activos'] - $totalesUf['pasivos'];
+
+        $totales = [];
+        foreach ($totalesUf as $k => $uf) {
+            $totales[$k] = round($uf * $ufRate, 2);
+        }
 
         return view('equity/resumen', [
             'title'     => 'Resumen',
@@ -69,6 +78,8 @@ class EquityPatrimonio extends BaseController
             'personas'  => $personas,
             'personaId' => $personaId,
             'totales'   => $totales,
+            'totalesUf' => $totalesUf,
+            'ufVigente' => $ufVigente,
             'menus'     => EquityCatalogo::menusInicio(),
             'canManage' => EquityAcl::canManage($memb),
         ]);
@@ -148,6 +159,7 @@ class EquityPatrimonio extends BaseController
             'fichas'    => $fichas,
             'personas'  => $personas,
             'personaId' => $personaId,
+            'ufVigente' => EquityUf::vigente($empresaId),
             'canManage' => EquityAcl::canManage($memb),
         ]);
     }
@@ -230,6 +242,7 @@ class EquityPatrimonio extends BaseController
             'rows'      => $rows,
             'personas'  => $personas,
             'personaId' => $personaId,
+            'ufVigente' => EquityUf::vigente($empresaId),
             'canManage' => EquityAcl::canManage($memb),
             'success'   => session()->getFlashdata('success'),
             'error'     => session()->getFlashdata('error'),
@@ -276,6 +289,17 @@ class EquityPatrimonio extends BaseController
             return is_numeric($v) ? number_format((float) $v, 2, '.', '') : null;
         };
 
+        $parValor = EquityUf::resolverPar(
+            (string) $this->request->getPost('valor_uf'),
+            (string) $this->request->getPost('valor_clp'),
+            $memb['empresa_id']
+        );
+        $parSaldo = EquityUf::resolverPar(
+            (string) $this->request->getPost('saldo_uf'),
+            (string) $this->request->getPost('saldo_clp'),
+            $memb['empresa_id']
+        );
+
         $redirectPath = match ($clave) {
             'bienes-raices'       => '/equity/activos/bienes-raices',
             'vehiculos'           => '/equity/activos/vehiculos',
@@ -314,7 +338,8 @@ class EquityPatrimonio extends BaseController
                 'rol'            => trim((string) $this->request->getPost('rol')) ?: null,
                 'garantia'       => $intOrNull($this->request->getPost('garantia')),
                 'asegurado'      => $intOrNull($this->request->getPost('asegurado')),
-                'valor_clp'      => $money($this->request->getPost('valor_clp')),
+                'valor_clp'      => $parValor['clp'],
+                'valor_uf'       => $parValor['uf'],
                 'notas'          => trim((string) $this->request->getPost('notas')) ?: null,
                 'creado_por_id'  => $memb['usuario_id'],
             ]);
@@ -336,7 +361,8 @@ class EquityPatrimonio extends BaseController
                 'patente'       => trim((string) $this->request->getPost('patente')) ?: null,
                 'garantia'      => $intOrNull($this->request->getPost('garantia')),
                 'asegurado'     => $intOrNull($this->request->getPost('asegurado')),
-                'valor_clp'     => $money($this->request->getPost('valor_clp')),
+                'valor_clp'     => $parValor['clp'],
+                'valor_uf'      => $parValor['uf'],
                 'notas'         => trim((string) $this->request->getPost('notas')) ?: null,
                 'creado_por_id' => $memb['usuario_id'],
             ]);
@@ -353,7 +379,8 @@ class EquityPatrimonio extends BaseController
                 'rut_sociedad'       => trim((string) $this->request->getPost('rut_sociedad')) ?: null,
                 'giro_rubro'         => trim((string) $this->request->getPost('giro_rubro')) ?: null,
                 'porcentaje'         => $money($this->request->getPost('porcentaje')),
-                'valor_clp'          => $money($this->request->getPost('valor_clp')),
+                'valor_clp'          => $parValor['clp'],
+                'valor_uf'           => $parValor['uf'],
                 'emp_relacionada'    => $intOrNull($this->request->getPost('emp_relacionada')),
                 'cumple_articulo_84' => (int) $this->request->getPost('cumple_articulo_84') === 1 ? 1 : 0,
                 'tipo'               => 'Directo',
@@ -373,7 +400,8 @@ class EquityPatrimonio extends BaseController
                 'tipo_activo'   => $tipoAct,
                 'tipo'          => $tipoLabel,
                 'institucion'   => trim((string) $this->request->getPost('institucion')) ?: null,
-                'saldo_clp'     => $money($this->request->getPost('saldo_clp')),
+                'saldo_clp'     => $parSaldo['clp'],
+                'saldo_uf'      => $parSaldo['uf'],
                 'notas'         => trim((string) $this->request->getPost('notas')) ?: null,
                 'creado_por_id' => $memb['usuario_id'],
             ]);
@@ -389,8 +417,8 @@ class EquityPatrimonio extends BaseController
                 'persona_id'        => $personaId,
                 'categoria'         => $meta['categoria'] ?? 'otro',
                 'banco_descripcion' => $desc,
-                'saldo_clp'         => $money($this->request->getPost('saldo_clp')),
-                'saldo_uf'          => $money($this->request->getPost('saldo_uf')),
+                'saldo_clp'         => $parSaldo['clp'],
+                'saldo_uf'          => $parSaldo['uf'],
                 'cuotas_totales'    => ($v = trim((string) $this->request->getPost('cuotas_totales'))) !== '' ? (int) $v : null,
                 'cuotas_pagadas'    => ($v = trim((string) $this->request->getPost('cuotas_pagadas'))) !== '' ? (int) $v : null,
                 'cuota_mensual'     => $money($this->request->getPost('cuota_mensual')),
@@ -445,34 +473,60 @@ class EquityPatrimonio extends BaseController
         return $q->findAll();
     }
 
-    private function sumValor(string $empresaId, string $table, string $col, string $personaId): float
-    {
+    /**
+     * Suma UF: usa columna UF si existe; si no, convierte CLP legacy con $ufRate.
+     */
+    private function sumUfCol(
+        string $empresaId,
+        string $table,
+        string $colUf,
+        string $colClp,
+        string $personaId,
+        float $ufRate
+    ): float {
         if (! db_connect()->tableExists($table)) {
             return 0.0;
         }
-        $builder = db_connect()->table($table)->selectSum($col, 'total')->where('empresa_id', $empresaId);
+        $db = db_connect();
+        $hasUf = $db->fieldExists($colUf, $table);
+        $builder = $db->table($table)->where('empresa_id', $empresaId);
         if ($personaId !== '') {
             $builder->where('persona_id', $personaId);
         }
-        $row = $builder->get()->getRowArray();
+        $rows = $builder->get()->getResultArray();
+        $sum = 0.0;
+        foreach ($rows as $r) {
+            if ($hasUf && $r[$colUf] !== null && $r[$colUf] !== '') {
+                $sum += (float) $r[$colUf];
+            } elseif ($r[$colClp] !== null && $r[$colClp] !== '' && $ufRate > 0) {
+                $sum += (float) $r[$colClp] / $ufRate;
+            }
+        }
 
-        return (float) ($row['total'] ?? 0);
+        return $sum;
     }
 
-    private function sumPasivo(string $empresaId, string $categoria, string $personaId): float
+    private function sumPasivoCategoria(string $empresaId, string $categoria, string $personaId, float $ufRate): float
     {
         if (! db_connect()->tableExists('equity_pasivos')) {
             return 0.0;
         }
         $builder = db_connect()->table('equity_pasivos')
-            ->selectSum('saldo_clp', 'total')
             ->where('empresa_id', $empresaId)
             ->where('categoria', $categoria);
         if ($personaId !== '') {
             $builder->where('persona_id', $personaId);
         }
-        $row = $builder->get()->getRowArray();
+        $rows = $builder->get()->getResultArray();
+        $sum = 0.0;
+        foreach ($rows as $r) {
+            if ($r['saldo_uf'] !== null && $r['saldo_uf'] !== '') {
+                $sum += (float) $r['saldo_uf'];
+            } elseif ($r['saldo_clp'] !== null && $r['saldo_clp'] !== '' && $ufRate > 0) {
+                $sum += (float) $r['saldo_clp'] / $ufRate;
+            }
+        }
 
-        return (float) ($row['total'] ?? 0);
+        return $sum;
     }
 }

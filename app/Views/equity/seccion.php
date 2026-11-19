@@ -4,14 +4,27 @@
 
 <?php
 use App\Libraries\EquityCatalogo;
+use App\Libraries\EquityUf;
 
 $clave = $meta['clave'];
+$ufVigente = $ufVigente ?? null;
+$ufRate = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
 $fmt = static function ($v): string {
     if ($v === null || $v === '') {
         return '—';
     }
 
     return number_format((float) $v, 0, ',', '.');
+};
+$pairMoney = static function (?float $uf, ?float $clp, float $rate): array {
+    if ($uf !== null) {
+        return [$uf, round($uf * $rate, 2)];
+    }
+    if ($clp !== null && $rate > 0) {
+        return [round($clp / $rate, 4), $clp];
+    }
+
+    return [null, null];
 };
 $action = match ($clave) {
     'bienes-raices'       => site_url('equity/activos/bienes-raices'),
@@ -27,7 +40,11 @@ $action = match ($clave) {
 
 <section class="banner">
     <h2><?= esc($meta['label']) ?></h2>
-    <p><?= esc($meta['grupo']) ?> del estado de situación patrimonial.</p>
+    <p>
+        <?= esc($meta['grupo']) ?> del estado de situación patrimonial.
+        Montos en <strong>UF</strong> (fijos); $ con UF vigente
+        <?= esc(EquityUf::fmtPesos($ufRate, 2)) ?><?= $ufVigente ? ' · cierre ' . esc($ufVigente['fecha_cierre']) : '' ?>.
+    </p>
 </section>
 
 <?php if (! empty($success)): ?>
@@ -109,8 +126,12 @@ $action = match ($clave) {
                     </select>
                 </div>
                 <div>
-                    <label for="valor_clp">Valor comercial $</label>
-                    <input id="valor_clp" name="valor_clp" type="text" inputmode="decimal">
+                    <label for="valor_uf">Valor comercial UF *</label>
+                    <input id="valor_uf" name="valor_uf" type="text" inputmode="decimal" placeholder="UF fijas">
+                </div>
+                <div>
+                    <label for="valor_clp">Valor comercial $ <span class="muted">(opcional)</span></label>
+                    <input id="valor_clp" name="valor_clp" type="text" inputmode="decimal" placeholder="si no ingresas UF">
                 </div>
             </div>
         <?php elseif ($clave === 'vehiculos'): ?>
@@ -146,7 +167,8 @@ $action = match ($clave) {
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div><label for="valor_clp_v">Valor comercial $</label><input id="valor_clp_v" name="valor_clp" type="text" inputmode="decimal"></div>
+                <div><label for="valor_uf_v">Valor comercial UF *</label><input id="valor_uf_v" name="valor_uf" type="text" inputmode="decimal"></div>
+                <div><label for="valor_clp_v">Valor comercial $ <span class="muted">(opc.)</span></label><input id="valor_clp_v" name="valor_clp" type="text" inputmode="decimal"></div>
             </div>
         <?php elseif ($clave === 'sociedades'): ?>
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
@@ -167,7 +189,11 @@ $action = match ($clave) {
                     <input id="porcentaje" name="porcentaje" type="text" inputmode="decimal">
                 </div>
                 <div>
-                    <label for="valor_clp_s">Valor comercial $</label>
+                    <label for="valor_uf_s">Valor comercial UF *</label>
+                    <input id="valor_uf_s" name="valor_uf" type="text" inputmode="decimal">
+                </div>
+                <div>
+                    <label for="valor_clp_s">Valor comercial $ <span class="muted">(opc.)</span></label>
                     <input id="valor_clp_s" name="valor_clp" type="text" inputmode="decimal">
                 </div>
                 <div>
@@ -199,7 +225,11 @@ $action = match ($clave) {
                     <input id="institucion" name="institucion" type="text">
                 </div>
                 <div>
-                    <label for="saldo_clp">Saldo $</label>
+                    <label for="saldo_uf_oa">Saldo UF *</label>
+                    <input id="saldo_uf_oa" name="saldo_uf" type="text" inputmode="decimal">
+                </div>
+                <div>
+                    <label for="saldo_clp">Saldo $ <span class="muted">(opc.)</span></label>
                     <input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal">
                 </div>
             </div>
@@ -207,8 +237,8 @@ $action = match ($clave) {
             <label for="banco_descripcion">Banco / descripción *</label>
             <input id="banco_descripcion" name="banco_descripcion" type="text" required>
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
-                <div><label for="saldo_clp">Saldo CLP</label><input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal"></div>
-                <div><label for="saldo_uf">Saldo UF</label><input id="saldo_uf" name="saldo_uf" type="text" inputmode="decimal"></div>
+                <div><label for="saldo_uf">Saldo UF *</label><input id="saldo_uf" name="saldo_uf" type="text" inputmode="decimal"></div>
+                <div><label for="saldo_clp">Saldo $ <span class="muted">(opc.)</span></label><input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal"></div>
                 <div><label for="cuotas_totales">Cuotas totales</label><input id="cuotas_totales" name="cuotas_totales" type="number"></div>
                 <div><label for="cuotas_pagadas">Cuotas pagadas</label><input id="cuotas_pagadas" name="cuotas_pagadas" type="number"></div>
                 <div><label for="cuota_mensual">Cuota mensual</label><input id="cuota_mensual" name="cuota_mensual" type="text" inputmode="decimal"></div>
@@ -234,14 +264,27 @@ $action = match ($clave) {
         <p class="muted">Sin registros en esta sección.</p>
     <?php else: ?>
         <?php
-            $totalSeccion = 0.0;
+            $totalUf = 0.0;
+            $totalClp = 0.0;
             foreach ($rows as $rTot) {
-                $vTot = match ($clave) {
+                $ufRaw = match ($clave) {
+                    'bienes-raices', 'vehiculos', 'sociedades' => $rTot['valor_uf'] ?? null,
+                    default => $rTot['saldo_uf'] ?? null,
+                };
+                $clpRaw = match ($clave) {
                     'bienes-raices', 'vehiculos', 'sociedades' => $rTot['valor_clp'] ?? null,
                     default => $rTot['saldo_clp'] ?? null,
                 };
-                if ($vTot !== null && $vTot !== '') {
-                    $totalSeccion += (float) $vTot;
+                [$u, $c] = $pairMoney(
+                    ($ufRaw !== null && $ufRaw !== '') ? (float) $ufRaw : null,
+                    ($clpRaw !== null && $clpRaw !== '') ? (float) $clpRaw : null,
+                    $ufRate
+                );
+                if ($u !== null) {
+                    $totalUf += $u;
+                }
+                if ($c !== null) {
+                    $totalClp += $c;
                 }
             }
         ?>
@@ -250,7 +293,8 @@ $action = match ($clave) {
                 <tr>
                     <th>Persona</th>
                     <th>Detalle</th>
-                    <th>Valor</th>
+                    <th>UF</th>
+                    <th>$ (vigente)</th>
                 </tr>
             </thead>
             <tbody>
@@ -290,11 +334,19 @@ $action = match ($clave) {
                         ),
                         default => (string) ($row['banco_descripcion'] ?? ''),
                     };
-                    $valor = match ($clave) {
+                    $ufRaw = match ($clave) {
+                        'bienes-raices', 'vehiculos', 'sociedades' => $row['valor_uf'] ?? null,
+                        default => $row['saldo_uf'] ?? null,
+                    };
+                    $clpRaw = match ($clave) {
                         'bienes-raices', 'vehiculos', 'sociedades' => $row['valor_clp'] ?? null,
-                        'otros-activos' => $row['saldo_clp'] ?? null,
                         default => $row['saldo_clp'] ?? null,
                     };
+                    [$ufShow, $clpShow] = $pairMoney(
+                        ($ufRaw !== null && $ufRaw !== '') ? (float) $ufRaw : null,
+                        ($clpRaw !== null && $clpRaw !== '') ? (float) $clpRaw : null,
+                        $ufRate
+                    );
                 ?>
                 <tr>
                     <td>
@@ -305,14 +357,16 @@ $action = match ($clave) {
                         <?php endif; ?>
                     </td>
                     <td><?= esc($detalle !== '' ? $detalle : '—') ?></td>
-                    <td><?= esc($fmt($valor)) ?></td>
+                    <td><?= esc($ufShow !== null ? EquityUf::fmtUf($ufShow, 2) : '—') ?></td>
+                    <td><?= esc($clpShow !== null ? EquityUf::fmtPesos($clpShow, 0) : '—') ?></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="2" style="text-align:right"><strong>Total $</strong></td>
-                    <td><strong><?= esc($fmt($totalSeccion)) ?></strong></td>
+                    <td colspan="2" style="text-align:right"><strong>Total</strong></td>
+                    <td><strong><?= esc(EquityUf::fmtUf($totalUf, 2)) ?></strong></td>
+                    <td><strong><?= esc(EquityUf::fmtPesos($totalClp, 0)) ?></strong></td>
                 </tr>
             </tfoot>
         </table>

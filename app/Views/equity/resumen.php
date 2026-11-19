@@ -3,14 +3,20 @@
 <?= $this->section('content') ?>
 
 <?php
-$fmt = static function (float $v): string {
-    return '$' . number_format($v, 0, ',', '.');
-};
+use App\Libraries\EquityUf;
+
+$totalesUf = $totalesUf ?? [];
+$ufVigente = $ufVigente ?? null;
+$ufRate = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
 ?>
 
 <section class="banner">
     <h2>Resumen patrimonial</h2>
-    <p>Totales de activos, pasivos y patrimonio neto<?= $personaId !== '' ? ' filtrados por persona' : '' ?>.</p>
+    <p>
+        Totales en UF (fijas) y equivalente en $ con UF vigente
+        <?= $ufVigente ? esc(EquityUf::fmtPesos($ufRate, 2)) . ' · cierre ' . esc($ufVigente['fecha_cierre']) : '' ?>
+        <?= $personaId !== '' ? ' · filtrado por persona' : '' ?>.
+    </p>
 </section>
 
 <div class="card section-card">
@@ -37,15 +43,18 @@ $fmt = static function (float $v): string {
 <div class="grid">
     <div class="card">
         <h3>Total activos</h3>
-        <div class="value" style="font-size:1.35rem"><?= esc($fmt((float) $totales['activos'])) ?></div>
+        <div class="value" style="font-size:1.35rem"><?= esc(EquityUf::fmtPesos((float) $totales['activos'], 0)) ?></div>
+        <div class="muted"><?= esc(EquityUf::fmtUf((float) ($totalesUf['activos'] ?? 0), 2)) ?></div>
     </div>
     <div class="card">
         <h3>Total pasivos</h3>
-        <div class="value" style="font-size:1.35rem"><?= esc($fmt((float) $totales['pasivos'])) ?></div>
+        <div class="value" style="font-size:1.35rem"><?= esc(EquityUf::fmtPesos((float) $totales['pasivos'], 0)) ?></div>
+        <div class="muted"><?= esc(EquityUf::fmtUf((float) ($totalesUf['pasivos'] ?? 0), 2)) ?></div>
     </div>
     <div class="card">
         <h3>Patrimonio neto</h3>
-        <div class="value" style="font-size:1.35rem"><?= esc($fmt((float) $totales['patrimonio'])) ?></div>
+        <div class="value" style="font-size:1.35rem"><?= esc(EquityUf::fmtPesos((float) $totales['patrimonio'], 0)) ?></div>
+        <div class="muted"><?= esc(EquityUf::fmtUf((float) ($totalesUf['patrimonio'] ?? 0), 2)) ?></div>
     </div>
 </div>
 
@@ -53,44 +62,28 @@ $fmt = static function (float $v): string {
     <h3>Detalle</h3>
     <table class="table">
         <thead>
-            <tr><th>Concepto</th><th>Valor CLP</th><th></th></tr>
+            <tr><th>Concepto</th><th>UF</th><th>$ (UF vigente)</th><th></th></tr>
         </thead>
         <tbody>
+            <?php
+            $filas = [
+                ['Activos — Bienes raíces', 'bienes_raices', 'equity/activos/bienes-raices'],
+                ['Activos — Vehículos', 'vehiculos', 'equity/activos/vehiculos'],
+                ['Activos — Sociedades', 'sociedades', 'equity/activos/sociedades'],
+                ['Activos — Otros', 'otros_activos', 'equity/activos/otros'],
+                ['Pasivos — Inmuebles', 'pasivos_inm', 'equity/pasivos/inmuebles'],
+                ['Pasivos — Circulantes', 'pasivos_circ', 'equity/pasivos/circulantes'],
+                ['Pasivos — Otros', 'pasivos_otro', 'equity/pasivos/otros'],
+            ];
+            foreach ($filas as [$label, $key, $path]):
+            ?>
             <tr>
-                <td>Activos — Bienes raíces</td>
-                <td><?= esc($fmt((float) $totales['bienes_raices'])) ?></td>
-                <td><a class="btn btn-ghost btn-sm" href="<?= site_url('equity/activos/bienes-raices') ?>">Abrir</a></td>
+                <td><?= esc($label) ?></td>
+                <td><?= esc(EquityUf::fmtUf((float) ($totalesUf[$key] ?? 0), 2)) ?></td>
+                <td><?= esc(EquityUf::fmtPesos((float) ($totales[$key] ?? 0), 0)) ?></td>
+                <td><a class="btn btn-ghost btn-sm" href="<?= site_url($path) ?>">Abrir</a></td>
             </tr>
-            <tr>
-                <td>Activos — Vehículos</td>
-                <td><?= esc($fmt((float) $totales['vehiculos'])) ?></td>
-                <td><a class="btn btn-ghost btn-sm" href="<?= site_url('equity/activos/vehiculos') ?>">Abrir</a></td>
-            </tr>
-            <tr>
-                <td>Activos — Sociedades</td>
-                <td><?= esc($fmt((float) $totales['sociedades'])) ?></td>
-                <td><a class="btn btn-ghost btn-sm" href="<?= site_url('equity/activos/sociedades') ?>">Abrir</a></td>
-            </tr>
-            <tr>
-                <td>Activos — Otros</td>
-                <td><?= esc($fmt((float) $totales['otros_activos'])) ?></td>
-                <td><a class="btn btn-ghost btn-sm" href="<?= site_url('equity/activos/otros') ?>">Abrir</a></td>
-            </tr>
-            <tr>
-                <td>Pasivos — Inmuebles</td>
-                <td><?= esc($fmt((float) $totales['pasivos_inm'])) ?></td>
-                <td><a class="btn btn-ghost btn-sm" href="<?= site_url('equity/pasivos/inmuebles') ?>">Abrir</a></td>
-            </tr>
-            <tr>
-                <td>Pasivos — Circulantes</td>
-                <td><?= esc($fmt((float) $totales['pasivos_circ'])) ?></td>
-                <td><a class="btn btn-ghost btn-sm" href="<?= site_url('equity/pasivos/circulantes') ?>">Abrir</a></td>
-            </tr>
-            <tr>
-                <td>Pasivos — Otros</td>
-                <td><?= esc($fmt((float) $totales['pasivos_otro'])) ?></td>
-                <td><a class="btn btn-ghost btn-sm" href="<?= site_url('equity/pasivos/otros') ?>">Abrir</a></td>
-            </tr>
+            <?php endforeach; ?>
         </tbody>
     </table>
 </div>
