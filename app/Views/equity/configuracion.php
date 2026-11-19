@@ -6,8 +6,24 @@
 use App\Libraries\EquityUf;
 
 $vig = $vigente ?? null;
+$editUf = $editUf ?? null;
 $anioNow = (int) date('Y');
 $mesNow  = (int) date('n');
+$anioForm = $anioNow;
+$mesForm  = $mesNow;
+$valorForm = '';
+$notasForm = '';
+if (is_array($editUf)) {
+    $fc = (string) ($editUf['fecha_cierre'] ?? '');
+    if ($fc !== '') {
+        $anioForm = (int) substr($fc, 0, 4);
+        $mesForm  = (int) substr($fc, 5, 2);
+    }
+    if (isset($editUf['valor_clp']) && $editUf['valor_clp'] !== null && $editUf['valor_clp'] !== '') {
+        $valorForm = number_format((float) $editUf['valor_clp'], 2, ',', '.');
+    }
+    $notasForm = (string) ($editUf['notas'] ?? '');
+}
 ?>
 
 <section class="banner">
@@ -33,8 +49,11 @@ $mesNow  = (int) date('n');
 </div>
 <?php endif; ?>
 
-<div class="card section-card">
-    <h3>Registrar / actualizar UF de cierre</h3>
+<div class="card section-card" id="form-uf">
+    <h3><?= is_array($editUf) ? 'Editar UF de cierre' : 'Registrar / actualizar UF de cierre' ?></h3>
+    <?php if (is_array($editUf)): ?>
+        <p class="muted" style="margin-top:0"><a href="<?= site_url('equity/configuracion') ?>">Cancelar edición</a></p>
+    <?php endif; ?>
     <form method="post" action="<?= site_url('equity/configuracion/uf') ?>">
         <?= csrf_field() ?>
         <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
@@ -45,25 +64,25 @@ $mesNow  = (int) date('n');
                     $meses = [1=>'Enero',2=>'Febrero',3=>'Marzo',4=>'Abril',5=>'Mayo',6=>'Junio',7=>'Julio',8=>'Agosto',9=>'Septiembre',10=>'Octubre',11=>'Noviembre',12=>'Diciembre'];
                     foreach ($meses as $n => $lab):
                     ?>
-                        <option value="<?= $n ?>" <?= $n === $mesNow ? 'selected' : '' ?>><?= $n ?>. <?= esc($lab) ?></option>
+                        <option value="<?= $n ?>" <?= $n === $mesForm ? 'selected' : '' ?>><?= $n ?>. <?= esc($lab) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
             <div>
                 <label for="anio">Año *</label>
-                <input id="anio" name="anio" type="number" min="1990" max="2100" required value="<?= $anioNow ?>">
+                <input id="anio" name="anio" type="number" min="1990" max="2100" required value="<?= $anioForm ?>">
             </div>
             <div>
                 <label for="valor_clp">Valor UF $ *</label>
-                <input id="valor_clp" name="valor_clp" type="text" inputmode="decimal" required placeholder="41.247,63" value="">
+                <input id="valor_clp" name="valor_clp" type="text" inputmode="decimal" required placeholder="41.247,63" value="<?= esc($valorForm) ?>">
             </div>
             <div style="grid-column:1/-1">
                 <label for="notas">Notas</label>
-                <input id="notas" name="notas" type="text" placeholder="Opcional">
+                <input id="notas" name="notas" type="text" placeholder="Opcional" value="<?= esc($notasForm) ?>">
             </div>
         </div>
         <div style="margin-top:1rem">
-            <button class="btn btn-primary" type="submit">Guardar UF</button>
+            <button class="btn btn-primary" type="submit"><?= is_array($editUf) ? 'Actualizar UF' : 'Guardar UF' ?></button>
         </div>
     </form>
 </div>
@@ -88,8 +107,9 @@ $mesNow  = (int) date('n');
                     <td><?= esc($row['fecha_cierre']) ?></td>
                     <td><?= esc(EquityUf::fmtPesos((float) $row['valor_clp'], 2)) ?></td>
                     <td><?= esc($row['notas'] ?? '—') ?></td>
-                    <td>
-                        <form method="post" action="<?= site_url('equity/configuracion/uf/' . $row['id'] . '/eliminar') ?>" onsubmit="return confirm('¿Eliminar este valor UF?');">
+                    <td style="white-space:nowrap">
+                        <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/configuracion') ?>?edit_uf=<?= esc($row['id']) ?>#form-uf">Editar</a>
+                        <form method="post" action="<?= site_url('equity/configuracion/uf/' . $row['id'] . '/eliminar') ?>" style="display:inline" onsubmit="return confirm('¿Eliminar este valor UF?');">
                             <?= csrf_field() ?>
                             <button class="btn btn-ghost btn-sm" type="submit">Eliminar</button>
                         </form>

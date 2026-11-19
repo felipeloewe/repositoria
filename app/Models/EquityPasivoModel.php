@@ -19,7 +19,8 @@ class EquityPasivoModel extends Model
         'asociacion', 'tipo', 'notas', 'creado_por_id',
         'numero_credito', 'sucursal', 'moneda', 'dividendo_n', 'plazo_pactado',
         'amortizacion_uf', 'interes_uf', 'comision_uf', 'seg_incendio_uf',
-        'seg_desgravamen_uf', 'seg_adicionales_uf', 'dividendo_uf', 'dividendo_clp',
-        'fecha_vencimiento', 'direccion_garantia', 'seguros_info',
+        'seg_desgravamen_uf', 'seg_adicionales_uf', 'seg_otros_complementarios_uf',
+        'dividendo_uf', 'dividendo_clp', 'fecha_vencimiento', 'direccion_garantia',
+        'seguros_info', 'cuenta_pac', 'dia_cargo_pac',
     ];
 }

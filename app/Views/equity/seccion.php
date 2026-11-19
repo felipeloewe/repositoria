@@ -26,7 +26,7 @@ $pairMoney = static function (?float $uf, ?float $clp, float $rate): array {
 
     return [null, null];
 };
-$action = match ($clave) {
+$listAction = match ($clave) {
     'bienes-raices'       => site_url('equity/activos/bienes-raices'),
     'vehiculos'           => site_url('equity/activos/vehiculos'),
     'sociedades'          => site_url('equity/activos/sociedades'),
@@ -35,6 +35,37 @@ $action = match ($clave) {
     'pasivos-circulantes' => site_url('equity/pasivos/circulantes'),
     'otros-pasivos'       => site_url('equity/pasivos/otros'),
     default               => site_url('dashboard'),
+};
+$edit = $edit ?? null;
+$isEdit = is_array($edit) && ! empty($edit['id']);
+$action = $isEdit ? rtrim($listAction, '/') . '/' . $edit['id'] : $listAction;
+$editPath = static function (string $id) use ($listAction): string {
+    return rtrim($listAction, '/') . '/' . $id . '/editar';
+};
+$val = static function (string $key, ?int $dec = null) use ($edit): string {
+    if (! is_array($edit) || ! array_key_exists($key, $edit) || $edit[$key] === null || $edit[$key] === '') {
+        return '';
+    }
+    $v = $edit[$key];
+    if ($dec !== null && is_numeric($v)) {
+        return number_format((float) $v, $dec, ',', '');
+    }
+
+    return (string) $v;
+};
+$sel = static function (string $key, $expect) use ($edit): string {
+    if (! is_array($edit) || ! array_key_exists($key, $edit)) {
+        return '';
+    }
+
+    return (string) $edit[$key] === (string) $expect ? 'selected' : '';
+};
+$chk = static function (string $key) use ($edit): string {
+    if (! is_array($edit)) {
+        return '';
+    }
+
+    return ! empty($edit[$key]) ? 'checked' : '';
 };
 ?>
 
@@ -55,7 +86,7 @@ $action = match ($clave) {
 <?php endif; ?>
 
 <div class="card section-card">
-    <form method="get" action="<?= esc($action) ?>" class="form-row" style="grid-template-columns:1fr auto">
+    <form method="get" action="<?= esc($listAction) ?>" class="form-row" style="grid-template-columns:1fr auto">
         <div>
             <label for="f_persona">Persona</label>
             <select id="f_persona" name="persona_id">
@@ -75,14 +106,20 @@ $action = match ($clave) {
 </div>
 
 <?php if (! empty($canManage) && $personas !== []): ?>
-<div class="card section-card">
-    <h3>Agregar</h3>
+<div class="card section-card" id="form-registro">
+    <h3><?= $isEdit ? 'Editar registro' : 'Agregar' ?></h3>
+    <?php if ($isEdit): ?>
+        <p class="muted" style="margin-top:0">
+            Editando registro.
+            <a href="<?= esc($listAction) ?>">Cancelar</a>
+        </p>
+    <?php endif; ?>
     <form method="post" action="<?= esc($action) ?>">
         <?= csrf_field() ?>
         <label for="persona_id">Persona *</label>
         <select id="persona_id" name="persona_id" required>
             <?php foreach ($personas as $p): ?>
-                <option value="<?= esc($p['id']) ?>" <?= $personaId === $p['id'] ? 'selected' : '' ?>>
+                <option value="<?= esc($p['id']) ?>" <?= ($personaId === $p['id'] || ($isEdit && ($edit['persona_id'] ?? '') === $p['id'])) ? 'selected' : '' ?>>
                     <?= esc(trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''))) ?>
                 </option>
             <?php endforeach; ?>
@@ -95,24 +132,24 @@ $action = match ($clave) {
                     <select id="tipo_inmueble" name="tipo_inmueble" required>
                         <option value="">—</option>
                         <?php foreach (EquityCatalogo::opcionesTipoInmueble() as $k => $lab): ?>
-                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                            <option value="<?= (int) $k ?>" <?= $sel('tipo_inmueble', $k) ?>><?= (int) $k ?>. <?= esc($lab) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div style="grid-column:1/-1">
                     <label for="direccion">Dirección *</label>
-                    <input id="direccion" name="direccion" type="text" required placeholder="calle, número, comuna, otros datos">
+                    <input id="direccion" name="direccion" type="text" required placeholder="calle, número, comuna, otros datos" value="<?= esc($val('direccion') !== '' ? $val('direccion') : $val('descripcion')) ?>">
                 </div>
                 <div>
                     <label for="rol">Rol</label>
-                    <input id="rol" name="rol" type="text">
+                    <input id="rol" name="rol" type="text" value="<?= esc($val('rol')) ?>">
                 </div>
                 <div>
                     <label for="garantia">Garantía</label>
                     <select id="garantia" name="garantia">
                         <option value="">—</option>
                         <?php foreach (EquityCatalogo::opcionesGarantiaInmueble() as $k => $lab): ?>
-                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                            <option value="<?= (int) $k ?>" <?= $sel('garantia', $k) ?>><?= (int) $k ?>. <?= esc($lab) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -121,17 +158,17 @@ $action = match ($clave) {
                     <select id="asegurado" name="asegurado">
                         <option value="">—</option>
                         <?php foreach (EquityCatalogo::opcionesSiNo() as $k => $lab): ?>
-                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                            <option value="<?= (int) $k ?>" <?= $sel('asegurado', $k) ?>><?= (int) $k ?>. <?= esc($lab) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div>
                     <label for="valor_uf">Valor comercial UF *</label>
-                    <input id="valor_uf" name="valor_uf" type="text" inputmode="decimal" placeholder="UF fijas">
+                    <input id="valor_uf" name="valor_uf" type="text" inputmode="decimal" placeholder="UF fijas" value="<?= esc($val('valor_uf', 4)) ?>">
                 </div>
                 <div>
                     <label for="valor_clp">Valor comercial $ <span class="muted">(opcional)</span></label>
-                    <input id="valor_clp" name="valor_clp" type="text" inputmode="decimal" placeholder="si no ingresas UF">
+                    <input id="valor_clp" name="valor_clp" type="text" inputmode="decimal" placeholder="si no ingresas UF" value="<?= esc($val('valor_clp', 0)) ?>">
                 </div>
             </div>
         <?php elseif ($clave === 'vehiculos'): ?>
@@ -141,20 +178,20 @@ $action = match ($clave) {
                     <select id="tipo_vehiculo" name="tipo_vehiculo" required>
                         <option value="">—</option>
                         <?php foreach (EquityCatalogo::opcionesTipoVehiculo() as $k => $lab): ?>
-                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                            <option value="<?= (int) $k ?>" <?= $sel('tipo_vehiculo', $k) ?>><?= (int) $k ?>. <?= esc($lab) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div><label for="marca">Marca</label><input id="marca" name="marca" type="text"></div>
-                <div><label for="modelo">Modelo</label><input id="modelo" name="modelo" type="text"></div>
-                <div><label for="anio">Año</label><input id="anio" name="anio" type="number"></div>
-                <div><label for="patente">Patente</label><input id="patente" name="patente" type="text"></div>
+                <div><label for="marca">Marca</label><input id="marca" name="marca" type="text" value="<?= esc($val('marca')) ?>"></div>
+                <div><label for="modelo">Modelo</label><input id="modelo" name="modelo" type="text" value="<?= esc($val('modelo')) ?>"></div>
+                <div><label for="anio">Año</label><input id="anio" name="anio" type="number" value="<?= esc($val('anio')) ?>"></div>
+                <div><label for="patente">Patente</label><input id="patente" name="patente" type="text" value="<?= esc($val('patente')) ?>"></div>
                 <div>
                     <label for="garantia_v">Garantía</label>
                     <select id="garantia_v" name="garantia">
                         <option value="">—</option>
                         <?php foreach (EquityCatalogo::opcionesGarantiaInmueble() as $k => $lab): ?>
-                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                            <option value="<?= (int) $k ?>" <?= $sel('garantia', $k) ?>><?= (int) $k ?>. <?= esc($lab) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -163,51 +200,51 @@ $action = match ($clave) {
                     <select id="asegurado_v" name="asegurado">
                         <option value="">—</option>
                         <?php foreach (EquityCatalogo::opcionesSiNo() as $k => $lab): ?>
-                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                            <option value="<?= (int) $k ?>" <?= $sel('asegurado', $k) ?>><?= (int) $k ?>. <?= esc($lab) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div><label for="valor_uf_v">Valor comercial UF *</label><input id="valor_uf_v" name="valor_uf" type="text" inputmode="decimal"></div>
-                <div><label for="valor_clp_v">Valor comercial $ <span class="muted">(opc.)</span></label><input id="valor_clp_v" name="valor_clp" type="text" inputmode="decimal"></div>
+                <div><label for="valor_uf_v">Valor comercial UF *</label><input id="valor_uf_v" name="valor_uf" type="text" inputmode="decimal" value="<?= esc($val('valor_uf', 4)) ?>"></div>
+                <div><label for="valor_clp_v">Valor comercial $ <span class="muted">(opc.)</span></label><input id="valor_clp_v" name="valor_clp" type="text" inputmode="decimal" value="<?= esc($val('valor_clp', 0)) ?>"></div>
             </div>
         <?php elseif ($clave === 'sociedades'): ?>
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
                 <div style="grid-column:1/-1">
                     <label for="nombre_sociedad">Razón social *</label>
-                    <input id="nombre_sociedad" name="nombre_sociedad" type="text" required>
+                    <input id="nombre_sociedad" name="nombre_sociedad" type="text" required value="<?= esc($val('nombre_sociedad')) ?>">
                 </div>
                 <div>
                     <label for="rut_sociedad">RUT sociedad</label>
-                    <input id="rut_sociedad" name="rut_sociedad" type="text">
+                    <input id="rut_sociedad" name="rut_sociedad" type="text" value="<?= esc($val('rut_sociedad')) ?>">
                 </div>
                 <div>
                     <label for="giro_rubro">Giro / Rubro</label>
-                    <input id="giro_rubro" name="giro_rubro" type="text">
+                    <input id="giro_rubro" name="giro_rubro" type="text" value="<?= esc($val('giro_rubro')) ?>">
                 </div>
                 <div>
                     <label for="porcentaje">% participación</label>
-                    <input id="porcentaje" name="porcentaje" type="text" inputmode="decimal">
+                    <input id="porcentaje" name="porcentaje" type="text" inputmode="decimal" value="<?= esc($val('porcentaje', 2)) ?>">
                 </div>
                 <div>
                     <label for="valor_uf_s">Valor comercial UF *</label>
-                    <input id="valor_uf_s" name="valor_uf" type="text" inputmode="decimal">
+                    <input id="valor_uf_s" name="valor_uf" type="text" inputmode="decimal" value="<?= esc($val('valor_uf', 4)) ?>">
                 </div>
                 <div>
                     <label for="valor_clp_s">Valor comercial $ <span class="muted">(opc.)</span></label>
-                    <input id="valor_clp_s" name="valor_clp" type="text" inputmode="decimal">
+                    <input id="valor_clp_s" name="valor_clp" type="text" inputmode="decimal" value="<?= esc($val('valor_clp', 0)) ?>">
                 </div>
                 <div>
                     <label for="emp_relacionada">Emp. relacionada</label>
                     <select id="emp_relacionada" name="emp_relacionada">
                         <option value="">—</option>
                         <?php foreach (EquityCatalogo::opcionesSiNo() as $k => $lab): ?>
-                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                            <option value="<?= (int) $k ?>" <?= $sel('emp_relacionada', $k) ?>><?= (int) $k ?>. <?= esc($lab) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
             </div>
             <label style="display:flex;gap:.5rem;align-items:center;margin:.75rem 0">
-                <input type="checkbox" name="cumple_articulo_84" value="1"> Cumple artículo N° 84
+                <input type="checkbox" name="cumple_articulo_84" value="1" <?= $chk('cumple_articulo_84') ?>> Cumple artículo N° 84
             </label>
         <?php elseif ($clave === 'otros-activos'): ?>
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
@@ -216,21 +253,21 @@ $action = match ($clave) {
                     <select id="tipo_activo" name="tipo_activo" required>
                         <option value="">—</option>
                         <?php foreach (EquityCatalogo::opcionesTipoOtroActivo() as $k => $lab): ?>
-                            <option value="<?= (int) $k ?>"><?= (int) $k ?>. <?= esc($lab) ?></option>
+                            <option value="<?= (int) $k ?>" <?= $sel('tipo_activo', $k) ?>><?= (int) $k ?>. <?= esc($lab) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div>
                     <label for="institucion">Institución</label>
-                    <input id="institucion" name="institucion" type="text">
+                    <input id="institucion" name="institucion" type="text" value="<?= esc($val('institucion')) ?>">
                 </div>
                 <div>
                     <label for="saldo_uf_oa">Saldo UF *</label>
-                    <input id="saldo_uf_oa" name="saldo_uf" type="text" inputmode="decimal">
+                    <input id="saldo_uf_oa" name="saldo_uf" type="text" inputmode="decimal" value="<?= esc($val('saldo_uf', 4)) ?>">
                 </div>
                 <div>
                     <label for="saldo_clp">Saldo $ <span class="muted">(opc.)</span></label>
-                    <input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal">
+                    <input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal" value="<?= esc($val('saldo_clp', 0)) ?>">
                 </div>
             </div>
         <?php elseif ($clave === 'pasivos-inmuebles'): ?>
@@ -238,110 +275,125 @@ $action = match ($clave) {
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
                 <div style="grid-column:1/-1">
                     <label for="banco_descripcion">Institución / Banco *</label>
-                    <input id="banco_descripcion" name="banco_descripcion" type="text" required placeholder="Scotiabank, Santander, BCI…">
+                    <input id="banco_descripcion" name="banco_descripcion" type="text" required placeholder="Scotiabank, Santander, BCI, Itaú…" value="<?= esc($val('banco_descripcion')) ?>">
                 </div>
                 <div>
-                    <label for="numero_credito">N° crédito</label>
-                    <input id="numero_credito" name="numero_credito" type="text" placeholder="0224059">
+                    <label for="numero_credito">N° crédito / préstamo</label>
+                    <input id="numero_credito" name="numero_credito" type="text" placeholder="0224059" value="<?= esc($val('numero_credito')) ?>">
                 </div>
                 <div>
                     <label for="sucursal">Sucursal (SUC)</label>
-                    <input id="sucursal" name="sucursal" type="text" placeholder="143">
+                    <input id="sucursal" name="sucursal" type="text" placeholder="143" value="<?= esc($val('sucursal')) ?>">
                 </div>
                 <div>
                     <label for="moneda">Moneda</label>
                     <select id="moneda" name="moneda">
-                        <option value="UF" selected>UF</option>
-                        <option value="CLP">CLP</option>
+                        <option value="UF" <?= ($val('moneda') === '' || $val('moneda') === 'UF') ? 'selected' : '' ?>>UF</option>
+                        <option value="CLP" <?= $sel('moneda', 'CLP') ?>>CLP</option>
                     </select>
                 </div>
                 <div>
                     <label for="saldo_uf">Saldo deuda UF (Capital) *</label>
-                    <input id="saldo_uf" name="saldo_uf" type="text" inputmode="decimal" placeholder="923,4434">
+                    <input id="saldo_uf" name="saldo_uf" type="text" inputmode="decimal" placeholder="923,4434" value="<?= esc($val('saldo_uf', 4)) ?>">
                 </div>
                 <div>
-                    <label for="saldo_clp">Saldo deuda $ <span class="muted">(opc.)</span></label>
-                    <input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal">
+                    <label for="saldo_clp_h">Saldo deuda $ <span class="muted">(opc.)</span></label>
+                    <input id="saldo_clp_h" name="saldo_clp" type="text" inputmode="decimal" value="<?= esc($val('saldo_clp', 0)) ?>">
                 </div>
                 <div>
                     <label for="plazo_pactado">Plazo pactado (cuotas)</label>
-                    <input id="plazo_pactado" name="plazo_pactado" type="number" min="1" placeholder="240">
+                    <input id="plazo_pactado" name="plazo_pactado" type="number" min="1" placeholder="240" value="<?= esc($val('plazo_pactado')) ?>">
                 </div>
                 <div>
                     <label for="cuotas_pagadas">Dividendos cancelados</label>
-                    <input id="cuotas_pagadas" name="cuotas_pagadas" type="number" min="0" placeholder="110">
+                    <input id="cuotas_pagadas" name="cuotas_pagadas" type="number" min="0" placeholder="110" value="<?= esc($val('cuotas_pagadas')) ?>">
                 </div>
                 <div>
                     <label for="dividendo_n">N° dividendo actual</label>
-                    <input id="dividendo_n" name="dividendo_n" type="number" min="1">
+                    <input id="dividendo_n" name="dividendo_n" type="number" min="1" value="<?= esc($val('dividendo_n')) ?>">
                 </div>
                 <div>
                     <label for="fecha_vencimiento">Fecha vencimiento / cargo</label>
-                    <input id="fecha_vencimiento" name="fecha_vencimiento" type="date">
+                    <input id="fecha_vencimiento" name="fecha_vencimiento" type="date" value="<?= esc($val('fecha_vencimiento')) ?>">
                 </div>
                 <div>
                     <label for="dividendo_uf">Total dividendo UF</label>
-                    <input id="dividendo_uf" name="dividendo_uf" type="text" inputmode="decimal" placeholder="8,5686">
+                    <input id="dividendo_uf" name="dividendo_uf" type="text" inputmode="decimal" placeholder="8,5686" value="<?= esc($val('dividendo_uf', 4)) ?>">
                 </div>
                 <div>
                     <label for="dividendo_clp">Total dividendo $ <span class="muted">(opc.)</span></label>
-                    <input id="dividendo_clp" name="dividendo_clp" type="text" inputmode="decimal">
+                    <input id="dividendo_clp" name="dividendo_clp" type="text" inputmode="decimal" value="<?= esc($val('dividendo_clp', 0)) ?>">
                 </div>
                 <div>
                     <label for="amortizacion_uf">Amortización UF</label>
-                    <input id="amortizacion_uf" name="amortizacion_uf" type="text" inputmode="decimal">
+                    <input id="amortizacion_uf" name="amortizacion_uf" type="text" inputmode="decimal" value="<?= esc($val('amortizacion_uf', 4)) ?>">
                 </div>
                 <div>
                     <label for="interes_uf">Interés UF</label>
-                    <input id="interes_uf" name="interes_uf" type="text" inputmode="decimal">
+                    <input id="interes_uf" name="interes_uf" type="text" inputmode="decimal" value="<?= esc($val('interes_uf', 4)) ?>">
                 </div>
                 <div>
                     <label for="comision_uf">Comisión UF</label>
-                    <input id="comision_uf" name="comision_uf" type="text" inputmode="decimal">
+                    <input id="comision_uf" name="comision_uf" type="text" inputmode="decimal" value="<?= esc($val('comision_uf', 4)) ?>">
                 </div>
                 <div>
-                    <label for="seg_incendio_uf">Seg. incendio UF</label>
-                    <input id="seg_incendio_uf" name="seg_incendio_uf" type="text" inputmode="decimal">
+                    <label for="seg_incendio_uf">Seg. incendio / propiedad UF</label>
+                    <input id="seg_incendio_uf" name="seg_incendio_uf" type="text" inputmode="decimal" value="<?= esc($val('seg_incendio_uf', 4)) ?>">
                 </div>
                 <div>
                     <label for="seg_desgravamen_uf">Seg. desgravamen UF</label>
-                    <input id="seg_desgravamen_uf" name="seg_desgravamen_uf" type="text" inputmode="decimal">
+                    <input id="seg_desgravamen_uf" name="seg_desgravamen_uf" type="text" inputmode="decimal" value="<?= esc($val('seg_desgravamen_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="seg_otros_complementarios_uf">Otros seg. complementarios UF <span class="muted">(opc.)</span></label>
+                    <input id="seg_otros_complementarios_uf" name="seg_otros_complementarios_uf" type="text" inputmode="decimal" value="<?= esc($val('seg_otros_complementarios_uf', 4)) ?>">
                 </div>
                 <div>
                     <label for="seg_adicionales_uf">Seg. adicionales UF</label>
-                    <input id="seg_adicionales_uf" name="seg_adicionales_uf" type="text" inputmode="decimal">
+                    <input id="seg_adicionales_uf" name="seg_adicionales_uf" type="text" inputmode="decimal" value="<?= esc($val('seg_adicionales_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="cuenta_pac">Cuenta PAC <span class="muted">(opc.)</span></label>
+                    <input id="cuenta_pac" name="cuenta_pac" type="text" placeholder="CUENTA PAC ITAÚ" value="<?= esc($val('cuenta_pac')) ?>">
+                </div>
+                <div>
+                    <label for="dia_cargo_pac">Día cargo PAC <span class="muted">(opc.)</span></label>
+                    <input id="dia_cargo_pac" name="dia_cargo_pac" type="number" min="1" max="31" placeholder="10" value="<?= esc($val('dia_cargo_pac')) ?>">
                 </div>
                 <div>
                     <label for="asociacion">Asociación</label>
-                    <input id="asociacion" name="asociacion" type="text" placeholder="CASA / INV">
+                    <input id="asociacion" name="asociacion" type="text" placeholder="CASA / INV" value="<?= esc($val('asociacion')) ?>">
                 </div>
                 <div style="grid-column:1/-1">
                     <label for="direccion_garantia">Dirección garantía / inmueble</label>
-                    <input id="direccion_garantia" name="direccion_garantia" type="text" placeholder="Pinares de Montemar 138, Concón">
+                    <input id="direccion_garantia" name="direccion_garantia" type="text" placeholder="Pinares de Montemar 138, Concón" value="<?= esc($val('direccion_garantia')) ?>">
                 </div>
                 <div style="grid-column:1/-1">
                     <label for="seguros_info">Seguros contratados</label>
-                    <textarea id="seguros_info" name="seguros_info" rows="2" placeholder="Compañía y póliza colectiva"></textarea>
+                    <textarea id="seguros_info" name="seguros_info" rows="2" placeholder="Compañía y póliza colectiva"><?= esc($val('seguros_info')) ?></textarea>
                 </div>
             </div>
         <?php else: ?>
             <label for="banco_descripcion">Banco / descripción *</label>
-            <input id="banco_descripcion" name="banco_descripcion" type="text" required>
+            <input id="banco_descripcion" name="banco_descripcion" type="text" required value="<?= esc($val('banco_descripcion')) ?>">
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
-                <div><label for="saldo_uf">Saldo UF *</label><input id="saldo_uf" name="saldo_uf" type="text" inputmode="decimal"></div>
-                <div><label for="saldo_clp">Saldo $ <span class="muted">(opc.)</span></label><input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal"></div>
-                <div><label for="cuotas_totales">Cuotas totales</label><input id="cuotas_totales" name="cuotas_totales" type="number"></div>
-                <div><label for="cuotas_pagadas">Cuotas pagadas</label><input id="cuotas_pagadas" name="cuotas_pagadas" type="number"></div>
-                <div><label for="cuota_mensual">Cuota mensual</label><input id="cuota_mensual" name="cuota_mensual" type="text" inputmode="decimal"></div>
-                <div><label for="asociacion">Asociación</label><input id="asociacion" name="asociacion" type="text" placeholder="CASA / INV"></div>
-                <div><label for="tipo">Tipo</label><input id="tipo" name="tipo" type="text"></div>
+                <div><label for="saldo_uf">Saldo UF *</label><input id="saldo_uf" name="saldo_uf" type="text" inputmode="decimal" value="<?= esc($val('saldo_uf', 4)) ?>"></div>
+                <div><label for="saldo_clp">Saldo $ <span class="muted">(opc.)</span></label><input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal" value="<?= esc($val('saldo_clp', 0)) ?>"></div>
+                <div><label for="cuotas_totales">Cuotas totales</label><input id="cuotas_totales" name="cuotas_totales" type="number" value="<?= esc($val('cuotas_totales')) ?>"></div>
+                <div><label for="cuotas_pagadas">Cuotas pagadas</label><input id="cuotas_pagadas" name="cuotas_pagadas" type="number" value="<?= esc($val('cuotas_pagadas')) ?>"></div>
+                <div><label for="cuota_mensual">Cuota mensual</label><input id="cuota_mensual" name="cuota_mensual" type="text" inputmode="decimal" value="<?= esc($val('cuota_mensual', 0)) ?>"></div>
+                <div><label for="asociacion">Asociación</label><input id="asociacion" name="asociacion" type="text" placeholder="CASA / INV" value="<?= esc($val('asociacion')) ?>"></div>
+                <div><label for="tipo">Tipo</label><input id="tipo" name="tipo" type="text" value="<?= esc($val('tipo')) ?>"></div>
             </div>
         <?php endif; ?>
 
         <label for="notas">Notas</label>
-        <textarea id="notas" name="notas" rows="2"></textarea>
+        <textarea id="notas" name="notas" rows="2"><?= esc($val('notas')) ?></textarea>
         <div style="margin-top:1rem">
-            <button class="btn btn-primary" type="submit">Guardar</button>
+            <button class="btn btn-primary" type="submit"><?= $isEdit ? 'Actualizar' : 'Guardar' ?></button>
+            <?php if ($isEdit): ?>
+                <a class="btn btn-ghost" href="<?= esc($listAction) ?>">Cancelar</a>
+            <?php endif; ?>
         </div>
     </form>
 </div>
@@ -386,6 +438,7 @@ $action = match ($clave) {
                     <th>Detalle</th>
                     <th>UF</th>
                     <th>$ (vigente)</th>
+                    <?php if (! empty($canManage)): ?><th></th><?php endif; ?>
                 </tr>
             </thead>
             <tbody>
@@ -461,6 +514,11 @@ $action = match ($clave) {
                     <td><?= esc($detalle !== '' ? $detalle : '—') ?></td>
                     <td><?= esc($ufShow !== null ? EquityUf::fmtUf($ufShow, 2) : '—') ?></td>
                     <td><?= esc($clpShow !== null ? EquityUf::fmtPesos($clpShow, 0) : '—') ?></td>
+                    <?php if (! empty($canManage)): ?>
+                        <td>
+                            <a class="btn btn-ghost btn-sm" href="<?= esc($editPath((string) $row['id'])) ?>">Editar</a>
+                        </td>
+                    <?php endif; ?>
                 </tr>
             <?php endforeach; ?>
             </tbody>
@@ -469,6 +527,7 @@ $action = match ($clave) {
                     <td colspan="2" style="text-align:right"><strong>Total</strong></td>
                     <td><strong><?= esc(EquityUf::fmtUf($totalUf, 2)) ?></strong></td>
                     <td><strong><?= esc(EquityUf::fmtPesos($totalClp, 0)) ?></strong></td>
+                    <?php if (! empty($canManage)): ?><td></td><?php endif; ?>
                 </tr>
             </tfoot>
         </table>

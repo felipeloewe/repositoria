@@ -95,6 +95,16 @@ class EquityPatrimonio extends BaseController
         return $this->seccionLista($this->clavePasivo($seccion));
     }
 
+    public function editActivo(string $seccion, string $id)
+    {
+        return $this->seccionLista($this->claveActivo($seccion), $id);
+    }
+
+    public function editPasivo(string $seccion, string $id)
+    {
+        return $this->seccionLista($this->clavePasivo($seccion), $id);
+    }
+
     public function storeActivo(string $seccion)
     {
         return $this->storeSeccion($this->claveActivo($seccion));
@@ -103,6 +113,16 @@ class EquityPatrimonio extends BaseController
     public function storePasivo(string $seccion)
     {
         return $this->storeSeccion($this->clavePasivo($seccion));
+    }
+
+    public function updateActivo(string $seccion, string $id)
+    {
+        return $this->storeSeccion($this->claveActivo($seccion), $id);
+    }
+
+    public function updatePasivo(string $seccion, string $id)
+    {
+        return $this->storeSeccion($this->clavePasivo($seccion), $id);
     }
 
     private function claveActivo(string $seccion): string
@@ -209,7 +229,7 @@ class EquityPatrimonio extends BaseController
         ]);
     }
 
-    private function seccionLista(string $clave)
+    private function seccionLista(string $clave, ?string $editId = null)
     {
         $memb = $this->requireAccess();
         if (! is_array($memb)) {
@@ -234,6 +254,18 @@ class EquityPatrimonio extends BaseController
         }
         unset($row);
 
+        $edit = null;
+        if ($editId !== null && $editId !== '') {
+            if (! EquityAcl::canManage($memb)) {
+                return redirect()->to($this->pathSeccion($clave))->with('error', 'Sin permiso para editar.');
+            }
+            $edit = $this->findRegistro($meta, $empresaId, $editId);
+            if ($edit === null) {
+                return redirect()->to($this->pathSeccion($clave))->with('error', 'Registro no encontrado.');
+            }
+            $personaId = (string) ($edit['persona_id'] ?? $personaId);
+        }
+
         return view('equity/seccion', [
             'title'     => $meta['label'],
             'memb'      => $memb,
@@ -242,6 +274,7 @@ class EquityPatrimonio extends BaseController
             'rows'      => $rows,
             'personas'  => $personas,
             'personaId' => $personaId,
+            'edit'      => $edit,
             'ufVigente' => EquityUf::vigente($empresaId),
             'canManage' => EquityAcl::canManage($memb),
             'success'   => session()->getFlashdata('success'),
@@ -249,7 +282,7 @@ class EquityPatrimonio extends BaseController
         ]);
     }
 
-    private function storeSeccion(string $clave)
+    private function storeSeccion(string $clave, ?string $editId = null)
     {
         $memb = $this->requireAccess();
         if (! is_array($memb)) {
@@ -300,18 +333,14 @@ class EquityPatrimonio extends BaseController
             $memb['empresa_id']
         );
 
-        $redirectPath = match ($clave) {
-            'bienes-raices'       => '/equity/activos/bienes-raices',
-            'vehiculos'           => '/equity/activos/vehiculos',
-            'sociedades'          => '/equity/activos/sociedades',
-            'otros-activos'       => '/equity/activos/otros',
-            'pasivos-inmuebles'   => '/equity/pasivos/inmuebles',
-            'pasivos-circulantes' => '/equity/pasivos/circulantes',
-            'otros-pasivos'       => '/equity/pasivos/otros',
-            default               => '/dashboard',
-        };
-
-        $id = new_id();
+        $redirectPath = $this->pathSeccion($clave);
+        $isEdit = $editId !== null && $editId !== '';
+        if ($isEdit) {
+            $existing = $this->findRegistro($meta, $memb['empresa_id'], $editId);
+            if ($existing === null) {
+                return redirect()->to($redirectPath)->with('error', 'Registro no encontrado.');
+            }
+        }
 
         $intOrNull = static function ($raw): ?int {
             $v = trim((string) $raw);
@@ -321,6 +350,14 @@ class EquityPatrimonio extends BaseController
 
             return (int) $v;
         };
+        $ufDec = static function ($raw): ?string {
+            $v = EquityUf::parseDecimal((string) $raw, 4);
+
+            return $v !== null ? number_format($v, 4, '.', '') : null;
+        };
+
+        $model = null;
+        $data  = [];
 
         if ($clave === 'bienes-raices') {
             $direccion = trim((string) $this->request->getPost('direccion'));
@@ -328,30 +365,27 @@ class EquityPatrimonio extends BaseController
             if ($direccion === '' || $tipoInm === null) {
                 return redirect()->to($redirectPath)->with('error', 'Tipo y dirección son obligatorios.');
             }
-            model(EquityBienRaizModel::class)->insert([
-                'id'             => $id,
-                'empresa_id'     => $memb['empresa_id'],
-                'persona_id'     => $personaId,
-                'tipo_inmueble'  => $tipoInm,
-                'direccion'      => $direccion,
-                'descripcion'    => $direccion,
-                'rol'            => trim((string) $this->request->getPost('rol')) ?: null,
-                'garantia'       => $intOrNull($this->request->getPost('garantia')),
-                'asegurado'      => $intOrNull($this->request->getPost('asegurado')),
-                'valor_clp'      => $parValor['clp'],
-                'valor_uf'       => $parValor['uf'],
-                'notas'          => trim((string) $this->request->getPost('notas')) ?: null,
-                'creado_por_id'  => $memb['usuario_id'],
-            ]);
+            $model = model(EquityBienRaizModel::class);
+            $data  = [
+                'persona_id'    => $personaId,
+                'tipo_inmueble' => $tipoInm,
+                'direccion'     => $direccion,
+                'descripcion'   => $direccion,
+                'rol'           => trim((string) $this->request->getPost('rol')) ?: null,
+                'garantia'      => $intOrNull($this->request->getPost('garantia')),
+                'asegurado'     => $intOrNull($this->request->getPost('asegurado')),
+                'valor_clp'     => $parValor['clp'],
+                'valor_uf'      => $parValor['uf'],
+                'notas'         => trim((string) $this->request->getPost('notas')) ?: null,
+            ];
         } elseif ($clave === 'vehiculos') {
             $tipoVeh = $intOrNull($this->request->getPost('tipo_vehiculo'));
             if ($tipoVeh === null) {
                 return redirect()->to($redirectPath)->with('error', 'El tipo de vehículo es obligatorio.');
             }
             $tipoLabel = EquityCatalogo::opcionesTipoVehiculo()[$tipoVeh] ?? (string) $tipoVeh;
-            model(EquityVehiculoModel::class)->insert([
-                'id'            => $id,
-                'empresa_id'    => $memb['empresa_id'],
+            $model = model(EquityVehiculoModel::class);
+            $data  = [
                 'persona_id'    => $personaId,
                 'tipo_vehiculo' => $tipoVeh,
                 'tipo'          => $tipoLabel,
@@ -364,16 +398,14 @@ class EquityPatrimonio extends BaseController
                 'valor_clp'     => $parValor['clp'],
                 'valor_uf'      => $parValor['uf'],
                 'notas'         => trim((string) $this->request->getPost('notas')) ?: null,
-                'creado_por_id' => $memb['usuario_id'],
-            ]);
+            ];
         } elseif ($clave === 'sociedades') {
             $nombre = trim((string) $this->request->getPost('nombre_sociedad'));
             if ($nombre === '') {
                 return redirect()->to($redirectPath)->with('error', 'La razón social es obligatoria.');
             }
-            model(EquitySociedadModel::class)->insert([
-                'id'                 => $id,
-                'empresa_id'         => $memb['empresa_id'],
+            $model = model(EquitySociedadModel::class);
+            $data  = [
                 'persona_id'         => $personaId,
                 'nombre_sociedad'    => $nombre,
                 'rut_sociedad'       => trim((string) $this->request->getPost('rut_sociedad')) ?: null,
@@ -385,26 +417,23 @@ class EquityPatrimonio extends BaseController
                 'cumple_articulo_84' => (int) $this->request->getPost('cumple_articulo_84') === 1 ? 1 : 0,
                 'tipo'               => 'Directo',
                 'notas'              => trim((string) $this->request->getPost('notas')) ?: null,
-                'creado_por_id'      => $memb['usuario_id'],
-            ]);
+            ];
         } elseif ($clave === 'otros-activos') {
             $tipoAct = $intOrNull($this->request->getPost('tipo_activo'));
             if ($tipoAct === null) {
                 return redirect()->to($redirectPath)->with('error', 'El tipo de activo es obligatorio.');
             }
             $tipoLabel = EquityCatalogo::opcionesTipoOtroActivo()[$tipoAct] ?? (string) $tipoAct;
-            model(EquityOtroActivoModel::class)->insert([
-                'id'            => $id,
-                'empresa_id'    => $memb['empresa_id'],
-                'persona_id'    => $personaId,
-                'tipo_activo'   => $tipoAct,
-                'tipo'          => $tipoLabel,
-                'institucion'   => trim((string) $this->request->getPost('institucion')) ?: null,
-                'saldo_clp'     => $parSaldo['clp'],
-                'saldo_uf'      => $parSaldo['uf'],
-                'notas'         => trim((string) $this->request->getPost('notas')) ?: null,
-                'creado_por_id' => $memb['usuario_id'],
-            ]);
+            $model = model(EquityOtroActivoModel::class);
+            $data  = [
+                'persona_id'  => $personaId,
+                'tipo_activo' => $tipoAct,
+                'tipo'        => $tipoLabel,
+                'institucion' => trim((string) $this->request->getPost('institucion')) ?: null,
+                'saldo_clp'   => $parSaldo['clp'],
+                'saldo_uf'    => $parSaldo['uf'],
+                'notas'       => trim((string) $this->request->getPost('notas')) ?: null,
+            ];
         } elseif ($clave === 'pasivos-inmuebles') {
             $desc = trim((string) $this->request->getPost('banco_descripcion'));
             if ($desc === '') {
@@ -420,51 +449,46 @@ class EquityPatrimonio extends BaseController
             if ($cuotasTot === null) {
                 $cuotasTot = $plazo;
             }
-            $ufDec = static function ($raw): ?string {
-                $v = EquityUf::parseDecimal((string) $raw, 4);
-
-                return $v !== null ? number_format($v, 4, '.', '') : null;
-            };
-            model(EquityPasivoModel::class)->insert([
-                'id'                 => $id,
-                'empresa_id'         => $memb['empresa_id'],
-                'persona_id'         => $personaId,
-                'categoria'          => 'inmueble',
-                'banco_descripcion'  => $desc,
-                'numero_credito'     => trim((string) $this->request->getPost('numero_credito')) ?: null,
-                'sucursal'           => trim((string) $this->request->getPost('sucursal')) ?: null,
-                'moneda'             => trim((string) $this->request->getPost('moneda')) ?: 'UF',
-                'dividendo_n'        => $intOrNull($this->request->getPost('dividendo_n')),
-                'plazo_pactado'      => $plazo,
-                'saldo_clp'          => $parSaldo['clp'],
-                'saldo_uf'           => $parSaldo['uf'],
-                'cuotas_totales'     => $cuotasTot,
-                'cuotas_pagadas'     => $intOrNull($this->request->getPost('cuotas_pagadas')),
-                'cuota_mensual'      => $parDividendo['clp'],
-                'dividendo_uf'       => $parDividendo['uf'],
-                'dividendo_clp'      => $parDividendo['clp'],
-                'amortizacion_uf'    => $ufDec($this->request->getPost('amortizacion_uf')),
-                'interes_uf'         => $ufDec($this->request->getPost('interes_uf')),
-                'comision_uf'        => $ufDec($this->request->getPost('comision_uf')),
-                'seg_incendio_uf'    => $ufDec($this->request->getPost('seg_incendio_uf')),
-                'seg_desgravamen_uf' => $ufDec($this->request->getPost('seg_desgravamen_uf')),
-                'seg_adicionales_uf' => $ufDec($this->request->getPost('seg_adicionales_uf')),
-                'fecha_vencimiento'  => trim((string) $this->request->getPost('fecha_vencimiento')) ?: null,
-                'direccion_garantia' => trim((string) $this->request->getPost('direccion_garantia')) ?: null,
-                'asociacion'         => trim((string) $this->request->getPost('asociacion')) ?: null,
-                'tipo'               => 'Hipotecario',
-                'seguros_info'       => trim((string) $this->request->getPost('seguros_info')) ?: null,
-                'notas'              => trim((string) $this->request->getPost('notas')) ?: null,
-                'creado_por_id'      => $memb['usuario_id'],
-            ]);
+            $model = model(EquityPasivoModel::class);
+            $data  = [
+                'persona_id'                   => $personaId,
+                'categoria'                    => 'inmueble',
+                'banco_descripcion'            => $desc,
+                'numero_credito'               => trim((string) $this->request->getPost('numero_credito')) ?: null,
+                'sucursal'                     => trim((string) $this->request->getPost('sucursal')) ?: null,
+                'moneda'                       => trim((string) $this->request->getPost('moneda')) ?: 'UF',
+                'dividendo_n'                  => $intOrNull($this->request->getPost('dividendo_n')),
+                'plazo_pactado'                => $plazo,
+                'saldo_clp'                    => $parSaldo['clp'],
+                'saldo_uf'                     => $parSaldo['uf'],
+                'cuotas_totales'               => $cuotasTot,
+                'cuotas_pagadas'               => $intOrNull($this->request->getPost('cuotas_pagadas')),
+                'cuota_mensual'                => $parDividendo['clp'],
+                'dividendo_uf'                 => $parDividendo['uf'],
+                'dividendo_clp'                => $parDividendo['clp'],
+                'amortizacion_uf'              => $ufDec($this->request->getPost('amortizacion_uf')),
+                'interes_uf'                   => $ufDec($this->request->getPost('interes_uf')),
+                'comision_uf'                  => $ufDec($this->request->getPost('comision_uf')),
+                'seg_incendio_uf'              => $ufDec($this->request->getPost('seg_incendio_uf')),
+                'seg_desgravamen_uf'           => $ufDec($this->request->getPost('seg_desgravamen_uf')),
+                'seg_adicionales_uf'           => $ufDec($this->request->getPost('seg_adicionales_uf')),
+                'seg_otros_complementarios_uf' => $ufDec($this->request->getPost('seg_otros_complementarios_uf')),
+                'fecha_vencimiento'            => trim((string) $this->request->getPost('fecha_vencimiento')) ?: null,
+                'direccion_garantia'           => trim((string) $this->request->getPost('direccion_garantia')) ?: null,
+                'asociacion'                   => trim((string) $this->request->getPost('asociacion')) ?: null,
+                'tipo'                         => 'Hipotecario',
+                'seguros_info'                 => trim((string) $this->request->getPost('seguros_info')) ?: null,
+                'cuenta_pac'                   => trim((string) $this->request->getPost('cuenta_pac')) ?: null,
+                'dia_cargo_pac'                => $intOrNull($this->request->getPost('dia_cargo_pac')),
+                'notas'                        => trim((string) $this->request->getPost('notas')) ?: null,
+            ];
         } else {
             $desc = trim((string) $this->request->getPost('banco_descripcion'));
             if ($desc === '') {
                 return redirect()->to($redirectPath)->with('error', 'La descripción / banco es obligatoria.');
             }
-            model(EquityPasivoModel::class)->insert([
-                'id'                => $id,
-                'empresa_id'        => $memb['empresa_id'],
+            $model = model(EquityPasivoModel::class);
+            $data  = [
                 'persona_id'        => $personaId,
                 'categoria'         => $meta['categoria'] ?? 'otro',
                 'banco_descripcion' => $desc,
@@ -476,12 +500,62 @@ class EquityPatrimonio extends BaseController
                 'asociacion'        => trim((string) $this->request->getPost('asociacion')) ?: null,
                 'tipo'              => trim((string) $this->request->getPost('tipo')) ?: null,
                 'notas'             => trim((string) $this->request->getPost('notas')) ?: null,
-                'creado_por_id'     => $memb['usuario_id'],
-            ]);
+            ];
+        }
+
+        if ($isEdit) {
+            $model->update($editId, $data);
+            $msg = 'Registro actualizado.';
+        } else {
+            $data['id']            = new_id();
+            $data['empresa_id']    = $memb['empresa_id'];
+            $data['creado_por_id'] = $memb['usuario_id'];
+            $model->insert($data);
+            $msg = 'Registro agregado.';
         }
 
         return redirect()->to($redirectPath . ($personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : ''))
-            ->with('success', 'Registro agregado.');
+            ->with('success', $msg);
+    }
+
+    private function pathSeccion(string $clave): string
+    {
+        return match ($clave) {
+            'bienes-raices'       => '/equity/activos/bienes-raices',
+            'vehiculos'           => '/equity/activos/vehiculos',
+            'sociedades'          => '/equity/activos/sociedades',
+            'otros-activos'       => '/equity/activos/otros',
+            'pasivos-inmuebles'   => '/equity/pasivos/inmuebles',
+            'pasivos-circulantes' => '/equity/pasivos/circulantes',
+            'otros-pasivos'       => '/equity/pasivos/otros',
+            default               => '/dashboard',
+        };
+    }
+
+    /**
+     * @param array{table: string, categoria?: string} $meta
+     * @return array<string, mixed>|null
+     */
+    private function findRegistro(array $meta, string $empresaId, string $id): ?array
+    {
+        $model = match ($meta['table']) {
+            'equity_bienes_raices' => model(EquityBienRaizModel::class),
+            'equity_vehiculos'     => model(EquityVehiculoModel::class),
+            'equity_sociedades'    => model(EquitySociedadModel::class),
+            'equity_otros_activos' => model(EquityOtroActivoModel::class),
+            'equity_pasivos'       => model(EquityPasivoModel::class),
+            default                => null,
+        };
+        if ($model === null) {
+            return null;
+        }
+        $q = $model->where('id', $id)->where('empresa_id', $empresaId);
+        if (($meta['table'] ?? '') === 'equity_pasivos' && isset($meta['categoria'])) {
+            $q->where('categoria', $meta['categoria']);
+        }
+        $row = $q->first();
+
+        return is_array($row) ? $row : null;
     }
 
     /** @return list<array<string, mixed>> */

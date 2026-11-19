@@ -45,6 +45,16 @@ class EquityConfiguracion extends BaseController
             ->findAll();
 
         $vigente = EquityUf::vigente($memb['empresa_id']);
+        $editUfId = trim((string) $this->request->getGet('edit_uf'));
+        $editUf   = null;
+        if ($editUfId !== '') {
+            foreach ($valores as $v) {
+                if (($v['id'] ?? '') === $editUfId) {
+                    $editUf = $v;
+                    break;
+                }
+            }
+        }
 
         return view('equity/configuracion', [
             'title'     => 'Configuración',
@@ -52,6 +62,7 @@ class EquityConfiguracion extends BaseController
             'equityNav' => 'configuracion',
             'valores'   => $valores,
             'vigente'   => $vigente,
+            'editUf'    => $editUf,
             'success'   => session()->getFlashdata('success'),
             'error'     => session()->getFlashdata('error'),
         ]);
