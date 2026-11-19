@@ -113,6 +113,10 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('equity/situacion-financiera', 'EquityPatrimonio::situacionFinanciera');
     $routes->post('equity/situacion-financiera/cuotas', 'EquityPatrimonio::guardarCuotasSituacion');
     $routes->get('equity/ingresos', 'EquityPatrimonio::ingresos');
+    $routes->get('equity/ingresos/(:segment)/contratos/(:segment)/archivo', 'EquityPatrimonio::descargarContratoIngreso/$1/$2');
+    $routes->post('equity/ingresos/(:segment)/contratos/(:segment)/eliminar', 'EquityPatrimonio::eliminarContratoIngreso/$1/$2');
+    $routes->post('equity/ingresos/(:segment)/contratos/(:segment)', 'EquityPatrimonio::guardarContratoIngreso/$1/$2');
+    $routes->post('equity/ingresos/(:segment)/contratos', 'EquityPatrimonio::guardarContratoIngreso/$1');
     $routes->get('equity/ingresos/(:segment)', 'EquityPatrimonio::ingresosFuente/$1');
     $routes->post('equity/ingresos/(:segment)', 'EquityPatrimonio::guardarIngresosFuente/$1');
     $routes->get('equity/respaldos', 'EquityPatrimonio::respaldos');

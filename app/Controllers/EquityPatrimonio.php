@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Libraries\DocumentStorage;
 use App\Libraries\EquityAcl;
 use App\Libraries\EquityCatalogo;
 use App\Libraries\EquityUf;
 use App\Libraries\MembershipAuth;
 use App\Models\EquityBienRaizModel;
 use App\Models\EquityFichaModel;
+use App\Models\EquityIngresoContratoModel;
 use App\Models\EquityOtroActivoModel;
 use App\Models\EquityPasivoModel;
 use App\Models\EquityPersonaModel;
@@ -635,24 +637,49 @@ class EquityPatrimonio extends BaseController
         $fuentes = EquityCatalogo::fuentesIngreso();
         $totalesFuente = [];
         $totalGeneral = 0.0;
+        // Preferir suma de contratos vigentes (equivalente mensual)
+        $cq = model(EquityIngresoContratoModel::class)
+            ->where('empresa_id', $empresaId)
+            ->where('estado', 'vigente');
+        if ($personaId !== '') {
+            $cq->where('persona_id', $personaId);
+        }
+        $contratosVigentes = $cq->findAll();
+        $sumasContrato = [];
         foreach ($fuentes as $clave => $meta) {
-            $sum = 0.0;
-            foreach ($fichasBase as $fRow) {
-                foreach ($meta['campos'] as $campo) {
-                    $v = $fRow[$campo['key']] ?? null;
-                    if ($v !== null && $v !== '') {
-                        $sum += (float) $v;
+            $sumasContrato[$clave] = 0.0;
+        }
+        $subtipoFuente = [];
+        foreach ($fuentes as $clave => $meta) {
+            foreach ($meta['campos'] as $c) {
+                $subtipoFuente[$c['subtipo']] = $clave;
+            }
+        }
+        foreach ($contratosVigentes as $ct) {
+            $fClave = $subtipoFuente[$ct['subtipo'] ?? ''] ?? ($ct['fuente'] ?? null);
+            if ($fClave === null || ! isset($sumasContrato[$fClave])) {
+                continue;
+            }
+            $sumasContrato[$fClave] += EquityCatalogo::montoMensualEquivalente(
+                isset($ct['monto_contrato_clp']) ? (float) $ct['monto_contrato_clp'] : null,
+                $ct['periodicidad'] ?? 'mensual'
+            );
+        }
+
+        foreach ($fuentes as $clave => $meta) {
+            $sum = (float) ($sumasContrato[$clave] ?? 0);
+            if ($sum <= 0) {
+                foreach ($fichasBase as $fRow) {
+                    foreach ($meta['campos'] as $campo) {
+                        $v = $fRow[$campo['key']] ?? null;
+                        if ($v !== null && $v !== '') {
+                            $sum += (float) $v;
+                        }
                     }
                 }
             }
-            if ($clave === 'inversiones') {
-                $arriendosFicha = 0.0;
-                foreach ($fichasBase as $fRow) {
-                    $arriendosFicha += (float) ($fRow['ingreso_arriendos'] ?? 0);
-                }
-                if ($arriendosFicha <= 0) {
-                    $sum += $this->sumCanonArriendos($empresaId, $personaId, $ufRate);
-                }
+            if ($clave === 'inversiones' && $sum <= 0) {
+                $sum += $this->sumCanonArriendos($empresaId, $personaId, $ufRate);
             }
             $totalesFuente[$clave] = $sum;
             $totalGeneral += $sum;
@@ -712,6 +739,29 @@ class EquityPatrimonio extends BaseController
         $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
         $meta      = $fuentes[$fuente];
         $ficha     = $this->ultimaFicha($empresaId, $personaId);
+        $editId    = trim((string) $this->request->getGet('edit'));
+
+        $cq = model(EquityIngresoContratoModel::class)
+            ->where('empresa_id', $empresaId)
+            ->where('fuente', $fuente)
+            ->orderBy('estado', 'ASC')
+            ->orderBy('fecha_inicio_contrato', 'DESC')
+            ->orderBy('created_at', 'DESC');
+        if ($personaId !== '') {
+            $cq->where('persona_id', $personaId);
+        }
+        $contratos = $cq->findAll();
+        $editRow = null;
+        foreach ($contratos as &$c) {
+            $c['monto_mensual'] = EquityCatalogo::montoMensualEquivalente(
+                isset($c['monto_contrato_clp']) ? (float) $c['monto_contrato_clp'] : null,
+                $c['periodicidad'] ?? 'mensual'
+            );
+            if ($editId !== '' && ($c['id'] ?? '') === $editId) {
+                $editRow = $c;
+            }
+        }
+        unset($c);
 
         $arriendos = [];
         $totalCanon = 0.0;
@@ -743,6 +793,8 @@ class EquityPatrimonio extends BaseController
             'fuente'      => $fuente,
             'meta'        => $meta,
             'ficha'       => $ficha,
+            'contratos'   => $contratos,
+            'editRow'     => $editRow,
             'personas'    => $personas,
             'personaId'   => $personaId,
             'arriendos'   => $arriendos,
@@ -845,6 +897,300 @@ class EquityPatrimonio extends BaseController
 
         return redirect()->to('/equity/ingresos/' . $fuente . '?persona_id=' . rawurlencode($personaId))
             ->with('success', $msg);
+    }
+
+    public function guardarContratoIngreso(string $fuente, ?string $id = null)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        if (! EquityAcl::canManage($memb)) {
+            return redirect()->to('/equity/ingresos/' . $fuente)->with('error', 'Sin permiso para editar contratos.');
+        }
+
+        $fuentes = EquityCatalogo::fuentesIngreso();
+        if (! isset($fuentes[$fuente])) {
+            return redirect()->to('/equity/ingresos')->with('error', 'Fuente de ingreso no válida.');
+        }
+
+        $personaId = trim((string) $this->request->getPost('persona_id'));
+        $redirect  = '/equity/ingresos/' . $fuente . ($personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : '');
+        if ($personaId === '') {
+            return redirect()->to($redirect)->with('error', 'Selecciona una persona.');
+        }
+
+        $empresaId = $memb['empresa_id'];
+        $persona = model(EquityPersonaModel::class)
+            ->where('id', $personaId)
+            ->where('empresa_id', $empresaId)
+            ->first();
+        if (! is_array($persona)) {
+            return redirect()->to($redirect)->with('error', 'Persona no encontrada.');
+        }
+
+        $subtipos = [];
+        foreach ($fuentes[$fuente]['campos'] as $c) {
+            $subtipos[$c['subtipo']] = $c;
+        }
+        $subtipo = trim((string) $this->request->getPost('subtipo'));
+        if (! isset($subtipos[$subtipo])) {
+            return redirect()->to($redirect)->with('error', 'Tipo de ingreso no válido.');
+        }
+
+        $nombre = trim((string) $this->request->getPost('contraparte_nombre'));
+        if ($nombre === '') {
+            return redirect()->to($redirect)->with('error', 'Nombre / razón social de la contraparte es obligatorio.');
+        }
+
+        $periodicidades = EquityCatalogo::opcionesPeriodicidadIngreso();
+        $periodicidad   = trim((string) $this->request->getPost('periodicidad')) ?: 'mensual';
+        if (! isset($periodicidades[$periodicidad])) {
+            $periodicidad = 'mensual';
+        }
+        $estados = EquityCatalogo::opcionesEstadoContratoIngreso();
+        $estado  = trim((string) $this->request->getPost('estado')) ?: 'vigente';
+        if (! isset($estados[$estado])) {
+            $estado = 'vigente';
+        }
+
+        $money = static function ($raw): ?string {
+            $v = trim((string) $raw);
+            if ($v === '') {
+                return null;
+            }
+            $v = str_replace(['$', ' '], '', $v);
+            if (str_contains($v, ',') && str_contains($v, '.')) {
+                $v = str_replace('.', '', $v);
+                $v = str_replace(',', '.', $v);
+            } elseif (str_contains($v, ',')) {
+                $v = str_replace(',', '.', $v);
+            }
+            if (! is_numeric($v)) {
+                return null;
+            }
+
+            return number_format((float) $v, 2, '.', '');
+        };
+
+        $fecha = trim((string) $this->request->getPost('fecha_inicio_contrato'));
+        $rut   = trim((string) $this->request->getPost('contraparte_rut'));
+        $notas = trim((string) $this->request->getPost('notas'));
+        $monto = $money($this->request->getPost('monto_contrato_clp'));
+
+        helper('id');
+        $isEdit = $id !== null && $id !== '';
+        $rowExisting = null;
+        if ($isEdit) {
+            $rowExisting = model(EquityIngresoContratoModel::class)
+                ->where('id', $id)
+                ->where('empresa_id', $empresaId)
+                ->where('fuente', $fuente)
+                ->first();
+            if (! is_array($rowExisting)) {
+                return redirect()->to($redirect)->with('error', 'Contrato no encontrado.');
+            }
+        }
+
+        $data = [
+            'persona_id'            => $personaId,
+            'fuente'                => $fuente,
+            'subtipo'               => $subtipo,
+            'contraparte_rut'       => $rut !== '' ? $rut : null,
+            'contraparte_nombre'    => $nombre,
+            'fecha_inicio_contrato' => $fecha !== '' ? $fecha : null,
+            'periodicidad'          => $periodicidad,
+            'monto_contrato_clp'    => $monto,
+            'estado'                => $estado,
+            'notas'                 => $notas !== '' ? $notas : null,
+        ];
+
+        $file = $this->request->getFile('contrato_archivo');
+        if ($file !== null && $file->isValid() && $file->getError() === UPLOAD_ERR_OK) {
+            if ($file->getSize() > 15 * 1024 * 1024) {
+                return redirect()->to($redirect)->with('error', 'El contrato supera 15 MB.');
+            }
+            $binary = file_get_contents($file->getTempName());
+            if ($binary === false) {
+                return redirect()->to($redirect)->with('error', 'No se pudo leer el archivo del contrato.');
+            }
+            $docId = $isEdit ? (string) $id : new_id();
+            try {
+                $saved = DocumentStorage::save(
+                    $empresaId,
+                    $docId,
+                    $file->getClientName(),
+                    $binary,
+                    'equity'
+                );
+                $data['contrato_archivo_nombre'] = $file->getClientName();
+                $data['contrato_ruta_relativa']  = $saved['ruta_relativa'];
+                $data['contrato_mime']           = $file->getMimeType() ?: 'application/octet-stream';
+                $data['contrato_tamano_bytes']   = $saved['tamano_bytes'];
+            } catch (\Throwable $e) {
+                log_message('error', 'Equity contrato ingreso upload failed: {msg}', ['msg' => $e->getMessage()]);
+
+                return redirect()->to($redirect)->with('error', 'No se pudo guardar el contrato adjunto.');
+            }
+        }
+
+        if ($isEdit) {
+            model(EquityIngresoContratoModel::class)->update($id, $data);
+            $msg = 'Contrato / contraparte actualizado.';
+        } else {
+            $newId = new_id();
+            // Si ya subimos archivo con new_id provisional distinto, re-asociar: usamos newId consistente
+            if (! empty($data['contrato_ruta_relativa']) && isset($docId) && $docId !== $newId) {
+                // archivo ya guardado bajo $docId; mantener esa ruta e id = docId
+                $newId = $docId;
+            }
+            $data['id']            = $newId;
+            $data['empresa_id']    = $empresaId;
+            $data['creado_por_id'] = $memb['usuario_id'];
+            model(EquityIngresoContratoModel::class)->insert($data);
+            $msg = 'Contrato / contraparte agregado.';
+        }
+
+        $this->sincronizarFichaDesdeContratos($empresaId, $personaId, $memb['usuario_id']);
+
+        return redirect()->to($redirect)->with('success', $msg);
+    }
+
+    public function eliminarContratoIngreso(string $fuente, string $id)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        if (! EquityAcl::canManage($memb)) {
+            return redirect()->to('/equity/ingresos/' . $fuente)->with('error', 'Sin permiso para eliminar.');
+        }
+
+        $empresaId = $memb['empresa_id'];
+        $row = model(EquityIngresoContratoModel::class)
+            ->where('id', $id)
+            ->where('empresa_id', $empresaId)
+            ->where('fuente', $fuente)
+            ->first();
+        $personaId = is_array($row) ? (string) ($row['persona_id'] ?? '') : '';
+        $redirect  = '/equity/ingresos/' . $fuente . ($personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : '');
+        if (! is_array($row)) {
+            return redirect()->to($redirect)->with('error', 'Contrato no encontrado.');
+        }
+
+        if (! empty($row['contrato_ruta_relativa'])) {
+            try {
+                DocumentStorage::delete((string) $row['contrato_ruta_relativa']);
+            } catch (\Throwable $e) {
+                // soft: continue delete
+            }
+        }
+        model(EquityIngresoContratoModel::class)->delete($id);
+        $this->sincronizarFichaDesdeContratos($empresaId, $personaId, $memb['usuario_id']);
+
+        return redirect()->to($redirect)->with('success', 'Contrato eliminado.');
+    }
+
+    public function descargarContratoIngreso(string $fuente, string $id)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $row = model(EquityIngresoContratoModel::class)
+            ->where('id', $id)
+            ->where('empresa_id', $memb['empresa_id'])
+            ->where('fuente', $fuente)
+            ->first();
+        if (! is_array($row) || empty($row['contrato_ruta_relativa'])) {
+            return redirect()->to('/equity/ingresos/' . $fuente)->with('error', 'Archivo no disponible.');
+        }
+
+        try {
+            $data = DocumentStorage::read((string) $row['contrato_ruta_relativa']);
+        } catch (\Throwable $e) {
+            return redirect()->to('/equity/ingresos/' . $fuente)->with('error', 'Archivo no encontrado.');
+        }
+
+        $nombre = str_replace('"', '', (string) ($row['contrato_archivo_nombre'] ?? 'contrato.pdf'));
+
+        return $this->response
+            ->setHeader('Content-Type', (string) ($row['contrato_mime'] ?: 'application/octet-stream'))
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $nombre . '"')
+            ->setBody($data);
+    }
+
+    /** Recalcula campos de ficha desde contratos vigentes (equivalente mensual). */
+    private function sincronizarFichaDesdeContratos(string $empresaId, string $personaId, string $usuarioId): void
+    {
+        if ($personaId === '') {
+            return;
+        }
+        helper('id');
+        $fuentes = EquityCatalogo::fuentesIngreso();
+        $sums = [];
+        foreach ($fuentes as $meta) {
+            foreach ($meta['campos'] as $c) {
+                $sums[$c['key']] = 0.0;
+            }
+        }
+
+        $rows = model(EquityIngresoContratoModel::class)
+            ->where('empresa_id', $empresaId)
+            ->where('persona_id', $personaId)
+            ->where('estado', 'vigente')
+            ->findAll();
+        $subtipoToKey = [];
+        foreach ($fuentes as $meta) {
+            foreach ($meta['campos'] as $c) {
+                $subtipoToKey[$c['subtipo']] = $c['key'];
+            }
+        }
+        foreach ($rows as $r) {
+            $key = $subtipoToKey[$r['subtipo'] ?? ''] ?? null;
+            if ($key === null) {
+                continue;
+            }
+            $mensual = EquityCatalogo::montoMensualEquivalente(
+                isset($r['monto_contrato_clp']) ? (float) $r['monto_contrato_clp'] : null,
+                $r['periodicidad'] ?? 'mensual'
+            );
+            $sums[$key] = ($sums[$key] ?? 0) + $mensual;
+        }
+
+        $patch = [];
+        foreach ($sums as $k => $v) {
+            $patch[$k] = $v > 0 ? number_format($v, 2, '.', '') : null;
+        }
+
+        $ficha = $this->ultimaFicha($empresaId, $personaId);
+        if (is_array($ficha)) {
+            $merged = array_merge($ficha, $patch);
+            $patch['ingreso_mensual_total'] = $this->sumIngresosFicha($merged);
+            model(EquityFichaModel::class)->update($ficha['id'], $patch);
+        } else {
+            $any = false;
+            foreach ($patch as $v) {
+                if ($v !== null) {
+                    $any = true;
+                    break;
+                }
+            }
+            if (! $any) {
+                return;
+            }
+            $row = array_merge([
+                'id'            => new_id(),
+                'empresa_id'    => $empresaId,
+                'persona_id'    => $personaId,
+                'fecha_corte'   => date('Y-m-d'),
+                'moneda'        => 'CLP',
+                'creado_por_id' => $usuarioId,
+            ], $patch);
+            $row['ingreso_mensual_total'] = $this->sumIngresosFicha($row);
+            model(EquityFichaModel::class)->insert($row);
+        }
     }
 
     /** @return array<string, mixed>|null */

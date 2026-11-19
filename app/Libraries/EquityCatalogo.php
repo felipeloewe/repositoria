@@ -192,7 +192,7 @@ final class EquityCatalogo
     /**
      * Fuentes de ingreso del menú Ingresos.
      *
-     * @return array<string, array{clave: string, label: string, descripcion: string, campos: list<array{key: string, label: string}>}>
+     * @return array<string, array{clave: string, label: string, descripcion: string, campos: list<array{key: string, label: string, subtipo: string}>}>
      */
     public static function fuentesIngreso(): array
     {
@@ -202,8 +202,8 @@ final class EquityCatalogo
                 'label'       => 'Renta',
                 'descripcion' => 'Ingreso laboral fijo y variable',
                 'campos'      => [
-                    ['key' => 'ingreso_fijo', 'label' => 'Fija'],
-                    ['key' => 'ingreso_variable', 'label' => 'Variable'],
+                    ['key' => 'ingreso_fijo', 'label' => 'Fija', 'subtipo' => 'fija'],
+                    ['key' => 'ingreso_variable', 'label' => 'Variable', 'subtipo' => 'variable'],
                 ],
             ],
             'honorarios' => [
@@ -211,9 +211,9 @@ final class EquityCatalogo
                 'label'       => 'Honorarios',
                 'descripcion' => 'Honorarios profesionales, comisiones y bonos',
                 'campos'      => [
-                    ['key' => 'ingreso_honorarios', 'label' => 'Honorarios'],
-                    ['key' => 'ingreso_comisiones', 'label' => 'Comisiones'],
-                    ['key' => 'ingreso_bonos', 'label' => 'Bonos'],
+                    ['key' => 'ingreso_honorarios', 'label' => 'Honorarios', 'subtipo' => 'honorarios'],
+                    ['key' => 'ingreso_comisiones', 'label' => 'Comisiones', 'subtipo' => 'comisiones'],
+                    ['key' => 'ingreso_bonos', 'label' => 'Bonos', 'subtipo' => 'bonos'],
                 ],
             ],
             'inversiones' => [
@@ -221,9 +221,9 @@ final class EquityCatalogo
                 'label'       => 'Inversiones',
                 'descripcion' => 'Arriendos, mutuos y dividendos',
                 'campos'      => [
-                    ['key' => 'ingreso_arriendos', 'label' => 'Arriendos'],
-                    ['key' => 'ingreso_mutuos', 'label' => 'Mutuos'],
-                    ['key' => 'ingreso_dividendos', 'label' => 'Dividendos'],
+                    ['key' => 'ingreso_arriendos', 'label' => 'Arriendos', 'subtipo' => 'arriendos'],
+                    ['key' => 'ingreso_mutuos', 'label' => 'Mutuos', 'subtipo' => 'mutuos'],
+                    ['key' => 'ingreso_dividendos', 'label' => 'Dividendos', 'subtipo' => 'dividendos'],
                 ],
             ],
             'otros' => [
@@ -231,12 +231,47 @@ final class EquityCatalogo
                 'label'       => 'Otros',
                 'descripcion' => 'Pensiones, donaciones e indemnizaciones',
                 'campos'      => [
-                    ['key' => 'ingreso_pensiones', 'label' => 'Pensiones'],
-                    ['key' => 'ingreso_donaciones', 'label' => 'Donaciones'],
-                    ['key' => 'ingreso_indemnizaciones', 'label' => 'Indemnizaciones'],
+                    ['key' => 'ingreso_pensiones', 'label' => 'Pensiones', 'subtipo' => 'pensiones'],
+                    ['key' => 'ingreso_donaciones', 'label' => 'Donaciones', 'subtipo' => 'donaciones'],
+                    ['key' => 'ingreso_indemnizaciones', 'label' => 'Indemnizaciones', 'subtipo' => 'indemnizaciones'],
                 ],
             ],
         ];
+    }
+
+    /** @return array<string, string> */
+    public static function opcionesPeriodicidadIngreso(): array
+    {
+        return [
+            'mensual'    => 'Mensual',
+            'trimestral' => 'Trimestral',
+            'semestral'  => 'Semestral',
+            'anual'      => 'Anual',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public static function opcionesEstadoContratoIngreso(): array
+    {
+        return [
+            'vigente' => 'Vigente',
+            'vencido' => 'Vencido',
+        ];
+    }
+
+    /** Convierte monto del contrato a equivalente mensual. */
+    public static function montoMensualEquivalente(?float $monto, ?string $periodicidad): float
+    {
+        if ($monto === null || $monto <= 0) {
+            return 0.0;
+        }
+
+        return match ($periodicidad) {
+            'trimestral' => $monto / 3,
+            'semestral'  => $monto / 6,
+            'anual'      => $monto / 12,
+            default      => $monto, // mensual
+        };
     }
 
     /** @return array{clave: string, label: string, grupo: string, table: string, categoria?: string}|null */
