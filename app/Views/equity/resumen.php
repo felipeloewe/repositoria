@@ -71,7 +71,7 @@ $ufRate = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
                 ['Activos — Vehículos', 'vehiculos', 'equity/activos/vehiculos'],
                 ['Activos — Sociedades', 'sociedades', 'equity/activos/sociedades'],
                 ['Activos — Otros', 'otros_activos', 'equity/activos/otros'],
-                ['Pasivos — Inmuebles', 'pasivos_inm', 'equity/pasivos/inmuebles'],
+                ['Pasivos — Hipotecarios', 'pasivos_inm', 'equity/pasivos/inmuebles'],
                 ['Pasivos — Circulantes', 'pasivos_circ', 'equity/pasivos/circulantes'],
                 ['Pasivos — Otros', 'pasivos_otro', 'equity/pasivos/otros'],
             ];

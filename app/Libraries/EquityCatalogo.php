@@ -61,10 +61,10 @@ final class EquityCatalogo
             ],
             [
                 'clave'       => 'pasivos-inmuebles',
-                'label'       => 'Pasivos inmuebles',
+                'label'       => 'Hipotecarios',
                 'grupo'       => 'Pasivos',
                 'path'        => '/equity/pasivos/inmuebles',
-                'descripcion' => 'Hipotecarios y créditos asociados a bienes raíces',
+                'descripcion' => 'Créditos hipotecarios asociados a bienes raíces',
             ],
             [
                 'clave'       => 'pasivos-circulantes',
@@ -121,7 +121,7 @@ final class EquityCatalogo
                 ['clave' => 'otros-activos', 'label' => 'Otros activos', 'path' => '/equity/activos/otros'],
             ],
             'Pasivos' => [
-                ['clave' => 'pasivos-inmuebles', 'label' => 'Inmuebles', 'path' => '/equity/pasivos/inmuebles'],
+                ['clave' => 'pasivos-inmuebles', 'label' => 'Hipotecarios', 'path' => '/equity/pasivos/inmuebles'],
                 ['clave' => 'pasivos-circulantes', 'label' => 'Circulantes', 'path' => '/equity/pasivos/circulantes'],
                 ['clave' => 'otros-pasivos', 'label' => 'Otros pasivos', 'path' => '/equity/pasivos/otros'],
             ],
@@ -161,7 +161,7 @@ final class EquityCatalogo
             ],
             'pasivos-inmuebles' => [
                 'clave'     => 'pasivos-inmuebles',
-                'label'     => 'Pasivos inmuebles',
+                'label'     => 'Hipotecarios',
                 'grupo'     => 'Pasivos',
                 'table'     => 'equity_pasivos',
                 'categoria' => 'inmueble',
