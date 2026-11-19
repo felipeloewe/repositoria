@@ -92,6 +92,7 @@ final class Product
         $prefixes = [
             '/dashboard',
             '/equity',
+            '/admin',
             '/organizacion',
             '/perfiles',
             '/empresa/cambiar',

@@ -72,8 +72,14 @@ $isActive = static function (string $clave) use ($title, $equityNav): bool {
     <a href="<?= site_url('dashboard') ?>" class="<?= $title === 'Inicio' ? 'active' : '' ?>" data-nav="inicio"><span class="nav-label">Inicio</span></a>
 <?php endif; ?>
 
-<?php if ($canOrg || $canPerfiles || $canConfig): ?>
+<?php
+$isSuperadmin = ! empty($memb['es_admin_central']);
+if ($canOrg || $canPerfiles || $canConfig || $isSuperadmin):
+?>
     <p class="nav-section">Administración</p>
+<?php endif; ?>
+<?php if ($isSuperadmin): ?>
+    <a href="<?= site_url('admin/empresas') ?>" class="<?= ($title === 'Admin central') ? 'active' : '' ?>" data-nav="admin-central"><span class="nav-label">Admin central · Empresas</span></a>
 <?php endif; ?>
 <?php if ($canOrg): ?>
     <a href="<?= site_url('organizacion') ?>" class="<?= $title === 'Organización' ? 'active' : '' ?>" data-nav="org"><span class="nav-label">Organización</span></a>

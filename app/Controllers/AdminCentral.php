@@ -64,12 +64,13 @@ class AdminCentral extends BaseController
         }
 
         return view('admin/empresas', [
-            'title'    => 'Admin central',
-            'memb'     => $memb,
-            'empresas' => $empresas,
-            'planes'   => $planes,
-            'success'  => session()->getFlashdata('success'),
-            'error'    => session()->getFlashdata('error'),
+            'title'      => 'Admin central',
+            'memb'       => $memb,
+            'empresas'   => $empresas,
+            'planes'     => $planes,
+            'success'    => session()->getFlashdata('success'),
+            'inviteInfo' => session()->getFlashdata('inviteInfo'),
+            'error'      => session()->getFlashdata('error'),
         ]);
     }
 
@@ -104,7 +105,7 @@ class AdminCentral extends BaseController
         return redirect()->to('/admin/empresas')->with('success', $msg);
     }
 
-    /** Alta empresa + primer Administrador Master (Admin central). */
+    /** Alta empresa + contacto Admin Master (invitación: verifica correo y autogestiona clave). */
     public function crearEmpresa()
     {
         $memb = $this->requireAdminCentral();
@@ -126,7 +127,9 @@ class AdminCentral extends BaseController
             'admin_cargo'    => (string) $this->request->getPost('admin_cargo'),
             'admin_rut'      => (string) $this->request->getPost('admin_rut'),
             'admin_email'    => (string) $this->request->getPost('admin_email'),
-            'admin_password' => (string) $this->request->getPost('admin_password'),
+            // El Superadmin no define la clave: el Admin la autogestiona tras verificar correo.
+            'invite_admin'   => true,
+            'equity_matriz'  => true,
         ];
 
         try {
@@ -140,13 +143,24 @@ class AdminCentral extends BaseController
         }
 
         $planLabel = $result['plan_codigo'] ?? ($result['tipo'] === 'a' ? 'sin plan (requires_plan)' : '—');
+        $email     = (string) ($result['admin_email'] ?? $this->request->getPost('admin_email'));
         $msg       = sprintf(
-            'Empresa creada (%s) tipo (%s), plan %s. Admin Master: %s.',
-            $result['empresa_id'],
+            'Empresa creada (tipo %s, plan %s). Se invitó al Admin %s: debe verificar correo, entrar con clave temporal y definir su propia clave. Luego en Grupo / Usuarios puede inscribir a los declarantes.',
             $result['tipo'],
             $planLabel,
-            trim((string) $this->request->getPost('admin_email'))
+            $email
         );
+
+        $inviteBits = [];
+        if (! empty($result['admin_verify_url'])) {
+            $inviteBits[] = 'Verificación: ' . $result['admin_verify_url'];
+        }
+        if (! empty($result['admin_temp_password'])) {
+            $inviteBits[] = 'Clave temporal: ' . $result['admin_temp_password'];
+        }
+        if ($inviteBits !== []) {
+            session()->setFlashdata('inviteInfo', implode("\n", $inviteBits));
+        }
 
         return redirect()->to('/admin/empresas')->with('success', $msg);
     }

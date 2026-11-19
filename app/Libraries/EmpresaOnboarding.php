@@ -35,11 +35,13 @@ final class EmpresaOnboarding
      *   plan_id?: ?string,
      *   admin_nombre: string,
      *   admin_email: string,
-     *   admin_password: string,
+     *   admin_password?: string,
      *   admin_alias: string,
      *   admin_cargo?: ?string,
      *   admin_rut?: ?string,
-     *   create_defaults?: bool
+     *   create_defaults?: bool,
+     *   invite_admin?: bool,
+     *   equity_matriz?: bool
      * } $input
      *
      * @return array{
@@ -49,7 +51,10 @@ final class EmpresaOnboarding
      *   departamento_id: ?string,
      *   sucursal_id: ?string,
      *   tipo: string,
-     *   plan_codigo: ?string
+     *   plan_codigo: ?string,
+     *   admin_temp_password?: ?string,
+     *   admin_verify_url?: ?string,
+     *   admin_email?: string
      * }
      */
     public function createEmpresaWithAdmin(array $input): array
@@ -72,6 +77,8 @@ final class EmpresaOnboarding
         $adminCargo  = trim((string) ($input['admin_cargo'] ?? '')) ?: null;
         $adminRut    = trim((string) ($input['admin_rut'] ?? '')) ?: null;
         $createDefs  = ($input['create_defaults'] ?? true) !== false;
+        $inviteAdmin = (bool) ($input['invite_admin'] ?? false);
+        $equityMatriz = (bool) ($input['equity_matriz'] ?? false);
 
         if ($nombre === '') {
             throw new RuntimeException('El nombre de la empresa es obligatorio.');
@@ -85,7 +92,15 @@ final class EmpresaOnboarding
         if (! filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
             throw new RuntimeException('El correo del administrador no es válido.');
         }
-        if (strlen($adminPass) < 6) {
+
+        $tempPassword = null;
+        $verifyToken  = null;
+        if ($inviteAdmin) {
+            // Superadmin no define la clave: se minta temporal y el Admin la cambia al entrar.
+            $tempPassword = EquityPassword::mintDefault(8);
+            $adminPass    = $tempPassword;
+            $verifyToken  = bin2hex(random_bytes(24));
+        } elseif (strlen($adminPass) < 6) {
             throw new RuntimeException('La contraseña del administrador debe tener al menos 6 caracteres.');
         }
 
@@ -155,7 +170,7 @@ final class EmpresaOnboarding
         $this->db->transBegin();
 
         try {
-            $this->db->table('empresas')->insert([
+            $empresaRow = [
                 'id'                   => $empresaId,
                 'nombre'               => $nombre,
                 'slug'                 => $slug,
@@ -168,9 +183,14 @@ final class EmpresaOnboarding
                 'storage_limit_bytes'  => $storage,
                 'created_at'           => $now,
                 'updated_at'           => $now,
-            ]);
+            ];
+            if ($this->db->fieldExists('equity_es_matriz', 'empresas')) {
+                $empresaRow['equity_es_matriz'] = $equityMatriz ? 1 : 0;
+                $empresaRow['equity_matriz_id'] = null;
+            }
+            $this->db->table('empresas')->insert($empresaRow);
 
-            $this->db->table('usuarios')->insert([
+            $usuarioRow = [
                 'id'               => $usuarioId,
                 'email'            => $adminEmail,
                 'nombre'           => $adminNombre,
@@ -182,7 +202,14 @@ final class EmpresaOnboarding
                 'es_admin_central' => 0,
                 'created_at'       => $now,
                 'updated_at'       => $now,
-            ]);
+            ];
+            if ($inviteAdmin) {
+                $usuarioRow['email_verified_at']    = null;
+                $usuarioRow['email_verify_token']   = $verifyToken;
+                $usuarioRow['email_verify_sent_at'] = $now;
+                $usuarioRow['must_change_password'] = 1;
+            }
+            $this->db->table('usuarios')->insert($usuarioRow);
 
             if ($createDefs) {
                 $deptoId = new_id();
@@ -244,14 +271,23 @@ final class EmpresaOnboarding
             }
         }
 
+        $verifyUrl = null;
+        if ($inviteAdmin && $verifyToken !== null) {
+            $verifyUrl = site_url('verificar-email?t=' . rawurlencode($verifyToken));
+            EquityMail::enviarInvitacionAdmin($adminEmail, $adminNombre, $verifyUrl, $tempPassword, $nombre);
+        }
+
         return [
-            'empresa_id'      => $empresaId,
-            'usuario_id'      => $usuarioId,
-            'membresia_id'    => $membresiaId,
-            'departamento_id' => $deptoId,
-            'sucursal_id'     => $sucursalId,
-            'tipo'            => $tipo,
-            'plan_codigo'     => $planCodigo,
+            'empresa_id'           => $empresaId,
+            'usuario_id'           => $usuarioId,
+            'membresia_id'         => $membresiaId,
+            'departamento_id'      => $deptoId,
+            'sucursal_id'          => $sucursalId,
+            'tipo'                 => $tipo,
+            'plan_codigo'          => $planCodigo,
+            'admin_email'          => $adminEmail,
+            'admin_temp_password'  => $tempPassword,
+            'admin_verify_url'     => $verifyUrl,
         ];
     }
 

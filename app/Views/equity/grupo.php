@@ -49,7 +49,8 @@
 <section class="card-panel" style="margin-bottom:1.25rem">
     <h2 style="margin-top:0">Alta de declarante</h2>
     <p class="muted" style="margin-top:0">
-        La matriz (o admin) inscribe personas en la matriz o una subsidiaria. Se crea el usuario, se envía verificación de correo y una clave temporal (cambio obligatorio al ingresar).
+        Como Admin de la empresa, inscribes aquí a las <strong>personas que hacen la declaración</strong> patrimonial
+        (en la matriz o una subsidiaria). Se crea el usuario, se envía verificación de correo y una clave temporal (cambio obligatorio al ingresar).
         Si la persona será representada por un tercero, indícalo: no se crea login propio y el representante elegirá a quién declarar al inicio de sesión.
     </p>
 
