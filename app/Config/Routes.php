@@ -119,6 +119,7 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     // Menú Equity — personas (socio/gerente) + fichas + respaldos por persona
     $routes->get('equity', 'Equity::index');
     $routes->get('equity/nueva', 'Equity::createForm');
+    $routes->get('equity/buscar-rut', 'Equity::buscarPorRut');
     $routes->post('equity', 'Equity::store');
     $routes->get('equity/(:segment)', 'Equity::show/$1');
     $routes->get('equity/(:segment)/editar', 'Equity::editForm/$1');

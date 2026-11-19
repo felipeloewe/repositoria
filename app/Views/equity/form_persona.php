@@ -10,6 +10,13 @@ $isEdit = is_array($persona ?? null) && ! empty($persona['id']);
 $action = $isEdit ? site_url('equity/' . $persona['id']) : site_url('equity');
 $p = $persona ?? [];
 $tipoActual = $p['tipo'] ?? 'socio';
+$vistaLaboral = ! empty($vistaLaboral) || $tipoActual === 'gerente';
+$buscarRutUrl = $buscarRutUrl ?? site_url('equity/buscar-rut');
+$personaIdReal = $isEdit ? (string) ($persona['id'] ?? '') : '';
+// Si venimos de personales a laborales, el id real sigue siendo el de socio
+if ($vistaLaboral && $isEdit && ($persona['tipo'] ?? '') === 'gerente') {
+    // tipo forzado solo en vista; id sigue siendo válido
+}
 $val = static function (string $key, $default = '') use ($p) {
     $v = $p[$key] ?? $default;
 
@@ -26,8 +33,16 @@ $sel = static function (string $key, $opt) use ($p): string {
 ?>
 
 <section class="banner">
-    <h2><?= $isEdit ? 'Editar integrante' : 'Nuevo integrante' ?></h2>
-    <p>Antecedentes personales o laborales del grupo familiar.</p>
+    <h2><?php
+        if ($vistaLaboral) {
+            echo $isEdit ? 'Editar antecedentes laborales' : 'Antecedentes laborales';
+        } else {
+            echo $isEdit ? 'Editar integrante' : 'Nuevo integrante';
+        }
+    ?></h2>
+    <p><?= $vistaLaboral
+        ? 'Busca por RUT la ficha de Antecedentes Personales; nombres, apellidos y RUT se toman de ahí.'
+        : 'Antecedentes personales o laborales del grupo familiar.' ?></p>
 </section>
 
 <?php if (! empty($error)): ?>
@@ -42,6 +57,16 @@ $sel = static function (string $key, $opt) use ($p): string {
     <form method="post" action="<?= $action ?>" id="form-antecedentes">
         <?= csrf_field() ?>
 
+        <input type="hidden" name="vista_laboral" id="vista_laboral" value="<?= $vistaLaboral ? '1' : '0' ?>">
+        <input type="hidden" name="persona_id_laboral" id="persona_id_laboral" value="<?= esc($personaIdReal) ?>">
+        <?php if ($vistaLaboral): ?>
+            <input type="hidden" name="tipo" id="tipo" value="gerente">
+            <input type="hidden" name="rut" id="rut" value="<?= esc($val('rut')) ?>">
+            <input type="hidden" name="nombre" id="nombre" value="<?= esc($val('nombre')) ?>">
+            <input type="hidden" name="apellido" id="apellido" value="<?= esc($val('apellido')) ?>">
+            <input type="hidden" name="apellido_materno" id="apellido_materno" value="<?= esc($val('apellido_materno')) ?>">
+            <input type="hidden" name="email" id="email" value="<?= esc($val('email')) ?>">
+        <?php else: ?>
         <div class="form-row" style="grid-template-columns:1fr 1fr">
             <div>
                 <label for="tipo">Tipo *</label>
@@ -58,8 +83,10 @@ $sel = static function (string $key, $opt) use ($p): string {
                 <input id="rut" type="text" name="rut" value="<?= esc($val('rut')) ?>" placeholder="12.345.678-9">
             </div>
         </div>
+        <?php endif; ?>
 
-        <div id="bloque-personales" data-tipo="socio" style="<?= $tipoActual === 'socio' ? '' : 'display:none' ?>">
+        <div id="bloque-personales" data-tipo="socio" style="<?= (! $vistaLaboral && $tipoActual === 'socio') ? '' : 'display:none' ?>">
+            <?php if (! $vistaLaboral): ?>
             <h3 style="margin:1.25rem 0 .75rem">Antecedentes Personales</h3>
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
                 <div style="grid-column:1/-1">
@@ -193,23 +220,36 @@ $sel = static function (string $key, $opt) use ($p): string {
                     <input id="email" type="email" name="email" value="<?= esc($val('email')) ?>">
                 </div>
             </div>
+            <?php endif; ?>
         </div>
 
-        <div id="bloque-laborales" data-tipo="gerente" style="<?= $tipoActual === 'gerente' ? '' : 'display:none' ?>">
+        <div id="bloque-laborales" data-tipo="gerente" style="<?= ($vistaLaboral || $tipoActual === 'gerente') ? '' : 'display:none' ?>">
             <h3 style="margin:1.25rem 0 .75rem">Antecedentes Laborales</h3>
+            <p class="muted">Recupera la persona por RUT desde Antecedentes Personales. Nombres, apellidos y RUT deben coincidir.</p>
+            <div class="form-row" style="grid-template-columns:1fr auto;align-items:end;margin-bottom:.75rem">
+                <div>
+                    <label for="rut_laboral">RUT (Antecedentes Personales) *</label>
+                    <input id="rut_laboral" type="text" value="<?= esc($val('rut')) ?>" placeholder="12.345.678-9" <?= $isEdit ? 'readonly' : '' ?>>
+                </div>
+                <?php if (! $isEdit): ?>
+                <div>
+                    <button type="button" class="btn btn-primary" id="btn-buscar-rut">Buscar</button>
+                </div>
+                <?php endif; ?>
+            </div>
+            <p id="rut-lookup-msg" class="muted" style="margin-top:0"></p>
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
-                <div style="grid-column:1/-1">
-                    <label for="nombre_lab">Nombres *</label>
-                    <input id="nombre_lab" type="text" name="nombre_lab_mirror" value="<?= esc($val('nombre')) ?>" disabled>
-                    <p class="muted" style="margin:.25rem 0 0;font-size:.85rem">El nombre se toma del bloque personal o del campo abajo si solo cargas laborales.</p>
+                <div>
+                    <label for="nombre_laboral">Nombres</label>
+                    <input id="nombre_laboral" type="text" name="nombre_laboral" value="<?= esc($val('nombre')) ?>" readonly>
                 </div>
                 <div>
-                    <label for="nombre_laboral">Nombre completo *</label>
-                    <input id="nombre_laboral" type="text" name="nombre_laboral" value="<?= esc($val('nombre')) ?>">
+                    <label for="apellido_laboral">Apellido Paterno</label>
+                    <input id="apellido_laboral" type="text" name="apellido_laboral" value="<?= esc($val('apellido')) ?>" readonly>
                 </div>
                 <div>
-                    <label for="apellido_laboral">Apellido</label>
-                    <input id="apellido_laboral" type="text" name="apellido_laboral" value="<?= esc($val('apellido')) ?>">
+                    <label for="apellido_materno_laboral">Apellido Materno</label>
+                    <input id="apellido_materno_laboral" type="text" name="apellido_materno_laboral" value="<?= esc($val('apellido_materno')) ?>" readonly>
                 </div>
                 <div>
                     <label for="tipo_actividad">Tipo de actividad</label>
@@ -460,50 +500,135 @@ $sel = static function (string $key, $opt) use ($p): string {
   var nombreFam = document.getElementById('nombre_fam');
   var apellido = document.getElementById('apellido');
   var apellidoLab = document.getElementById('apellido_laboral');
+  var apellidoMatLab = document.getElementById('apellido_materno_laboral');
   var apellidoFam = document.getElementById('apellido_fam');
   var apellidoMat = document.getElementById('apellido_materno');
   var apellidoMatFam = document.getElementById('apellido_materno_fam');
   var email = document.getElementById('email');
   var emailLab = document.getElementById('email_lab');
   var rut = document.getElementById('rut');
+  var rutLab = document.getElementById('rut_laboral');
   var rutFam = document.getElementById('rut_fam');
+  var personaIdLab = document.getElementById('persona_id_laboral');
+  var vistaLab = document.getElementById('vista_laboral');
+  var msg = document.getElementById('rut-lookup-msg');
+  var buscarUrl = <?= json_encode($buscarRutUrl, JSON_UNESCAPED_SLASHES) ?>;
+
   function setDisabled(block, disabled) {
+    if (!block) return;
     block.querySelectorAll('input,select,textarea').forEach(function (el) {
+      // Identidad laboral siempre editable=false (readonly) pero no disabled para que viaje en POST si hace falta
+      if (el.readOnly) return;
       el.disabled = disabled;
     });
   }
   function sync() {
     var t = tipo.value;
+    if (vistaLab && vistaLab.value === '1') t = 'gerente';
     per.style.display = t === 'socio' ? '' : 'none';
     lab.style.display = t === 'gerente' ? '' : 'none';
     fam.style.display = t === 'familiar' ? '' : 'none';
     setDisabled(per, t !== 'socio');
     setDisabled(lab, t !== 'gerente');
     setDisabled(fam, t !== 'familiar');
-    nombre.required = t === 'socio';
-    nombreLab.required = t === 'gerente';
-    nombreFam.required = t === 'familiar';
+    if (nombre) nombre.required = t === 'socio';
+    if (nombreFam) nombreFam.required = t === 'familiar';
+    if (vistaLab) vistaLab.value = t === 'gerente' ? '1' : '0';
   }
-  tipo.addEventListener('change', sync);
+
+  function setVal(id, value) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.value = value == null ? '' : String(value);
+  }
+
+  function applyPersona(p) {
+    if (personaIdLab) personaIdLab.value = p.id || '';
+    if (rut) rut.value = p.rut || '';
+    if (rutLab) rutLab.value = p.rut || '';
+    if (nombre) nombre.value = p.nombre || '';
+    if (nombreLab) nombreLab.value = p.nombre || '';
+    if (apellido) apellido.value = p.apellido || '';
+    if (apellidoLab) apellidoLab.value = p.apellido || '';
+    if (apellidoMat) apellidoMat.value = p.apellido_materno || '';
+    if (apellidoMatLab) apellidoMatLab.value = p.apellido_materno || '';
+    if (email) email.value = p.email || '';
+    if (emailLab) emailLab.value = p.email || '';
+    [
+      'tipo_actividad','tipo_contrato','tipo_renta','fecha_ingreso_mes','fecha_ingreso_anio','cargo',
+      'antiguedad_cargo_anos','antiguedad_cargo_meses','rut_empleador','nombre_empleador','giro_empleador',
+      'renta_liquida_persona','dir_com_calle','dir_com_numero','dir_com_otros','dir_com_comuna','dir_com_ciudad',
+      'dir_com_region','tel_comercial','tel_anexo','segunda_actividad','segunda_actividad_mes',
+      'segunda_actividad_anio','renta_liquida_2','empleo_ant_cargo','empleo_ant_empleador',
+      'empleo_ant_ingreso_mes','empleo_ant_ingreso_anio','empleo_ant_salida_mes','empleo_ant_salida_anio','empleo_ant_renta'
+    ].forEach(function (k) {
+      if (p[k] != null && p[k] !== '') setVal(k, p[k]);
+    });
+  }
+
+  function buscarRut() {
+    var q = (rutLab && rutLab.value) ? rutLab.value.trim() : '';
+    if (!q) {
+      if (msg) msg.textContent = 'Ingresa un RUT.';
+      return;
+    }
+    if (msg) msg.textContent = 'Buscando…';
+    fetch(buscarUrl + '?rut=' + encodeURIComponent(q), { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) {
+          if (msg) msg.textContent = data.error || 'No encontrado';
+          if (personaIdLab) personaIdLab.value = '';
+          return;
+        }
+        applyPersona(data.persona || {});
+        if (msg) msg.textContent = 'Persona recuperada desde Antecedentes Personales.';
+      })
+      .catch(function () {
+        if (msg) msg.textContent = 'Error al buscar el RUT.';
+      });
+  }
+
+  var btn = document.getElementById('btn-buscar-rut');
+  if (btn) btn.addEventListener('click', buscarRut);
+  if (rutLab && !rutLab.readOnly) {
+    rutLab.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); buscarRut(); }
+    });
+  }
+
+  if (tipo && !tipo.disabled) tipo.addEventListener('change', sync);
   sync();
-  document.getElementById('form-antecedentes').addEventListener('submit', function () {
+
+  document.getElementById('form-antecedentes').addEventListener('submit', function (e) {
     var t = tipo.value;
-    // Re-enable canonical fields used by the controller
-    nombre.disabled = false;
-    apellido.disabled = false;
+    if (vistaLab && vistaLab.value === '1') t = 'gerente';
+    if (nombre) { nombre.disabled = false; nombre.required = true; }
+    if (apellido) apellido.disabled = false;
     if (apellidoMat) apellidoMat.disabled = false;
-    rut.disabled = false;
+    if (rut) rut.disabled = false;
     if (email) email.disabled = false;
+
     if (t === 'gerente') {
-      if (nombreLab.value) nombre.value = nombreLab.value;
-      if (apellidoLab.value) apellido.value = apellidoLab.value;
-      if (emailLab && emailLab.value) email.value = emailLab.value;
+      if (!personaIdLab || !personaIdLab.value) {
+        if (msg) msg.textContent = 'Debes buscar un RUT de Antecedentes Personales.';
+        e.preventDefault();
+        return;
+      }
+      if (nombreLab && nombreLab.value && nombre) nombre.value = nombreLab.value;
+      if (apellidoLab && apellidoLab.value && apellido) apellido.value = apellidoLab.value;
+      if (apellidoMatLab && apellidoMat && apellidoMatLab.value) apellidoMat.value = apellidoMatLab.value;
+      if (rutLab && rutLab.value && rut) rut.value = rutLab.value;
+      if (emailLab && email && emailLab.value) email.value = emailLab.value;
+      // habilitar campos laborales disabled
+      setDisabled(lab, false);
+      // identidad readonly se mantiene
     }
     if (t === 'familiar') {
-      if (nombreFam.value) nombre.value = nombreFam.value;
-      if (apellidoFam.value) apellido.value = apellidoFam.value;
+      if (nombreFam && nombreFam.value && nombre) nombre.value = nombreFam.value;
+      if (apellidoFam && apellidoFam.value && apellido) apellido.value = apellidoFam.value;
       if (apellidoMatFam && apellidoMatFam.value && apellidoMat) apellidoMat.value = apellidoMatFam.value;
-      if (rutFam.value) rut.value = rutFam.value;
+      if (rutFam && rutFam.value && rut) rut.value = rutFam.value;
       var copies = {
         fecha_nacimiento_fam: 'fecha_nacimiento',
         tipo_actividad_fam: 'tipo_actividad',
@@ -531,9 +656,9 @@ $sel = static function (string $key, $opt) use ($p): string {
       var comp = document.getElementById('complementa_renta');
       if (comp) comp.disabled = false;
     }
-    nombre.required = true;
   });
 })();
 </script>
+
 
 <?= $this->endSection() ?>

@@ -61,9 +61,15 @@ if (($filters['tipo'] ?? '') === EquityAcl::TIPO_SOCIO) {
 
 <?php if (! empty($canManage)): ?>
 <div class="card section-card">
-    <h3>Nuevo integrante</h3>
-    <p class="muted" style="margin-top:0">Registra un integrante del grupo familiar (antecedentes personales o laborales).</p>
-    <a class="btn btn-primary" href="<?= site_url('equity/nueva' . (($filters['tipo'] ?? '') !== '' ? '?tipo=' . rawurlencode((string) $filters['tipo']) : '')) ?>">Agregar al grupo</a>
+    <?php if (($filters['tipo'] ?? '') === EquityAcl::TIPO_GERENTE): ?>
+        <h3>Antecedentes laborales</h3>
+        <p class="muted" style="margin-top:0">Se recuperan por RUT desde Antecedentes Personales (mismos nombres, apellidos y RUT).</p>
+        <a class="btn btn-primary" href="<?= site_url('equity/nueva?tipo=gerente') ?>">Cargar / actualizar laborales</a>
+    <?php else: ?>
+        <h3>Nuevo integrante</h3>
+        <p class="muted" style="margin-top:0">Registra un integrante del grupo familiar.</p>
+        <a class="btn btn-primary" href="<?= site_url('equity/nueva' . (($filters['tipo'] ?? '') !== '' ? '?tipo=' . rawurlencode((string) $filters['tipo']) : '')) ?>">Agregar al grupo</a>
+    <?php endif; ?>
 </div>
 <?php endif; ?>
 
@@ -98,7 +104,12 @@ if (($filters['tipo'] ?? '') === EquityAcl::TIPO_SOCIO) {
                     <?php endif; ?>
                 </td>
                 <td>
-                    <span class="tag tag-oficial"><?= esc(EquityAcl::labelTipo((string) ($p['tipo'] ?? 'socio'))) ?></span>
+                    <?php
+                        $labelTipo = (($filters['tipo'] ?? '') === EquityAcl::TIPO_GERENTE)
+                            ? EquityAcl::labelTipo(EquityAcl::TIPO_GERENTE)
+                            : EquityAcl::labelTipo((string) ($p['tipo'] ?? 'socio'));
+                    ?>
+                    <span class="tag tag-oficial"><?= esc($labelTipo) ?></span>
                 </td>
                 <td class="muted">
                     <?= esc($p['rut'] ?? '—') ?>
@@ -110,6 +121,9 @@ if (($filters['tipo'] ?? '') === EquityAcl::TIPO_SOCIO) {
                 <td><?= (int) ($p['respaldos_count'] ?? 0) ?></td>
                 <td style="white-space:nowrap">
                     <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/' . $p['id']) ?>">Abrir</a>
+                    <?php if (! empty($canManage) && ($filters['tipo'] ?? '') === EquityAcl::TIPO_GERENTE): ?>
+                        <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/' . $p['id'] . '/editar?vista=laboral') ?>">Laborales</a>
+                    <?php endif; ?>
                 </td>
             </tr>
         <?php endforeach; ?>

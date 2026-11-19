@@ -61,7 +61,12 @@ class Equity extends BaseController
             ->orderBy('nombre', 'ASC');
 
         if ($rawTipo !== '' && in_array($rawTipo, EquityAcl::TIPOS, true)) {
-            $q->where('tipo', $filterTipo);
+            // Antecedentes laborales reutilizan la ficha de Antecedentes Personales (mismo RUT/persona).
+            if ($rawTipo === EquityAcl::TIPO_GERENTE) {
+                $q->where('tipo', EquityAcl::TIPO_SOCIO);
+            } else {
+                $q->where('tipo', $filterTipo);
+            }
         }
         if ($filterActivo === '1' || $filterActivo === '0') {
             $q->where('activo', (int) $filterActivo);
@@ -129,14 +134,95 @@ class Equity extends BaseController
         }
 
         $tipoPref = EquityAcl::normalizeTipo((string) $this->request->getGet('tipo'));
+        $vistaLaboral = $tipoPref === EquityAcl::TIPO_GERENTE;
 
         return view('equity/form_persona', [
-            'title'     => 'Equity',
-            'memb'      => $memb,
-            'persona'   => ['tipo' => $tipoPref],
-            'tipos'     => EquityAcl::TIPOS,
-            'equityNav' => $tipoPref,
-            'error'     => session()->getFlashdata('error'),
+            'title'        => 'Equity',
+            'memb'         => $memb,
+            'persona'      => ['tipo' => $tipoPref],
+            'tipos'        => EquityAcl::TIPOS,
+            'equityNav'    => $tipoPref,
+            'error'        => session()->getFlashdata('error'),
+            'buscarRutUrl' => site_url('equity/buscar-rut'),
+            'vistaLaboral' => $vistaLaboral,
+        ]);
+    }
+
+    /** JSON: recupera Antecedentes Personales por RUT (para laborales). */
+    public function buscarPorRut()
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $this->response->setStatusCode(401)->setJSON(['ok' => false, 'error' => 'Sin sesión']);
+        }
+
+        $rutNorm = EquityAcl::normalizeRut((string) $this->request->getGet('rut'));
+        if ($rutNorm === '') {
+            return $this->response->setJSON(['ok' => false, 'error' => 'Ingresa un RUT.']);
+        }
+
+        $personas = model(EquityPersonaModel::class)
+            ->where('empresa_id', $memb['empresa_id'])
+            ->where('tipo', EquityAcl::TIPO_SOCIO)
+            ->where('activo', 1)
+            ->findAll();
+
+        $match = null;
+        foreach ($personas as $p) {
+            if (EquityAcl::normalizeRut($p['rut'] ?? null) === $rutNorm) {
+                $match = $p;
+                break;
+            }
+        }
+
+        if ($match === null) {
+            return $this->response->setJSON([
+                'ok'    => false,
+                'error' => 'No hay Antecedentes Personales con ese RUT. Créalos primero.',
+            ]);
+        }
+
+        return $this->response->setJSON([
+            'ok'      => true,
+            'persona' => [
+                'id'               => $match['id'],
+                'rut'              => $match['rut'],
+                'nombre'           => $match['nombre'],
+                'apellido'         => $match['apellido'],
+                'apellido_materno' => $match['apellido_materno'] ?? null,
+                'email'            => $match['email'] ?? null,
+                'tipo_actividad'   => $match['tipo_actividad'] ?? null,
+                'tipo_contrato'    => $match['tipo_contrato'] ?? null,
+                'tipo_renta'       => $match['tipo_renta'] ?? null,
+                'fecha_ingreso_mes'=> $match['fecha_ingreso_mes'] ?? null,
+                'fecha_ingreso_anio'=> $match['fecha_ingreso_anio'] ?? null,
+                'cargo'            => $match['cargo'] ?? null,
+                'antiguedad_cargo_meses' => $match['antiguedad_cargo_meses'] ?? null,
+                'antiguedad_cargo_anos'  => $match['antiguedad_cargo_anos'] ?? null,
+                'rut_empleador'    => $match['rut_empleador'] ?? null,
+                'nombre_empleador' => $match['nombre_empleador'] ?? null,
+                'giro_empleador'   => $match['giro_empleador'] ?? null,
+                'renta_liquida_persona' => $match['renta_liquida_persona'] ?? null,
+                'dir_com_calle'    => $match['dir_com_calle'] ?? null,
+                'dir_com_numero'   => $match['dir_com_numero'] ?? null,
+                'dir_com_otros'    => $match['dir_com_otros'] ?? null,
+                'dir_com_comuna'   => $match['dir_com_comuna'] ?? null,
+                'dir_com_ciudad'   => $match['dir_com_ciudad'] ?? null,
+                'dir_com_region'   => $match['dir_com_region'] ?? null,
+                'tel_comercial'    => $match['tel_comercial'] ?? null,
+                'tel_anexo'        => $match['tel_anexo'] ?? null,
+                'segunda_actividad'=> $match['segunda_actividad'] ?? null,
+                'segunda_actividad_mes'  => $match['segunda_actividad_mes'] ?? null,
+                'segunda_actividad_anio' => $match['segunda_actividad_anio'] ?? null,
+                'renta_liquida_2'  => $match['renta_liquida_2'] ?? null,
+                'empleo_ant_cargo' => $match['empleo_ant_cargo'] ?? null,
+                'empleo_ant_empleador' => $match['empleo_ant_empleador'] ?? null,
+                'empleo_ant_ingreso_mes' => $match['empleo_ant_ingreso_mes'] ?? null,
+                'empleo_ant_ingreso_anio'=> $match['empleo_ant_ingreso_anio'] ?? null,
+                'empleo_ant_salida_mes'  => $match['empleo_ant_salida_mes'] ?? null,
+                'empleo_ant_salida_anio' => $match['empleo_ant_salida_anio'] ?? null,
+                'empleo_ant_renta' => $match['empleo_ant_renta'] ?? null,
+            ],
         ]);
     }
 
@@ -156,6 +242,52 @@ class Equity extends BaseController
             return redirect()->to('/equity/nueva')->with('error', 'El nombre es obligatorio.');
         }
 
+        // Laborales: actualizar la ficha de Antecedentes Personales (mismo RUT), no crear otra.
+        if ($data['tipo'] === EquityAcl::TIPO_GERENTE) {
+            $personaId = trim((string) $this->request->getPost('persona_id_laboral'));
+            $existente = null;
+            if ($personaId !== '') {
+                $existente = $this->findPersona($memb['empresa_id'], $personaId);
+            }
+            if ($existente === null) {
+                $rutNorm = EquityAcl::normalizeRut($data['rut'] ?? null);
+                if ($rutNorm === '') {
+                    return redirect()->to('/equity/nueva?tipo=gerente')->with('error', 'Ingresa el RUT y recupera Antecedentes Personales.');
+                }
+                foreach (model(EquityPersonaModel::class)
+                    ->where('empresa_id', $memb['empresa_id'])
+                    ->where('tipo', EquityAcl::TIPO_SOCIO)
+                    ->findAll() as $p) {
+                    if (EquityAcl::normalizeRut($p['rut'] ?? null) === $rutNorm) {
+                        $existente = $p;
+                        break;
+                    }
+                }
+            }
+            if ($existente === null || ($existente['tipo'] ?? '') !== EquityAcl::TIPO_SOCIO) {
+                return redirect()->to('/equity/nueva?tipo=gerente')
+                    ->with('error', 'No se encontró Antecedentes Personales con ese RUT.');
+            }
+
+            $laborKeys = $this->laborFieldKeys();
+            $patch = [];
+            foreach ($laborKeys as $k) {
+                if (array_key_exists($k, $data)) {
+                    $patch[$k] = $data[$k];
+                }
+            }
+            // Identidad se mantiene la de personales
+            $patch['nombre']           = $existente['nombre'];
+            $patch['apellido']         = $existente['apellido'] ?? null;
+            $patch['apellido_materno'] = $existente['apellido_materno'] ?? null;
+            $patch['rut']              = $existente['rut'] ?? null;
+
+            model(EquityPersonaModel::class)->update($existente['id'], $patch);
+
+            return redirect()->to('/equity/' . $existente['id'])
+                ->with('success', 'Antecedentes laborales guardados en la ficha personal.');
+        }
+
         $id = new_id();
         $row = array_merge($data, [
             'id'            => $id,
@@ -167,6 +299,25 @@ class Equity extends BaseController
         model(EquityPersonaModel::class)->insert($row);
 
         return redirect()->to('/equity/' . $id)->with('success', 'Integrante creado.');
+    }
+
+    /** @return list<string> */
+    private function laborFieldKeys(): array
+    {
+        return [
+            'tipo_actividad', 'tipo_contrato', 'tipo_renta',
+            'fecha_ingreso_mes', 'fecha_ingreso_anio', 'cargo',
+            'antiguedad_cargo_meses', 'antiguedad_cargo_anos',
+            'rut_empleador', 'nombre_empleador', 'giro_empleador', 'renta_liquida_persona',
+            'dir_com_calle', 'dir_com_numero', 'dir_com_otros',
+            'dir_com_comuna', 'dir_com_ciudad', 'dir_com_region',
+            'tel_comercial', 'tel_anexo',
+            'segunda_actividad', 'segunda_actividad_mes', 'segunda_actividad_anio', 'renta_liquida_2',
+            'empleo_ant_cargo', 'empleo_ant_empleador',
+            'empleo_ant_ingreso_mes', 'empleo_ant_ingreso_anio',
+            'empleo_ant_salida_mes', 'empleo_ant_salida_anio', 'empleo_ant_renta',
+            'email', 'notas',
+        ];
     }
 
     public function show(string $id)
@@ -252,12 +403,20 @@ class Equity extends BaseController
             return redirect()->to('/equity')->with('error', 'Persona no encontrada.');
         }
 
+        $vista = trim((string) $this->request->getGet('vista'));
+        if ($vista === 'laboral') {
+            $persona['tipo'] = EquityAcl::TIPO_GERENTE; // solo para mostrar bloque laboral
+        }
+
         return view('equity/form_persona', [
-            'title'   => 'Equity',
-            'memb'    => $memb,
-            'persona' => $persona,
-            'tipos'   => EquityAcl::TIPOS,
-            'error'   => session()->getFlashdata('error'),
+            'title'        => 'Equity',
+            'memb'         => $memb,
+            'persona'      => $persona,
+            'tipos'        => EquityAcl::TIPOS,
+            'equityNav'    => $vista === 'laboral' ? EquityAcl::TIPO_GERENTE : ($persona['tipo'] ?? ''),
+            'error'        => session()->getFlashdata('error'),
+            'buscarRutUrl' => site_url('equity/buscar-rut'),
+            'vistaLaboral' => $vista === 'laboral',
         ]);
     }
 
@@ -277,6 +436,26 @@ class Equity extends BaseController
         }
 
         $data = $this->readPersonaFromRequest();
+        $vistaLaboral = (string) $this->request->getPost('vista_laboral') === '1'
+            || $data['tipo'] === EquityAcl::TIPO_GERENTE;
+
+        if ($vistaLaboral && ($persona['tipo'] ?? '') === EquityAcl::TIPO_SOCIO) {
+            $patch = [];
+            foreach ($this->laborFieldKeys() as $k) {
+                if (array_key_exists($k, $data)) {
+                    $patch[$k] = $data[$k];
+                }
+            }
+            // Identidad siempre desde Antecedentes Personales
+            $patch['nombre']           = $persona['nombre'];
+            $patch['apellido']         = $persona['apellido'] ?? null;
+            $patch['apellido_materno'] = $persona['apellido_materno'] ?? null;
+            $patch['rut']              = $persona['rut'] ?? null;
+            model(EquityPersonaModel::class)->update($id, $patch);
+
+            return redirect()->to('/equity/' . $id)->with('success', 'Antecedentes laborales actualizados.');
+        }
+
         if ($data['nombre'] === '') {
             return redirect()->to('/equity/' . $id . '/editar')->with('error', 'El nombre es obligatorio.');
         }
@@ -284,6 +463,10 @@ class Equity extends BaseController
         $activo = (int) $this->request->getPost('activo') === 1 ? 1 : 0;
         $row = $data;
         $row['activo'] = $activo;
+        // No cambiar a tipo gerente: laborales viven en la ficha personal
+        if (($row['tipo'] ?? '') === EquityAcl::TIPO_GERENTE) {
+            $row['tipo'] = EquityAcl::TIPO_SOCIO;
+        }
         model(EquityPersonaModel::class)->update($id, $row);
 
         return redirect()->to('/equity/' . $id)->with('success', 'Integrante actualizado.');

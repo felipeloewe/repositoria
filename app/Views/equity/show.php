@@ -53,10 +53,14 @@ $row = static function (string $label, string $value): void {
 <div class="admin-subnav">
     <a href="<?= site_url('equity') ?>">← Volver a Grupo Familiar</a>
     <?php if (! empty($canManage)): ?>
-        <a href="<?= site_url('equity/' . $persona['id'] . '/editar') ?>">Editar</a>
+        <a href="<?= site_url('equity/' . $persona['id'] . '/editar') ?>">Editar personales</a>
+        <?php if ($tipo === EquityAcl::TIPO_SOCIO): ?>
+            <a href="<?= site_url('equity/' . $persona['id'] . '/editar?vista=laboral') ?>">Editar laborales</a>
+        <?php endif; ?>
     <?php endif; ?>
 </div>
 
+<?php if ($tipo === EquityAcl::TIPO_SOCIO || $tipo === EquityAcl::TIPO_GERENTE): ?>
 <?php if ($tipo === EquityAcl::TIPO_SOCIO): ?>
 <div class="card section-card">
     <h3>Antecedentes Personales</h3>
@@ -82,7 +86,7 @@ $row = static function (string $label, string $value): void {
         ?>
     </div>
 </div>
-<?php elseif ($tipo === EquityAcl::TIPO_GERENTE): ?>
+<?php endif; ?>
 <div class="card section-card">
     <h3>Antecedentes Laborales</h3>
     <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">

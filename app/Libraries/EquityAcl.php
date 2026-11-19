@@ -38,6 +38,16 @@ final class EquityAcl
         };
     }
 
+    /** Normaliza RUT para comparar (sin puntos/guión, mayúsculas). */
+    public static function normalizeRut(?string $rut): string
+    {
+        $rut = strtoupper(trim((string) $rut));
+        $rut = str_replace(['.', '-', ' '], '', $rut);
+
+        return $rut;
+    }
+
+
 
     /** @param array<string, mixed> $memb */
     public static function canAccess(array $memb): bool
