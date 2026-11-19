@@ -233,6 +233,97 @@ $action = match ($clave) {
                     <input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal">
                 </div>
             </div>
+        <?php elseif ($clave === 'pasivos-inmuebles'): ?>
+            <p class="muted" style="margin-top:0">Datos del crédito hipotecario (recibo de dividendo).</p>
+            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+                <div style="grid-column:1/-1">
+                    <label for="banco_descripcion">Institución / Banco *</label>
+                    <input id="banco_descripcion" name="banco_descripcion" type="text" required placeholder="Scotiabank, Santander, BCI…">
+                </div>
+                <div>
+                    <label for="numero_credito">N° crédito</label>
+                    <input id="numero_credito" name="numero_credito" type="text" placeholder="0224059">
+                </div>
+                <div>
+                    <label for="sucursal">Sucursal (SUC)</label>
+                    <input id="sucursal" name="sucursal" type="text" placeholder="143">
+                </div>
+                <div>
+                    <label for="moneda">Moneda</label>
+                    <select id="moneda" name="moneda">
+                        <option value="UF" selected>UF</option>
+                        <option value="CLP">CLP</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="saldo_uf">Saldo deuda UF (Capital) *</label>
+                    <input id="saldo_uf" name="saldo_uf" type="text" inputmode="decimal" placeholder="923,4434">
+                </div>
+                <div>
+                    <label for="saldo_clp">Saldo deuda $ <span class="muted">(opc.)</span></label>
+                    <input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal">
+                </div>
+                <div>
+                    <label for="plazo_pactado">Plazo pactado (cuotas)</label>
+                    <input id="plazo_pactado" name="plazo_pactado" type="number" min="1" placeholder="240">
+                </div>
+                <div>
+                    <label for="cuotas_pagadas">Dividendos cancelados</label>
+                    <input id="cuotas_pagadas" name="cuotas_pagadas" type="number" min="0" placeholder="110">
+                </div>
+                <div>
+                    <label for="dividendo_n">N° dividendo actual</label>
+                    <input id="dividendo_n" name="dividendo_n" type="number" min="1">
+                </div>
+                <div>
+                    <label for="fecha_vencimiento">Fecha vencimiento / cargo</label>
+                    <input id="fecha_vencimiento" name="fecha_vencimiento" type="date">
+                </div>
+                <div>
+                    <label for="dividendo_uf">Total dividendo UF</label>
+                    <input id="dividendo_uf" name="dividendo_uf" type="text" inputmode="decimal" placeholder="8,5686">
+                </div>
+                <div>
+                    <label for="dividendo_clp">Total dividendo $ <span class="muted">(opc.)</span></label>
+                    <input id="dividendo_clp" name="dividendo_clp" type="text" inputmode="decimal">
+                </div>
+                <div>
+                    <label for="amortizacion_uf">Amortización UF</label>
+                    <input id="amortizacion_uf" name="amortizacion_uf" type="text" inputmode="decimal">
+                </div>
+                <div>
+                    <label for="interes_uf">Interés UF</label>
+                    <input id="interes_uf" name="interes_uf" type="text" inputmode="decimal">
+                </div>
+                <div>
+                    <label for="comision_uf">Comisión UF</label>
+                    <input id="comision_uf" name="comision_uf" type="text" inputmode="decimal">
+                </div>
+                <div>
+                    <label for="seg_incendio_uf">Seg. incendio UF</label>
+                    <input id="seg_incendio_uf" name="seg_incendio_uf" type="text" inputmode="decimal">
+                </div>
+                <div>
+                    <label for="seg_desgravamen_uf">Seg. desgravamen UF</label>
+                    <input id="seg_desgravamen_uf" name="seg_desgravamen_uf" type="text" inputmode="decimal">
+                </div>
+                <div>
+                    <label for="seg_adicionales_uf">Seg. adicionales UF</label>
+                    <input id="seg_adicionales_uf" name="seg_adicionales_uf" type="text" inputmode="decimal">
+                </div>
+                <div>
+                    <label for="asociacion">Asociación</label>
+                    <input id="asociacion" name="asociacion" type="text" placeholder="CASA / INV">
+                </div>
+                <div style="grid-column:1/-1">
+                    <label for="direccion_garantia">Dirección garantía / inmueble</label>
+                    <input id="direccion_garantia" name="direccion_garantia" type="text" placeholder="Pinares de Montemar 138, Concón">
+                </div>
+                <div style="grid-column:1/-1">
+                    <label for="seguros_info">Seguros contratados</label>
+                    <textarea id="seguros_info" name="seguros_info" rows="2" placeholder="Compañía y póliza colectiva"></textarea>
+                </div>
+            </div>
         <?php else: ?>
             <label for="banco_descripcion">Banco / descripción *</label>
             <input id="banco_descripcion" name="banco_descripcion" type="text" required>
@@ -330,6 +421,17 @@ $action = match ($clave) {
                             EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoOtroActivo(), $row['tipo_activo'] ?? null)
                             . ' · '
                             . (string) ($row['institucion'] ?? ''),
+                            ' ·'
+                        ),
+                        'pasivos-inmuebles' => trim(
+                            (string) ($row['banco_descripcion'] ?? '')
+                            . (! empty($row['numero_credito']) ? ' · Crédito ' . $row['numero_credito'] : '')
+                            . (! empty($row['dividendo_n']) ? ' · Div. ' . $row['dividendo_n'] : '')
+                            . (! empty($row['plazo_pactado']) ? ' · Plazo ' . $row['plazo_pactado'] : '')
+                            . (! empty($row['cuotas_pagadas']) ? ' · Cancelados ' . $row['cuotas_pagadas'] : '')
+                            . (! empty($row['dividendo_uf']) ? ' · Div. ' . number_format((float) $row['dividendo_uf'], 4, ',', '.') . ' UF' : '')
+                            . (! empty($row['asociacion']) ? ' · ' . $row['asociacion'] : '')
+                            . (! empty($row['direccion_garantia']) ? ' · ' . $row['direccion_garantia'] : ''),
                             ' ·'
                         ),
                         default => (string) ($row['banco_descripcion'] ?? ''),
