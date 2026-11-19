@@ -115,6 +115,11 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     // Menú Equity — patrimonio (rutas fijas ANTES de equity/(:segment))
     $routes->get('equity/resumen', 'EquityPatrimonio::resumen');
     $routes->get('equity/reporte/balance', 'EquityPatrimonio::reporteBalance');
+    $routes->get('equity/reporte/activos', 'EquityPatrimonio::reporteGrupoActivos');
+    $routes->get('equity/reporte/pasivos', 'EquityPatrimonio::reporteGrupoPasivos');
+    $routes->get('equity/reporte/ingresos', 'EquityPatrimonio::reporteIngresos');
+    $routes->get('equity/activos/(:segment)/reporte', 'EquityPatrimonio::reporteActivo/$1');
+    $routes->get('equity/pasivos/(:segment)/reporte', 'EquityPatrimonio::reportePasivo/$1');
     $routes->get('equity/situacion-financiera', 'EquityPatrimonio::situacionFinanciera');
     $routes->post('equity/situacion-financiera/cuotas', 'EquityPatrimonio::guardarCuotasSituacion');
     $routes->get('equity/ingresos', 'EquityPatrimonio::ingresos');

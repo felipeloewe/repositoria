@@ -30,8 +30,10 @@ $ufRate = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
         }
         ?>.
     </p>
-    <p style="margin-top:.5rem">
-        <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/reporte/balance') ?>">Reportería · Balance</a>
+    <p style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
+        <a class="btn btn-primary btn-sm" href="<?= site_url('equity/reporte/balance') ?>">Reporte · Balance</a>
+        <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/reporte/activos') ?>">Reporte · Activos</a>
+        <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/reporte/pasivos') ?>">Reporte · Pasivos</a>
     </p>
 </section>
 

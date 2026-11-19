@@ -31,6 +31,17 @@ $row = static function (string $label, string $value): void {
 };
 ?>
 
+<style>
+@media print {
+  .sidebar, .topbar, .report-actions, .nav-exit, .no-print { display:none !important; }
+  .shell { display:block !important; }
+  .main { margin:0 !important; width:100% !important; }
+  .content { padding:0 !important; }
+  .card, .section-card, .banner { box-shadow:none !important; border:1px solid #ccc !important; break-inside:avoid; }
+  a { text-decoration:none; color:inherit; }
+}
+</style>
+
 <section class="banner">
     <h2><?= esc($nombre) ?></h2>
     <p>
@@ -44,6 +55,10 @@ $row = static function (string $label, string $value): void {
         <?php if ((int) ($persona['activo'] ?? 1) !== 1): ?>
             · <strong>Inactivo</strong>
         <?php endif; ?>
+    </p>
+    <p class="report-actions no-print" style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" type="button" onclick="window.print()">Reporte</button>
+        <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/reporte/balance') ?>">Balance</a>
     </p>
 </section>
 

@@ -32,6 +32,10 @@ foreach ($personas as $p) {
         UF vigente <?= esc(EquityUf::fmtPesos($ufRate, 2)) ?>
         <?= $personaLabel !== '' ? ' · ' . esc($personaLabel) : '' ?>.
     </p>
+    <p style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
+        <a class="btn btn-primary btn-sm" href="<?= site_url('equity/reporte/ingresos') ?>">Reporte</a>
+        <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/situacion-financiera') ?>">Situación financiera</a>
+    </p>
 </section>
 
 <?php if (! empty($success)): ?>

@@ -303,6 +303,41 @@ class EquityPatrimonio extends BaseController
         return $this->seccionLista($this->clavePasivo($seccion));
     }
 
+    public function reporteActivo(string $seccion)
+    {
+        return $this->reporteSeccion($this->claveActivo($seccion));
+    }
+
+    public function reportePasivo(string $seccion)
+    {
+        return $this->reporteSeccion($this->clavePasivo($seccion));
+    }
+
+    public function reporteGrupoActivos()
+    {
+        return $this->reporteGrupo('activos', [
+            'bienes-raices', 'vehiculos', 'sociedades', 'otros-activos',
+        ]);
+    }
+
+    public function reporteGrupoPasivos()
+    {
+        return $this->reporteGrupo('pasivos', [
+            'pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos', 'pasivos-indirecta', 'pasivos-lineas',
+        ]);
+    }
+
+    public function reporteIngresos()
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        // Reutiliza la vista de situación financiera como reportería de ingresos/carga.
+        return redirect()->to('/equity/situacion-financiera');
+    }
+
     public function editActivo(string $seccion, string $id)
     {
         return $this->seccionLista($this->claveActivo($seccion), $id);
@@ -1725,6 +1760,252 @@ class EquityPatrimonio extends BaseController
             'pasivos-lineas'      => '/equity/pasivos/lineas',
             default               => '/dashboard',
         };
+    }
+
+    private function pathReporteSeccion(string $clave): string
+    {
+        return match ($clave) {
+            'bienes-raices'       => '/equity/activos/bienes-raices/reporte',
+            'vehiculos'           => '/equity/activos/vehiculos/reporte',
+            'sociedades'          => '/equity/activos/sociedades/reporte',
+            'otros-activos'       => '/equity/activos/otros/reporte',
+            'pasivos-inmuebles'   => '/equity/pasivos/inmuebles/reporte',
+            'pasivos-circulantes' => '/equity/pasivos/circulantes/reporte',
+            'otros-pasivos'       => '/equity/pasivos/otros/reporte',
+            'pasivos-indirecta'   => '/equity/pasivos/indirecta/reporte',
+            'pasivos-lineas'      => '/equity/pasivos/lineas/reporte',
+            default               => '/equity/reporte/balance',
+        };
+    }
+
+    /**
+     * @return \CodeIgniter\HTTP\RedirectResponse|string
+     */
+    private function reporteSeccion(string $clave)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        $meta = EquityCatalogo::seccion($clave);
+        if ($meta === null || $clave === '') {
+            return redirect()->to('/dashboard')->with('error', 'Sección no válida.');
+        }
+
+        $empresaId = $memb['empresa_id'];
+        [$personaId, $personas] = $this->personaContexto($memb);
+        $personaMap = [];
+        foreach ($personas as $p) {
+            $personaMap[$p['id']] = $p;
+        }
+        $ufVigente = EquityUf::vigente($empresaId);
+        $rows = $this->loadRows($meta, $empresaId, $personaId);
+        foreach ($rows as &$row) {
+            $row['persona'] = $personaMap[$row['persona_id'] ?? ''] ?? null;
+            $row['detalle'] = $this->detalleRegistro($clave, $row);
+            [$row['uf_show'], $row['clp_show']] = $this->montosRegistro($clave, $row, $ufVigente);
+        }
+        unset($row);
+
+        $personaNombre = null;
+        if ($personaId !== '' && isset($personaMap[$personaId])) {
+            $p = $personaMap[$personaId];
+            $personaNombre = trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''));
+        }
+
+        $totalUf   = 0.0;
+        $totalClp  = 0.0;
+        $totalAvaluo = 0.0;
+        foreach ($rows as $r) {
+            if ($r['uf_show'] !== null) {
+                $totalUf += (float) $r['uf_show'];
+            }
+            if ($r['clp_show'] !== null) {
+                $totalClp += (float) $r['clp_show'];
+            }
+            if ($clave === 'bienes-raices' && ! empty($r['avaluo_fiscal'])) {
+                $totalAvaluo += (float) $r['avaluo_fiscal'];
+            }
+        }
+
+        return view('equity/reporte_seccion', [
+            'title'         => 'Reporte · ' . $meta['label'],
+            'memb'          => $memb,
+            'equityNav'     => $clave,
+            'meta'          => $meta,
+            'rows'          => $rows,
+            'personaId'     => $personaId,
+            'personaNombre' => $personaNombre,
+            'ufVigente'     => $ufVigente,
+            'totalUf'       => $totalUf,
+            'totalClp'      => $totalClp,
+            'totalAvaluo'   => $totalAvaluo,
+            'backUrl'       => $this->pathSeccion($clave),
+            'grupoReporte'  => str_starts_with($clave, 'pasivos') || $clave === 'otros-pasivos'
+                ? '/equity/reporte/pasivos'
+                : '/equity/reporte/activos',
+        ]);
+    }
+
+    /**
+     * @param list<string> $claves
+     *
+     * @return \CodeIgniter\HTTP\RedirectResponse|string
+     */
+    private function reporteGrupo(string $grupo, array $claves)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $empresaId = $memb['empresa_id'];
+        [$personaId, $personas] = $this->personaContexto($memb);
+        $personaMap = [];
+        foreach ($personas as $p) {
+            $personaMap[$p['id']] = $p;
+        }
+        $personaNombre = null;
+        if ($personaId !== '' && isset($personaMap[$personaId])) {
+            $p = $personaMap[$personaId];
+            $personaNombre = trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''));
+        }
+
+        $ufVigente = EquityUf::vigente($empresaId);
+        $secciones = [];
+        $granTotalUf  = 0.0;
+        $granTotalClp = 0.0;
+        foreach ($claves as $clave) {
+            $meta = EquityCatalogo::seccion($clave);
+            if ($meta === null) {
+                continue;
+            }
+            $rows = $this->loadRows($meta, $empresaId, $personaId);
+            $totalUf  = 0.0;
+            $totalClp = 0.0;
+            foreach ($rows as &$row) {
+                $row['persona'] = $personaMap[$row['persona_id'] ?? ''] ?? null;
+                $row['detalle'] = $this->detalleRegistro($clave, $row);
+                [$row['uf_show'], $row['clp_show']] = $this->montosRegistro($clave, $row, $ufVigente);
+                if ($row['uf_show'] !== null) {
+                    $totalUf += (float) $row['uf_show'];
+                }
+                if ($row['clp_show'] !== null) {
+                    $totalClp += (float) $row['clp_show'];
+                }
+            }
+            unset($row);
+            $granTotalUf  += $totalUf;
+            $granTotalClp += $totalClp;
+            $secciones[] = [
+                'meta'     => $meta,
+                'rows'     => $rows,
+                'totalUf'  => $totalUf,
+                'totalClp' => $totalClp,
+                'path'     => $this->pathSeccion($clave),
+                'reporte'  => $this->pathReporteSeccion($clave),
+            ];
+        }
+
+        return view('equity/reporte_grupo', [
+            'title'         => $grupo === 'pasivos' ? 'Reporte · Pasivos' : 'Reporte · Activos',
+            'memb'          => $memb,
+            'equityNav'     => $grupo === 'pasivos' ? 'pasivos-inmuebles' : 'bienes-raices',
+            'grupo'         => $grupo,
+            'secciones'     => $secciones,
+            'personaId'     => $personaId,
+            'personaNombre' => $personaNombre,
+            'ufVigente'     => $ufVigente,
+            'granTotalUf'   => $granTotalUf,
+            'granTotalClp'  => $granTotalClp,
+            'backUrl'       => $grupo === 'pasivos' ? '/equity/pasivos/inmuebles' : '/equity/activos/bienes-raices',
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function detalleRegistro(string $clave, array $row): string
+    {
+        return match ($clave) {
+            'bienes-raices' => trim(
+                EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoInmueble(), $row['tipo_inmueble'] ?? null)
+                . ' · '
+                . (($row['direccion'] ?? '') !== '' ? (string) $row['direccion'] : (string) ($row['descripcion'] ?? ''))
+                . (! empty($row['rol']) ? ' · Rol ' . $row['rol'] : '')
+                . (! empty($row['avaluo_fiscal']) ? ' · Avalúo $' . number_format((float) $row['avaluo_fiscal'], 0, ',', '.') : '')
+                . (! empty($row['arrendatario']) ? ' · Arr. ' . $row['arrendatario'] : '')
+                . (! empty($row['canon_mensual_clp']) ? ' · Cánon $' . number_format((float) $row['canon_mensual_clp'], 0, ',', '.') : ''),
+                ' ·'
+            ),
+            'vehiculos' => trim(
+                EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoVehiculo(), $row['tipo_vehiculo'] ?? null)
+                . ' · '
+                . trim(($row['marca'] ?? '') . ' ' . ($row['modelo'] ?? '') . ' ' . ($row['patente'] ?? '')),
+                ' ·'
+            ),
+            'sociedades' => trim(
+                (string) ($row['nombre_sociedad'] ?? '')
+                . (! empty($row['rut_sociedad']) ? ' · ' . $row['rut_sociedad'] : '')
+                . (! empty($row['porcentaje']) ? ' · ' . $row['porcentaje'] . '%' : ''),
+                ' ·'
+            ),
+            'otros-activos' => trim(
+                EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoOtroActivo(), $row['tipo_activo'] ?? null)
+                . ' · '
+                . (string) ($row['institucion'] ?? ''),
+                ' ·'
+            ),
+            'pasivos-inmuebles' => trim(
+                (string) ($row['banco_descripcion'] ?? '')
+                . (! empty($row['numero_credito']) ? ' · Crédito ' . $row['numero_credito'] : '')
+                . (! empty($row['dividendo_n']) ? ' · Div. ' . $row['dividendo_n'] : '')
+                . (! empty($row['dividendo_uf']) ? ' · ' . number_format((float) $row['dividendo_uf'], 4, ',', '.') . ' UF' : ''),
+                ' ·'
+            ),
+            'pasivos-indirecta' => trim(
+                (string) ($row['banco_descripcion'] ?? '')
+                . (! empty($row['tipo']) ? ' · ' . $row['tipo'] : '')
+                . (! empty($row['vigente_clp']) ? ' · Vigente $' . number_format((float) $row['vigente_clp'], 0, ',', '.') : ''),
+                ' ·'
+            ),
+            'pasivos-lineas' => trim(
+                (string) ($row['tipo'] ?? 'Línea')
+                . ' · '
+                . (string) ($row['banco_descripcion'] ?? ''),
+                ' ·'
+            ),
+            default => (string) ($row['banco_descripcion'] ?? $row['descripcion'] ?? ''),
+        };
+    }
+
+    /**
+     * @param array<string, mixed>      $row
+     * @param array<string, mixed>|null $ufVigente
+     *
+     * @return array{0: ?float, 1: ?float}
+     */
+    private function montosRegistro(string $clave, array $row, ?array $ufVigente): array
+    {
+        $rate = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+        $ufRaw = match ($clave) {
+            'bienes-raices', 'vehiculos', 'sociedades' => $row['valor_uf'] ?? null,
+            default => $row['saldo_uf'] ?? null,
+        };
+        $clpRaw = match ($clave) {
+            'bienes-raices', 'vehiculos', 'sociedades' => $row['valor_clp'] ?? null,
+            default => $row['saldo_clp'] ?? null,
+        };
+        $uf  = ($ufRaw !== null && $ufRaw !== '') ? (float) $ufRaw : null;
+        $clp = ($clpRaw !== null && $clpRaw !== '') ? (float) $clpRaw : null;
+        if ($uf !== null) {
+            return [$uf, round($uf * $rate, 2)];
+        }
+        if ($clp !== null && $rate > 0) {
+            return [round($clp / $rate, 4), $clp];
+        }
+
+        return [null, null];
     }
 
     /**

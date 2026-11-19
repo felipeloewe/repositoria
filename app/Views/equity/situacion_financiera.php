@@ -35,11 +35,26 @@ if ($ingresoMensual !== null && (float) $ingresoMensual > 0) {
 }
 ?>
 
+<style>
+@media print {
+  .sidebar, .topbar, .report-actions, .nav-exit, .no-print { display:none !important; }
+  .shell { display:block !important; }
+  .main { margin:0 !important; width:100% !important; }
+  .content { padding:0 !important; }
+  .card, .section-card, .banner { box-shadow:none !important; border:1px solid #ccc !important; break-inside:avoid; }
+  a { text-decoration:none; color:inherit; }
+}
+</style>
+
 <section class="banner">
     <h2>Situación financiera</h2>
     <p>
         Reporte de ingresos informados y carga mensual de créditos (cuotas / vencimientos).
         UF vigente <?= esc(EquityUf::fmtPesos($ufRate, 2)) ?><?= ! empty($ufVigente['fecha_cierre']) ? ' · cierre ' . esc($ufVigente['fecha_cierre']) : '' ?>.
+    </p>
+    <p class="report-actions no-print" style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" type="button" onclick="window.print()">Reporte · Imprimir / PDF</button>
+        <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/reporte/balance') ?>">Balance</a>
     </p>
 </section>
 

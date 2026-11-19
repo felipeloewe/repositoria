@@ -38,6 +38,21 @@ $listAction = match ($clave) {
     'pasivos-lineas'      => site_url('equity/pasivos/lineas'),
     default               => site_url('dashboard'),
 };
+$reportAction = match ($clave) {
+    'bienes-raices'       => site_url('equity/activos/bienes-raices/reporte'),
+    'vehiculos'           => site_url('equity/activos/vehiculos/reporte'),
+    'sociedades'          => site_url('equity/activos/sociedades/reporte'),
+    'otros-activos'       => site_url('equity/activos/otros/reporte'),
+    'pasivos-inmuebles'   => site_url('equity/pasivos/inmuebles/reporte'),
+    'pasivos-circulantes' => site_url('equity/pasivos/circulantes/reporte'),
+    'otros-pasivos'       => site_url('equity/pasivos/otros/reporte'),
+    'pasivos-indirecta'   => site_url('equity/pasivos/indirecta/reporte'),
+    'pasivos-lineas'      => site_url('equity/pasivos/lineas/reporte'),
+    default               => site_url('equity/reporte/balance'),
+};
+$grupoReportAction = str_starts_with($clave, 'pasivos') || $clave === 'otros-pasivos'
+    ? site_url('equity/reporte/pasivos')
+    : site_url('equity/reporte/activos');
 $edit = $edit ?? null;
 $isEdit = is_array($edit) && ! empty($edit['id']);
 $action = $isEdit ? rtrim($listAction, '/') . '/' . $edit['id'] : $listAction;
@@ -77,6 +92,10 @@ $chk = static function (string $key) use ($edit): string {
         <?= esc($meta['grupo']) ?> del estado de situación patrimonial.
         Montos en <strong>UF</strong> (fijos); $ con UF vigente
         <?= esc(EquityUf::fmtPesos($ufRate, 2)) ?><?= $ufVigente ? ' · cierre ' . esc($ufVigente['fecha_cierre']) : '' ?>.
+    </p>
+    <p style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
+        <a class="btn btn-primary btn-sm" href="<?= esc($reportAction) ?>">Reporte</a>
+        <a class="btn btn-ghost btn-sm" href="<?= esc($grupoReportAction) ?>">Reporte <?= esc(str_starts_with($clave, 'pasivos') || $clave === 'otros-pasivos' ? 'pasivos' : 'activos') ?></a>
     </p>
 </section>
 

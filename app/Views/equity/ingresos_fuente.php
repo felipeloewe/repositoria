@@ -60,6 +60,9 @@ foreach ($personas as $p) {
 <section class="banner">
     <h2>Ingresos · <?= esc($meta['label']) ?></h2>
     <p><?= esc($meta['descripcion']) ?>. Registra contraparte, contrato, periodicidad y monto<?= $personaLabel !== '' ? ' · ' . esc($personaLabel) : '' ?>.</p>
+    <p style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
+        <a class="btn btn-primary btn-sm" href="<?= site_url('equity/reporte/ingresos') ?>">Reporte</a>
+    </p>
 </section>
 
 <?php if (! empty($success)): ?>
