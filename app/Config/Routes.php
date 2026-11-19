@@ -139,6 +139,13 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('equity/pasivos/(:segment)/(:segment)', 'EquityPatrimonio::updatePasivo/$1/$2');
     $routes->get('equity/pasivos/(:segment)', 'EquityPatrimonio::pasivos/$1');
     $routes->post('equity/pasivos/(:segment)', 'EquityPatrimonio::storePasivo/$1');
+    // Prefijos sin sección: no deben caer en equity/(:segment) como si fueran un id de persona.
+    $routes->get('equity/activos', static function () {
+        return redirect()->to('/equity/activos/bienes-raices');
+    });
+    $routes->get('equity/pasivos', static function () {
+        return redirect()->to('/equity/pasivos/inmuebles');
+    });
 
     // Menú Equity — personas (socio/gerente) + fichas + respaldos por persona
     $routes->get('equity', 'Equity::index');

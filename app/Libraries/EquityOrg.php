@@ -252,26 +252,68 @@ final class EquityOrg
     }
 
     /**
+     * Empresas visibles para el usuario en Equity: grupos de todas sus membresías
+     * (evita “sin persona” cuando la ficha vive en otra empresa del mismo usuario).
+     *
+     * @return list<string>
+     */
+    public function empresaIdsVisiblesParaUsuario(string $usuarioId, ?string $empresaSesionId = null): array
+    {
+        $ids = [];
+        if ($empresaSesionId !== null && $empresaSesionId !== '') {
+            foreach ($this->empresaIdsDelGrupo($empresaSesionId) as $eid) {
+                $ids[$eid] = true;
+            }
+        }
+        foreach (model(MembresiaModel::class)->forUsuario($usuarioId) as $m) {
+            $eid = (string) ($m['empresa_id'] ?? '');
+            if ($eid === '') {
+                continue;
+            }
+            foreach ($this->empresaIdsDelGrupo($eid) as $gid) {
+                $ids[$gid] = true;
+            }
+        }
+
+        return array_keys($ids);
+    }
+
+    /**
      * Personas que el usuario puede declarar en esta sesión (propia + representados).
      *
      * @return list<array<string, mixed>>
      */
     public function personasDeclarables(string $usuarioId, string $empresaId): array
     {
-        $grupo = $this->empresaIdsDelGrupo($empresaId);
+        $grupo = $this->empresaIdsVisiblesParaUsuario($usuarioId, $empresaId);
         $model = model(EquityPersonaModel::class);
-        $propias = $model
-            ->whereIn('empresa_id', $grupo)
-            ->where('usuario_id', $usuarioId)
-            ->where('activo', 1)
-            ->orderBy('nombre', 'ASC')
-            ->findAll();
-        $reps = $model
-            ->whereIn('empresa_id', $grupo)
-            ->where('representado_por_usuario_id', $usuarioId)
-            ->where('activo', 1)
-            ->orderBy('nombre', 'ASC')
-            ->findAll();
+
+        $propias = [];
+        $reps    = [];
+        if ($grupo !== []) {
+            $propias = $model
+                ->whereIn('empresa_id', $grupo)
+                ->where('usuario_id', $usuarioId)
+                ->where('activo', 1)
+                ->orderBy('nombre', 'ASC')
+                ->findAll();
+            $reps = $model
+                ->whereIn('empresa_id', $grupo)
+                ->where('representado_por_usuario_id', $usuarioId)
+                ->where('activo', 1)
+                ->orderBy('nombre', 'ASC')
+                ->findAll();
+        }
+
+        // Fallback: ficha propia ligada al usuario aunque el empresa_id no esté en el grupo
+        // (datos cargados bajo otro tenant / seed). Así el menú patrimonial no queda vacío.
+        if ($propias === [] && $reps === []) {
+            $propias = $model
+                ->where('usuario_id', $usuarioId)
+                ->where('activo', 1)
+                ->orderBy('nombre', 'ASC')
+                ->findAll();
+        }
 
         $map = [];
         foreach (array_merge($propias, $reps) as $p) {

@@ -321,11 +321,34 @@ class Equity extends BaseController
         ];
     }
 
+    /** Segmentos de menú patrimonial que no son ids de persona. */
+    private const RESERVED_SEGMENTS = [
+        'activos', 'pasivos', 'ingresos', 'resumen', 'respaldos', 'grupo',
+        'configuracion', 'situacion-financiera', 'reporte', 'nueva', 'buscar-rut',
+    ];
+
     public function show(string $id)
     {
         $memb = $this->requireAccess();
         if (! is_array($memb)) {
             return $memb;
+        }
+
+        if (in_array($id, self::RESERVED_SEGMENTS, true)) {
+            $fallback = match ($id) {
+                'activos' => '/equity/activos/bienes-raices',
+                'pasivos' => '/equity/pasivos/inmuebles',
+                'ingresos' => '/equity/ingresos',
+                'resumen' => '/equity/resumen',
+                'respaldos' => '/equity/respaldos',
+                'grupo' => '/equity/grupo',
+                'configuracion' => '/equity/configuracion',
+                'situacion-financiera' => '/equity/situacion-financiera',
+                'nueva' => '/equity/nueva',
+                default => '/equity',
+            };
+
+            return redirect()->to($fallback);
         }
 
         $persona = $this->findPersona($memb['empresa_id'], $id);

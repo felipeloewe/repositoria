@@ -163,11 +163,12 @@ class EquityPatrimonio extends BaseController
 
         // Ingresos mensuales: fichas (última por persona) + cánones de arriendo
         $fq = model(EquityFichaModel::class)
-            ->where('empresa_id', $empresaId)
             ->orderBy('fecha_corte', 'DESC')
             ->orderBy('created_at', 'DESC');
         if ($personaId !== '') {
             $fq->where('persona_id', $personaId);
+        } else {
+            $fq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $ingresosDetalle = [];
         $seenPersona     = [];
@@ -191,10 +192,11 @@ class EquityPatrimonio extends BaseController
         }
 
         $bq = model(EquityBienRaizModel::class)
-            ->where('empresa_id', $empresaId)
             ->orderBy('direccion', 'ASC');
         if ($personaId !== '') {
             $bq->where('persona_id', $personaId);
+        } else {
+            $bq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $totalArriendos = 0.0;
         $arriendosDetalle = [];
@@ -239,11 +241,12 @@ class EquityPatrimonio extends BaseController
 
         // Egresos: cuotas mensuales de créditos (excluye líneas)
         $pq = model(EquityPasivoModel::class)
-            ->where('empresa_id', $empresaId)
             ->whereIn('categoria', ['inmueble', 'circulante', 'otro', 'indirecta'])
             ->orderBy('banco_descripcion', 'ASC');
         if ($personaId !== '') {
             $pq->where('persona_id', $personaId);
+        } else {
+            $pq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $egresosDetalle = [];
         $totalEgresos   = 0.0;
@@ -371,12 +374,13 @@ class EquityPatrimonio extends BaseController
         $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
 
         $q = model(EquityPasivoModel::class)
-            ->where('empresa_id', $empresaId)
             ->whereIn('categoria', ['inmueble', 'circulante', 'otro', 'indirecta'])
             ->orderBy('banco_descripcion', 'ASC')
             ->orderBy('created_at', 'DESC');
         if ($personaId !== '') {
             $q->where('persona_id', $personaId);
+        } else {
+            $q->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $rows = $q->findAll();
         foreach ($rows as &$row) {
@@ -662,10 +666,11 @@ class EquityPatrimonio extends BaseController
         $totalGeneral = 0.0;
         // Preferir suma de contratos vigentes (equivalente mensual)
         $cq = model(EquityIngresoContratoModel::class)
-            ->where('empresa_id', $empresaId)
             ->where('estado', 'vigente');
         if ($personaId !== '') {
             $cq->where('persona_id', $personaId);
+        } else {
+            $cq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $contratosVigentes = $cq->findAll();
         $sumasContrato = [];
@@ -709,11 +714,12 @@ class EquityPatrimonio extends BaseController
         }
 
         $q = model(EquityFichaModel::class)
-            ->where('empresa_id', $empresaId)
             ->orderBy('fecha_corte', 'DESC')
             ->orderBy('created_at', 'DESC');
         if ($personaId !== '') {
             $q->where('persona_id', $personaId);
+        } else {
+            $q->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $fichas = $q->findAll();
         $personaMap = [];
@@ -764,13 +770,14 @@ class EquityPatrimonio extends BaseController
         $editId    = trim((string) $this->request->getGet('edit'));
 
         $cq = model(EquityIngresoContratoModel::class)
-            ->where('empresa_id', $empresaId)
             ->where('fuente', $fuente)
             ->orderBy('estado', 'ASC')
             ->orderBy('fecha_inicio_contrato', 'DESC')
             ->orderBy('created_at', 'DESC');
         if ($personaId !== '') {
             $cq->where('persona_id', $personaId);
+        } else {
+            $cq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $contratos = $cq->findAll();
         $editRow = null;
@@ -789,10 +796,11 @@ class EquityPatrimonio extends BaseController
         $totalCanon = 0.0;
         if ($fuente === 'inversiones') {
             $bq = model(EquityBienRaizModel::class)
-                ->where('empresa_id', $empresaId)
                 ->orderBy('direccion', 'ASC');
             if ($personaId !== '') {
                 $bq->where('persona_id', $personaId);
+            } else {
+                $bq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
             }
             foreach ($bq->findAll() as $br) {
                 $canon = $br['canon_mensual_clp'] ?? null;
@@ -849,10 +857,7 @@ class EquityPatrimonio extends BaseController
         }
 
         $empresaId = $memb['empresa_id'];
-        $persona = model(EquityPersonaModel::class)
-            ->where('id', $personaId)
-            ->where('empresa_id', $empresaId)
-            ->first();
+        $persona   = $this->personaActivaAutorizada($memb, $personaId);
         if (! is_array($persona)) {
             return redirect()->to('/equity/ingresos/' . $fuente)->with('error', 'Persona no encontrada.');
         }
@@ -943,10 +948,7 @@ class EquityPatrimonio extends BaseController
         }
 
         $empresaId = $memb['empresa_id'];
-        $persona = model(EquityPersonaModel::class)
-            ->where('id', $personaId)
-            ->where('empresa_id', $empresaId)
-            ->first();
+        $persona   = $this->personaActivaAutorizada($memb, $personaId);
         if (! is_array($persona)) {
             return redirect()->to($redirect)->with('error', 'Persona no encontrada.');
         }
@@ -1219,11 +1221,12 @@ class EquityPatrimonio extends BaseController
     private function ultimaFicha(string $empresaId, string $personaId): ?array
     {
         $q = model(EquityFichaModel::class)
-            ->where('empresa_id', $empresaId)
             ->orderBy('fecha_corte', 'DESC')
             ->orderBy('created_at', 'DESC');
         if ($personaId !== '') {
             $q->where('persona_id', $personaId);
+        } else {
+            $q->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $row = $q->first();
 
@@ -1232,9 +1235,11 @@ class EquityPatrimonio extends BaseController
 
     private function sumCanonArriendos(string $empresaId, string $personaId, float $ufRate): float
     {
-        $bq = model(EquityBienRaizModel::class)->where('empresa_id', $empresaId);
+        $bq = model(EquityBienRaizModel::class);
         if ($personaId !== '') {
             $bq->where('persona_id', $personaId);
+        } else {
+            $bq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $sum = 0.0;
         foreach ($bq->findAll() as $br) {
@@ -1384,10 +1389,7 @@ class EquityPatrimonio extends BaseController
         }
 
         $personaId = $this->sessionPersonaId();
-        $persona = model(EquityPersonaModel::class)
-            ->where('id', $personaId)
-            ->where('empresa_id', $memb['empresa_id'])
-            ->first();
+        $persona   = $this->personaActivaAutorizada($memb, $personaId);
         if ($persona === null) {
             return redirect()->back()->with('error', 'No hay persona activa en la sesión para registrar datos.');
         }
@@ -1741,13 +1743,24 @@ class EquityPatrimonio extends BaseController
         if ($model === null) {
             return null;
         }
-        $q = $model->where('id', $id)->where('empresa_id', $empresaId);
+        $q = $model->where('id', $id);
         if (($meta['table'] ?? '') === 'equity_pasivos' && isset($meta['categoria'])) {
             $q->where('categoria', $meta['categoria']);
         }
         $row = $q->first();
+        if (! is_array($row)) {
+            return null;
+        }
 
-        return is_array($row) ? $row : null;
+        $sessionPersona = $this->sessionPersonaId();
+        if ($sessionPersona !== '' && (string) ($row['persona_id'] ?? '') === $sessionPersona) {
+            return $row;
+        }
+        if (in_array((string) ($row['empresa_id'] ?? ''), $this->empresaScopeIds($empresaId), true)) {
+            return $row;
+        }
+
+        return null;
     }
 
     /** @return list<array<string, mixed>> */
@@ -1779,15 +1792,52 @@ class EquityPatrimonio extends BaseController
             return [];
         }
 
-        $q = $model->where('empresa_id', $empresaId)->orderBy('created_at', 'DESC');
+        // Con persona de sesión: filtrar por persona (puede vivir en otro empresa_id del seed/grupo).
+        // Sin persona: listar solo el alcance de la empresa de la membresía.
+        $q = $model->orderBy('created_at', 'DESC');
         if ($personaId !== '') {
             $q->where('persona_id', $personaId);
+        } else {
+            $q->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         if (($meta['table'] ?? '') === 'equity_pasivos' && isset($meta['categoria'])) {
             $q->where('categoria', $meta['categoria']);
         }
 
         return $q->findAll();
+    }
+
+    /** @return list<string> */
+    private function empresaScopeIds(string $empresaId): array
+    {
+        $ids = (new \App\Libraries\EquityOrg())->empresaIdsDelGrupo($empresaId);
+
+        return $ids !== [] ? $ids : [$empresaId];
+    }
+
+    /**
+     * Persona de sesión si es declarable para el usuario (propia o representada),
+     * aunque su empresa_id no coincida exactamente con la membresía actual.
+     *
+     * @param array<string, mixed> $memb
+     * @return array<string, mixed>|null
+     */
+    private function personaActivaAutorizada(array $memb, string $personaId): ?array
+    {
+        if ($personaId === '') {
+            return null;
+        }
+        $uid = (string) ((new MembershipAuth())->usuarioId() ?? '');
+        if ($uid === '') {
+            return null;
+        }
+        foreach ((new \App\Libraries\EquityOrg())->personasDeclarables($uid, (string) $memb['empresa_id']) as $p) {
+            if (($p['id'] ?? '') === $personaId) {
+                return $p;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -1806,9 +1856,11 @@ class EquityPatrimonio extends BaseController
         }
         $db = db_connect();
         $hasUf = $db->fieldExists($colUf, $table);
-        $builder = $db->table($table)->where('empresa_id', $empresaId);
+        $builder = $db->table($table);
         if ($personaId !== '') {
             $builder->where('persona_id', $personaId);
+        } else {
+            $builder->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $rows = $builder->get()->getResultArray();
         $sum = 0.0;
@@ -1829,10 +1881,11 @@ class EquityPatrimonio extends BaseController
             return 0.0;
         }
         $builder = db_connect()->table('equity_pasivos')
-            ->where('empresa_id', $empresaId)
             ->where('categoria', $categoria);
         if ($personaId !== '') {
             $builder->where('persona_id', $personaId);
+        } else {
+            $builder->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $rows = $builder->get()->getResultArray();
         $sum = 0.0;
@@ -1855,10 +1908,11 @@ class EquityPatrimonio extends BaseController
         }
         $db = db_connect();
         $builder = $db->table('equity_pasivos')
-            ->where('empresa_id', $empresaId)
             ->where('categoria', 'indirecta');
         if ($personaId !== '') {
             $builder->where('persona_id', $personaId);
+        } else {
+            $builder->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $rows = $builder->get()->getResultArray();
         $hasVig = $db->fieldExists('vigente_uf', 'equity_pasivos');
@@ -1890,10 +1944,11 @@ class EquityPatrimonio extends BaseController
         }
         $db = db_connect();
         $builder = $db->table('equity_pasivos')
-            ->where('empresa_id', $empresaId)
             ->where('categoria', 'linea');
         if ($personaId !== '') {
             $builder->where('persona_id', $personaId);
+        } else {
+            $builder->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $rows = $builder->get()->getResultArray();
         $hasDirUf = $db->fieldExists('monto_directo_uf', 'equity_pasivos');
