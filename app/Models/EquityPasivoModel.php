@@ -22,5 +22,9 @@ class EquityPasivoModel extends Model
         'seg_desgravamen_uf', 'seg_adicionales_uf', 'seg_otros_complementarios_uf',
         'dividendo_uf', 'dividendo_clp', 'fecha_vencimiento', 'direccion_garantia',
         'seguros_info', 'cuenta_pac', 'dia_cargo_pac',
+        'monto_directo_uf', 'monto_directo_clp', 'monto_indirecto_uf', 'monto_indirecto_clp',
+        'fecha_otorgamiento', 'total_credito_uf', 'total_credito_clp',
+        'vigente_uf', 'vigente_clp', 'mora_30_59_uf', 'mora_30_59_clp',
+        'mora_60_89_uf', 'mora_60_89_clp', 'mora_90_mas_uf', 'mora_90_mas_clp',
     ];
 }

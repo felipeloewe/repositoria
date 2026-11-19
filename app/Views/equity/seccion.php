@@ -34,6 +34,8 @@ $listAction = match ($clave) {
     'pasivos-inmuebles'   => site_url('equity/pasivos/inmuebles'),
     'pasivos-circulantes' => site_url('equity/pasivos/circulantes'),
     'otros-pasivos'       => site_url('equity/pasivos/otros'),
+    'pasivos-indirecta'   => site_url('equity/pasivos/indirecta'),
+    'pasivos-lineas'      => site_url('equity/pasivos/lineas'),
     default               => site_url('dashboard'),
 };
 $edit = $edit ?? null;
@@ -373,6 +375,106 @@ $chk = static function (string $key) use ($edit): string {
                     <textarea id="seguros_info" name="seguros_info" rows="2" placeholder="Compañía y póliza colectiva"><?= esc($val('seguros_info')) ?></textarea>
                 </div>
             </div>
+        <?php elseif ($clave === 'pasivos-indirecta'): ?>
+            <p class="muted" style="margin-top:0">Deudas adquiridas por un tercero donde eres codeudor, fiador o avalista.</p>
+            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+                <div style="grid-column:1/-1">
+                    <label for="banco_descripcion">Institución financiera *</label>
+                    <input id="banco_descripcion" name="banco_descripcion" type="text" required placeholder="Banco Consorcio, Banco Bice…" value="<?= esc($val('banco_descripcion')) ?>">
+                </div>
+                <div>
+                    <label for="tipo_credito">Tipo de crédito *</label>
+                    <input id="tipo_credito" name="tipo_credito" type="text" required placeholder="Comercial" value="<?= esc($val('tipo')) ?>">
+                </div>
+                <div>
+                    <label for="fecha_otorgamiento">Fecha de otorgamiento</label>
+                    <input id="fecha_otorgamiento" name="fecha_otorgamiento" type="date" value="<?= esc($val('fecha_otorgamiento')) ?>">
+                </div>
+                <div>
+                    <label for="total_credito_uf">Total del crédito UF</label>
+                    <input id="total_credito_uf" name="total_credito_uf" type="text" inputmode="decimal" value="<?= esc($val('total_credito_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="total_credito_clp">Total del crédito $</label>
+                    <input id="total_credito_clp" name="total_credito_clp" type="text" inputmode="decimal" value="<?= esc($val('total_credito_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="vigente_uf">Vigente UF</label>
+                    <input id="vigente_uf" name="vigente_uf" type="text" inputmode="decimal" value="<?= esc($val('vigente_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="vigente_clp">Vigente $</label>
+                    <input id="vigente_clp" name="vigente_clp" type="text" inputmode="decimal" value="<?= esc($val('vigente_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="mora_30_59_uf">30 a 59 días UF</label>
+                    <input id="mora_30_59_uf" name="mora_30_59_uf" type="text" inputmode="decimal" value="<?= esc($val('mora_30_59_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="mora_30_59_clp">30 a 59 días $</label>
+                    <input id="mora_30_59_clp" name="mora_30_59_clp" type="text" inputmode="decimal" value="<?= esc($val('mora_30_59_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="mora_60_89_uf">60 a 89 días UF</label>
+                    <input id="mora_60_89_uf" name="mora_60_89_uf" type="text" inputmode="decimal" value="<?= esc($val('mora_60_89_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="mora_60_89_clp">60 a 89 días $</label>
+                    <input id="mora_60_89_clp" name="mora_60_89_clp" type="text" inputmode="decimal" value="<?= esc($val('mora_60_89_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="mora_90_mas_uf">90 o más días UF</label>
+                    <input id="mora_90_mas_uf" name="mora_90_mas_uf" type="text" inputmode="decimal" value="<?= esc($val('mora_90_mas_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="mora_90_mas_clp">90 o más días $</label>
+                    <input id="mora_90_mas_clp" name="mora_90_mas_clp" type="text" inputmode="decimal" value="<?= esc($val('mora_90_mas_clp', 0)) ?>">
+                </div>
+            </div>
+        <?php elseif ($clave === 'pasivos-lineas'): ?>
+            <p class="muted" style="margin-top:0">Créditos disponibles (montos no utilizados): líneas de crédito y otros créditos. Directos e indirectos.</p>
+            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+                <div>
+                    <label for="tipo_linea">Tipo *</label>
+                    <select id="tipo_linea" name="tipo_linea" required>
+                        <option value="">—</option>
+                        <?php
+                        $tipoLineaSel = '';
+                        if ($val('tipo') !== '') {
+                            foreach (EquityCatalogo::opcionesTipoLineaDisponible() as $k => $lab) {
+                                if ($lab === $val('tipo') || (string) $k === $val('tipo')) {
+                                    $tipoLineaSel = (string) $k;
+                                    break;
+                                }
+                            }
+                        }
+                        foreach (EquityCatalogo::opcionesTipoLineaDisponible() as $k => $lab):
+                        ?>
+                            <option value="<?= (int) $k ?>" <?= ((string) $k === $tipoLineaSel || $sel('tipo', $k) !== '') ? 'selected' : '' ?>><?= (int) $k ?>. <?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div style="grid-column:1/-1">
+                    <label for="banco_descripcion">Institución financiera *</label>
+                    <input id="banco_descripcion" name="banco_descripcion" type="text" required placeholder="Banco Itaú Chile, Scotiabank…" value="<?= esc($val('banco_descripcion')) ?>">
+                </div>
+                <div>
+                    <label for="monto_directo_uf">Directos UF</label>
+                    <input id="monto_directo_uf" name="monto_directo_uf" type="text" inputmode="decimal" value="<?= esc($val('monto_directo_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="monto_directo_clp">Directos $</label>
+                    <input id="monto_directo_clp" name="monto_directo_clp" type="text" inputmode="decimal" placeholder="ej. 4.777.712" value="<?= esc($val('monto_directo_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="monto_indirecto_uf">Indirectos UF</label>
+                    <input id="monto_indirecto_uf" name="monto_indirecto_uf" type="text" inputmode="decimal" value="<?= esc($val('monto_indirecto_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="monto_indirecto_clp">Indirectos $</label>
+                    <input id="monto_indirecto_clp" name="monto_indirecto_clp" type="text" inputmode="decimal" placeholder="ej. 3.000.000" value="<?= esc($val('monto_indirecto_clp', 0)) ?>">
+                </div>
+            </div>
         <?php else: ?>
             <label for="banco_descripcion">Banco / descripción *</label>
             <input id="banco_descripcion" name="banco_descripcion" type="text" required value="<?= esc($val('banco_descripcion')) ?>">
@@ -485,6 +587,22 @@ $chk = static function (string $key) use ($edit): string {
                             . (! empty($row['dividendo_uf']) ? ' · Div. ' . number_format((float) $row['dividendo_uf'], 4, ',', '.') . ' UF' : '')
                             . (! empty($row['asociacion']) ? ' · ' . $row['asociacion'] : '')
                             . (! empty($row['direccion_garantia']) ? ' · ' . $row['direccion_garantia'] : ''),
+                            ' ·'
+                        ),
+                        'pasivos-indirecta' => trim(
+                            (string) ($row['banco_descripcion'] ?? '')
+                            . (! empty($row['tipo']) ? ' · ' . $row['tipo'] : '')
+                            . (! empty($row['fecha_otorgamiento']) ? ' · ' . $row['fecha_otorgamiento'] : '')
+                            . (! empty($row['total_credito_clp']) ? ' · Total $' . number_format((float) $row['total_credito_clp'], 0, ',', '.') : '')
+                            . (! empty($row['vigente_clp']) ? ' · Vigente $' . number_format((float) $row['vigente_clp'], 0, ',', '.') : ''),
+                            ' ·'
+                        ),
+                        'pasivos-lineas' => trim(
+                            (string) ($row['tipo'] ?? 'Línea')
+                            . ' · '
+                            . (string) ($row['banco_descripcion'] ?? '')
+                            . (! empty($row['monto_directo_clp']) ? ' · Dir. $' . number_format((float) $row['monto_directo_clp'], 0, ',', '.') : '')
+                            . (! empty($row['monto_indirecto_clp']) ? ' · Ind. $' . number_format((float) $row['monto_indirecto_clp'], 0, ',', '.') : ''),
                             ' ·'
                         ),
                         default => (string) ($row['banco_descripcion'] ?? ''),

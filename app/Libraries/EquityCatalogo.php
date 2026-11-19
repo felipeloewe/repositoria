@@ -78,7 +78,21 @@ final class EquityCatalogo
                 'label'       => 'Otros pasivos',
                 'grupo'       => 'Pasivos',
                 'path'        => '/equity/pasivos/otros',
-                'descripcion' => 'Tarjetas, líneas, consumo y otros',
+                'descripcion' => 'Consumo, descuentos y otros',
+            ],
+            [
+                'clave'       => 'pasivos-indirecta',
+                'label'       => 'Deuda indirecta',
+                'grupo'       => 'Pasivos',
+                'path'        => '/equity/pasivos/indirecta',
+                'descripcion' => 'Deudas como codeudor, fiador o avalista',
+            ],
+            [
+                'clave'       => 'pasivos-lineas',
+                'label'       => 'Líneas disponibles',
+                'grupo'       => 'Pasivos',
+                'path'        => '/equity/pasivos/lineas',
+                'descripcion' => 'Líneas de crédito y cupos disponibles',
             ],
             [
                 'clave'       => 'ingresos',
@@ -124,6 +138,8 @@ final class EquityCatalogo
                 ['clave' => 'pasivos-inmuebles', 'label' => 'Hipotecarios', 'path' => '/equity/pasivos/inmuebles'],
                 ['clave' => 'pasivos-circulantes', 'label' => 'Circulantes', 'path' => '/equity/pasivos/circulantes'],
                 ['clave' => 'otros-pasivos', 'label' => 'Otros pasivos', 'path' => '/equity/pasivos/otros'],
+                ['clave' => 'pasivos-indirecta', 'label' => 'Deuda indirecta', 'path' => '/equity/pasivos/indirecta'],
+                ['clave' => 'pasivos-lineas', 'label' => 'Líneas disponibles', 'path' => '/equity/pasivos/lineas'],
             ],
             'Documentos' => [
                 ['clave' => 'respaldos', 'label' => 'Respaldos', 'path' => '/equity/respaldos'],
@@ -179,6 +195,20 @@ final class EquityCatalogo
                 'grupo'     => 'Pasivos',
                 'table'     => 'equity_pasivos',
                 'categoria' => 'otro',
+            ],
+            'pasivos-indirecta' => [
+                'clave'     => 'pasivos-indirecta',
+                'label'     => 'Deuda indirecta',
+                'grupo'     => 'Pasivos',
+                'table'     => 'equity_pasivos',
+                'categoria' => 'indirecta',
+            ],
+            'pasivos-lineas' => [
+                'clave'     => 'pasivos-lineas',
+                'label'     => 'Líneas disponibles',
+                'grupo'     => 'Pasivos',
+                'table'     => 'equity_pasivos',
+                'categoria' => 'linea',
             ],
         ];
 
@@ -347,6 +377,15 @@ final class EquityCatalogo
             3 => 'Bonos',
             4 => 'Cuentas de Ahorro',
             5 => 'Otros',
+        ];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesTipoLineaDisponible(): array
+    {
+        return [
+            1 => 'Líneas de crédito',
+            2 => 'Otros créditos',
         ];
     }
 

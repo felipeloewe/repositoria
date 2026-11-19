@@ -58,12 +58,15 @@ class EquityPatrimonio extends BaseController
             'vehiculos'     => $this->sumUfCol($empresaId, 'equity_vehiculos', 'valor_uf', 'valor_clp', $personaId, $ufRate),
             'sociedades'    => $this->sumUfCol($empresaId, 'equity_sociedades', 'valor_uf', 'valor_clp', $personaId, $ufRate),
             'otros_activos' => $this->sumUfCol($empresaId, 'equity_otros_activos', 'saldo_uf', 'saldo_clp', $personaId, $ufRate),
-            'pasivos_inm'   => $this->sumPasivoCategoria($empresaId, 'inmueble', $personaId, $ufRate),
-            'pasivos_circ'  => $this->sumPasivoCategoria($empresaId, 'circulante', $personaId, $ufRate),
-            'pasivos_otro'  => $this->sumPasivoCategoria($empresaId, 'otro', $personaId, $ufRate),
+            'pasivos_inm'       => $this->sumPasivoCategoria($empresaId, 'inmueble', $personaId, $ufRate),
+            'pasivos_circ'      => $this->sumPasivoCategoria($empresaId, 'circulante', $personaId, $ufRate),
+            'pasivos_otro'      => $this->sumPasivoCategoria($empresaId, 'otro', $personaId, $ufRate),
+            'pasivos_indirecta' => $this->sumDeudaIndirecta($empresaId, $personaId, $ufRate),
+            'pasivos_lineas'    => $this->sumLineasDisponibles($empresaId, $personaId, $ufRate),
         ];
-        $totalesUf['activos']    = $totalesUf['bienes_raices'] + $totalesUf['vehiculos'] + $totalesUf['sociedades'] + $totalesUf['otros_activos'];
-        $totalesUf['pasivos']    = $totalesUf['pasivos_inm'] + $totalesUf['pasivos_circ'] + $totalesUf['pasivos_otro'];
+        $totalesUf['activos'] = $totalesUf['bienes_raices'] + $totalesUf['vehiculos'] + $totalesUf['sociedades'] + $totalesUf['otros_activos'];
+        // Líneas disponibles = cupos no utilizados (informativo). Deuda indirecta sí cuenta como pasivo contingente.
+        $totalesUf['pasivos'] = $totalesUf['pasivos_inm'] + $totalesUf['pasivos_circ'] + $totalesUf['pasivos_otro'] + $totalesUf['pasivos_indirecta'];
         $totalesUf['patrimonio'] = $totalesUf['activos'] - $totalesUf['pasivos'];
 
         $totales = [];
@@ -142,6 +145,8 @@ class EquityPatrimonio extends BaseController
             'inmuebles'   => 'pasivos-inmuebles',
             'circulantes' => 'pasivos-circulantes',
             'otros'       => 'otros-pasivos',
+            'indirecta'   => 'pasivos-indirecta',
+            'lineas'      => 'pasivos-lineas',
             default       => '',
         };
     }
@@ -482,6 +487,97 @@ class EquityPatrimonio extends BaseController
                 'dia_cargo_pac'                => $intOrNull($this->request->getPost('dia_cargo_pac')),
                 'notas'                        => trim((string) $this->request->getPost('notas')) ?: null,
             ];
+        } elseif ($clave === 'pasivos-indirecta') {
+            $desc = trim((string) $this->request->getPost('banco_descripcion'));
+            if ($desc === '') {
+                return redirect()->to($redirectPath)->with('error', 'La institución financiera es obligatoria.');
+            }
+            $tipoCredito = trim((string) $this->request->getPost('tipo_credito'));
+            if ($tipoCredito === '') {
+                return redirect()->to($redirectPath)->with('error', 'El tipo de crédito es obligatorio.');
+            }
+            $parTotal = EquityUf::resolverPar(
+                (string) $this->request->getPost('total_credito_uf'),
+                (string) $this->request->getPost('total_credito_clp'),
+                $memb['empresa_id']
+            );
+            $parVig = EquityUf::resolverPar(
+                (string) $this->request->getPost('vigente_uf'),
+                (string) $this->request->getPost('vigente_clp'),
+                $memb['empresa_id']
+            );
+            $par3059 = EquityUf::resolverPar(
+                (string) $this->request->getPost('mora_30_59_uf'),
+                (string) $this->request->getPost('mora_30_59_clp'),
+                $memb['empresa_id']
+            );
+            $par6089 = EquityUf::resolverPar(
+                (string) $this->request->getPost('mora_60_89_uf'),
+                (string) $this->request->getPost('mora_60_89_clp'),
+                $memb['empresa_id']
+            );
+            $par90 = EquityUf::resolverPar(
+                (string) $this->request->getPost('mora_90_mas_uf'),
+                (string) $this->request->getPost('mora_90_mas_clp'),
+                $memb['empresa_id']
+            );
+            $model = model(EquityPasivoModel::class);
+            $data  = [
+                'persona_id'          => $personaId,
+                'categoria'           => 'indirecta',
+                'banco_descripcion'   => $desc,
+                'tipo'                => $tipoCredito,
+                'fecha_otorgamiento'  => trim((string) $this->request->getPost('fecha_otorgamiento')) ?: null,
+                'total_credito_uf'    => $parTotal['uf'],
+                'total_credito_clp'   => $parTotal['clp'],
+                'vigente_uf'          => $parVig['uf'],
+                'vigente_clp'         => $parVig['clp'],
+                'mora_30_59_uf'       => $par3059['uf'],
+                'mora_30_59_clp'      => $par3059['clp'],
+                'mora_60_89_uf'       => $par6089['uf'],
+                'mora_60_89_clp'      => $par6089['clp'],
+                'mora_90_mas_uf'      => $par90['uf'],
+                'mora_90_mas_clp'     => $par90['clp'],
+                'saldo_uf'            => $parVig['uf'] ?? $parTotal['uf'],
+                'saldo_clp'           => $parVig['clp'] ?? $parTotal['clp'],
+                'notas'               => trim((string) $this->request->getPost('notas')) ?: null,
+            ];
+        } elseif ($clave === 'pasivos-lineas') {
+            $desc = trim((string) $this->request->getPost('banco_descripcion'));
+            if ($desc === '') {
+                return redirect()->to($redirectPath)->with('error', 'La institución financiera es obligatoria.');
+            }
+            $tipoLinea = $intOrNull($this->request->getPost('tipo_linea'));
+            if ($tipoLinea === null) {
+                return redirect()->to($redirectPath)->with('error', 'Selecciona el tipo (líneas de crédito / otros créditos).');
+            }
+            $tipoLabel = EquityCatalogo::opcionesTipoLineaDisponible()[$tipoLinea] ?? (string) $tipoLinea;
+            $parDir = EquityUf::resolverPar(
+                (string) $this->request->getPost('monto_directo_uf'),
+                (string) $this->request->getPost('monto_directo_clp'),
+                $memb['empresa_id']
+            );
+            $parInd = EquityUf::resolverPar(
+                (string) $this->request->getPost('monto_indirecto_uf'),
+                (string) $this->request->getPost('monto_indirecto_clp'),
+                $memb['empresa_id']
+            );
+            $totalUf  = (float) ($parDir['uf'] ?? 0) + (float) ($parInd['uf'] ?? 0);
+            $totalClp = (float) ($parDir['clp'] ?? 0) + (float) ($parInd['clp'] ?? 0);
+            $model = model(EquityPasivoModel::class);
+            $data  = [
+                'persona_id'          => $personaId,
+                'categoria'           => 'linea',
+                'banco_descripcion'   => $desc,
+                'tipo'                => $tipoLabel,
+                'monto_directo_uf'    => $parDir['uf'],
+                'monto_directo_clp'   => $parDir['clp'],
+                'monto_indirecto_uf'  => $parInd['uf'],
+                'monto_indirecto_clp' => $parInd['clp'],
+                'saldo_uf'            => $totalUf > 0 ? number_format($totalUf, 4, '.', '') : null,
+                'saldo_clp'           => $totalClp > 0 ? number_format($totalClp, 2, '.', '') : null,
+                'notas'               => trim((string) $this->request->getPost('notas')) ?: null,
+            ];
         } else {
             $desc = trim((string) $this->request->getPost('banco_descripcion'));
             if ($desc === '') {
@@ -528,6 +624,8 @@ class EquityPatrimonio extends BaseController
             'pasivos-inmuebles'   => '/equity/pasivos/inmuebles',
             'pasivos-circulantes' => '/equity/pasivos/circulantes',
             'otros-pasivos'       => '/equity/pasivos/otros',
+            'pasivos-indirecta'   => '/equity/pasivos/indirecta',
+            'pasivos-lineas'      => '/equity/pasivos/lineas',
             default               => '/dashboard',
         };
     }
@@ -648,6 +746,84 @@ class EquityPatrimonio extends BaseController
             if ($r['saldo_uf'] !== null && $r['saldo_uf'] !== '') {
                 $sum += (float) $r['saldo_uf'];
             } elseif ($r['saldo_clp'] !== null && $r['saldo_clp'] !== '' && $ufRate > 0) {
+                $sum += (float) $r['saldo_clp'] / $ufRate;
+            }
+        }
+
+        return $sum;
+    }
+
+    /** Suma deuda indirecta (vigente o total crédito) en UF. */
+    private function sumDeudaIndirecta(string $empresaId, string $personaId, float $ufRate): float
+    {
+        if (! db_connect()->tableExists('equity_pasivos')) {
+            return 0.0;
+        }
+        $db = db_connect();
+        $builder = $db->table('equity_pasivos')
+            ->where('empresa_id', $empresaId)
+            ->where('categoria', 'indirecta');
+        if ($personaId !== '') {
+            $builder->where('persona_id', $personaId);
+        }
+        $rows = $builder->get()->getResultArray();
+        $hasVig = $db->fieldExists('vigente_uf', 'equity_pasivos');
+        $sum = 0.0;
+        foreach ($rows as $r) {
+            if ($hasVig && $r['vigente_uf'] !== null && $r['vigente_uf'] !== '') {
+                $sum += (float) $r['vigente_uf'];
+            } elseif ($hasVig && ! empty($r['vigente_clp']) && $ufRate > 0) {
+                $sum += (float) $r['vigente_clp'] / $ufRate;
+            } elseif ($hasVig && $r['total_credito_uf'] !== null && $r['total_credito_uf'] !== '') {
+                $sum += (float) $r['total_credito_uf'];
+            } elseif ($hasVig && ! empty($r['total_credito_clp']) && $ufRate > 0) {
+                $sum += (float) $r['total_credito_clp'] / $ufRate;
+            } elseif ($r['saldo_uf'] !== null && $r['saldo_uf'] !== '') {
+                $sum += (float) $r['saldo_uf'];
+            } elseif (! empty($r['saldo_clp']) && $ufRate > 0) {
+                $sum += (float) $r['saldo_clp'] / $ufRate;
+            }
+        }
+
+        return $sum;
+    }
+
+    /** Suma cupos disponibles (directo + indirecto) en UF. */
+    private function sumLineasDisponibles(string $empresaId, string $personaId, float $ufRate): float
+    {
+        if (! db_connect()->tableExists('equity_pasivos')) {
+            return 0.0;
+        }
+        $db = db_connect();
+        $builder = $db->table('equity_pasivos')
+            ->where('empresa_id', $empresaId)
+            ->where('categoria', 'linea');
+        if ($personaId !== '') {
+            $builder->where('persona_id', $personaId);
+        }
+        $rows = $builder->get()->getResultArray();
+        $hasDirUf = $db->fieldExists('monto_directo_uf', 'equity_pasivos');
+        $sum = 0.0;
+        foreach ($rows as $r) {
+            $dir = null;
+            $ind = null;
+            if ($hasDirUf) {
+                if ($r['monto_directo_uf'] !== null && $r['monto_directo_uf'] !== '') {
+                    $dir = (float) $r['monto_directo_uf'];
+                } elseif (! empty($r['monto_directo_clp']) && $ufRate > 0) {
+                    $dir = (float) $r['monto_directo_clp'] / $ufRate;
+                }
+                if ($r['monto_indirecto_uf'] !== null && $r['monto_indirecto_uf'] !== '') {
+                    $ind = (float) $r['monto_indirecto_uf'];
+                } elseif (! empty($r['monto_indirecto_clp']) && $ufRate > 0) {
+                    $ind = (float) $r['monto_indirecto_clp'] / $ufRate;
+                }
+            }
+            if ($dir !== null || $ind !== null) {
+                $sum += (float) ($dir ?? 0) + (float) ($ind ?? 0);
+            } elseif ($r['saldo_uf'] !== null && $r['saldo_uf'] !== '') {
+                $sum += (float) $r['saldo_uf'];
+            } elseif (! empty($r['saldo_clp']) && $ufRate > 0) {
                 $sum += (float) $r['saldo_clp'] / $ufRate;
             }
         }
