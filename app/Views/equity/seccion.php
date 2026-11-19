@@ -87,27 +87,22 @@ $chk = static function (string $key) use ($edit): string {
     <div class="alert alert-error"><?= esc($error) ?></div>
 <?php endif; ?>
 
+<?php
+$personaLabelSec = '';
+foreach ($personas as $p) {
+    if (($p['id'] ?? '') === $personaId) {
+        $personaLabelSec = trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''));
+        break;
+    }
+}
+?>
+<?php if ($personaLabelSec !== ''): ?>
 <div class="card section-card">
-    <form method="get" action="<?= esc($listAction) ?>" class="form-row" style="grid-template-columns:1fr auto">
-        <div>
-            <label for="f_persona">Persona</label>
-            <select id="f_persona" name="persona_id">
-                <option value="">Todas</option>
-                <?php foreach ($personas as $p): ?>
-                    <option value="<?= esc($p['id']) ?>" <?= $personaId === $p['id'] ? 'selected' : '' ?>>
-                        <?= esc(trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''))) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div>
-            <label>&nbsp;</label>
-            <button class="btn btn-primary btn-sm" type="submit">Filtrar</button>
-        </div>
-    </form>
+    <p style="margin:0">Declarando como <strong><?= esc($personaLabelSec) ?></strong>.</p>
 </div>
+<?php endif; ?>
 
-<?php if (! empty($canManage) && $personas !== []): ?>
+<?php if (! empty($canManage) && $personaId !== ''): ?>
 <div class="card section-card" id="form-registro">
     <h3><?= $isEdit ? 'Editar registro' : 'Agregar' ?></h3>
     <?php if ($isEdit): ?>
@@ -118,14 +113,7 @@ $chk = static function (string $key) use ($edit): string {
     <?php endif; ?>
     <form method="post" action="<?= esc($action) ?>">
         <?= csrf_field() ?>
-        <label for="persona_id">Persona *</label>
-        <select id="persona_id" name="persona_id" required>
-            <?php foreach ($personas as $p): ?>
-                <option value="<?= esc($p['id']) ?>" <?= ($personaId === $p['id'] || ($isEdit && ($edit['persona_id'] ?? '') === $p['id'])) ? 'selected' : '' ?>>
-                    <?= esc(trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''))) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
+        <input type="hidden" name="persona_id" value="<?= esc($personaId) ?>">
 
         <?php if ($clave === 'bienes-raices'): ?>
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
@@ -527,8 +515,8 @@ $chk = static function (string $key) use ($edit): string {
         </div>
     </form>
 </div>
-<?php elseif (empty($personas)): ?>
-    <div class="alert alert-info">Primero <a href="<?= site_url('equity/nueva') ?>">agrega un integrante</a> al grupo familiar.</div>
+<?php elseif ($personaId === ''): ?>
+    <div class="alert alert-info">No hay persona activa en la sesión. La matriz debe inscribirte en <a href="<?= site_url('equity/grupo') ?>">Grupo / Usuarios</a>, o elige a quién representas al iniciar sesión.</div>
 <?php endif; ?>
 
 <div class="card section-card">

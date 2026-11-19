@@ -50,25 +50,20 @@ if ($ingresoMensual !== null && (float) $ingresoMensual > 0) {
     <div class="alert alert-error"><?= esc($error) ?></div>
 <?php endif; ?>
 
+<?php
+$personaLabelSf = '';
+foreach ($personas as $p) {
+    if (($p['id'] ?? '') === $personaId) {
+        $personaLabelSf = trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''));
+        break;
+    }
+}
+?>
+<?php if ($personaLabelSf !== ''): ?>
 <div class="card section-card">
-    <form method="get" action="<?= site_url('equity/situacion-financiera') ?>" class="form-row" style="grid-template-columns:1fr auto">
-        <div>
-            <label for="persona_id">Persona</label>
-            <select id="persona_id" name="persona_id">
-                <option value="">Todas</option>
-                <?php foreach ($personas as $p): ?>
-                    <option value="<?= esc($p['id']) ?>" <?= $personaId === $p['id'] ? 'selected' : '' ?>>
-                        <?= esc(trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''))) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div>
-            <label>&nbsp;</label>
-            <button class="btn btn-primary btn-sm" type="submit">Filtrar</button>
-        </div>
-    </form>
+    <p style="margin:0">Declarando como <strong><?= esc($personaLabelSf) ?></strong>.</p>
 </div>
+<?php endif; ?>
 
 <div class="grid" style="margin-top:1rem;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
     <div class="card">
@@ -79,7 +74,7 @@ if ($ingresoMensual !== null && (float) $ingresoMensual > 0) {
     <div class="card">
         <h3>Ingreso de referencia</h3>
         <div class="value" style="font-size:1.25rem"><?= esc($fmtPesos($ingresoMensual)) ?></div>
-        <div class="hint"><?= $personaId !== '' ? 'Última ficha / laboral de la persona' : 'Filtra por persona' ?></div>
+        <div class="hint"><?= $personaId !== '' ? 'Última ficha / laboral de la persona' : 'Sin persona de sesión' ?></div>
     </div>
     <div class="card">
         <h3>Total cuotas mensuales</h3>

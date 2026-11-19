@@ -15,34 +15,25 @@ $ufRate = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
     <p>
         Totales en UF (fijas) y equivalente en $ con UF vigente
         <?= $ufVigente ? esc(EquityUf::fmtPesos($ufRate, 2)) . ' · cierre ' . esc($ufVigente['fecha_cierre']) : '' ?>
-        <?= $personaId !== '' ? ' · filtrado por persona' : '' ?>.
+        <?php
+        $personaActiva = null;
+        foreach ($personas as $p) {
+            if (($p['id'] ?? '') === $personaId) {
+                $personaActiva = $p;
+                break;
+            }
+        }
+        if ($personaActiva) {
+            echo ' · ' . esc(trim(($personaActiva['nombre'] ?? '') . ' ' . ($personaActiva['apellido'] ?? '')));
+        } elseif ($personaId === '') {
+            echo ' · sin persona de sesión (admin)';
+        }
+        ?>.
+    </p>
+    <p style="margin-top:.5rem">
+        <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/reporte/balance') ?>">Reportería · Balance</a>
     </p>
 </section>
-
-<div class="card section-card">
-    <form method="get" action="<?= site_url('equity/resumen') ?>" class="form-row" style="grid-template-columns:1fr auto auto">
-        <div>
-            <label for="persona_id">Persona</label>
-            <select id="persona_id" name="persona_id">
-                <option value="">Todas</option>
-                <?php foreach ($personas as $p): ?>
-                    <option value="<?= esc($p['id']) ?>" <?= $personaId === $p['id'] ? 'selected' : '' ?>>
-                        <?= esc(trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''))) ?>
-                        (<?= esc(\App\Libraries\EquityAcl::labelTipo((string) ($p['tipo'] ?? 'socio'))) ?>)
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div>
-            <label>&nbsp;</label>
-            <button class="btn btn-primary btn-sm" type="submit">Filtrar</button>
-        </div>
-        <div>
-            <label>&nbsp;</label>
-            <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/reporte/balance' . ($personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : '')) ?>">Reportería · Balance</a>
-        </div>
-    </form>
-</div>
 
 <div class="grid">
     <div class="card">

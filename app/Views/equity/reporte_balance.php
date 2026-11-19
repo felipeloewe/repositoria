@@ -8,7 +8,7 @@ use App\Libraries\EquityUf;
 $ufRate = (float) (($ufVigente['valor_clp'] ?? null) ?: EquityUf::DEFAULT_VALOR_CLP);
 $fmtP = static fn ($v): string => EquityUf::fmtPesos((float) ($v ?? 0), 0);
 $fmtU = static fn ($v): string => EquityUf::fmtUf((float) ($v ?? 0), 2);
-$qs = $personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : '';
+$qs = '';
 ?>
 
 <style>
@@ -53,31 +53,10 @@ $qs = $personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : '';
 </section>
 
 <div class="card section-card no-print">
-    <form method="get" action="<?= site_url('equity/reporte/balance') ?>" class="form-row" style="grid-template-columns:1fr auto auto auto">
-        <div>
-            <label for="persona_id">Persona</label>
-            <select id="persona_id" name="persona_id">
-                <option value="">Todas</option>
-                <?php foreach ($personas as $p): ?>
-                    <option value="<?= esc($p['id']) ?>" <?= $personaId === $p['id'] ? 'selected' : '' ?>>
-                        <?= esc(trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''))) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div>
-            <label>&nbsp;</label>
-            <button class="btn btn-primary btn-sm" type="submit">Actualizar</button>
-        </div>
-        <div>
-            <label>&nbsp;</label>
-            <button class="btn btn-ghost btn-sm" type="button" onclick="window.print()">Imprimir / PDF</button>
-        </div>
-        <div>
-            <label>&nbsp;</label>
-            <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/resumen' . $qs) ?>">← Resumen</a>
-        </div>
-    </form>
+    <div class="balance-actions">
+        <button class="btn btn-ghost btn-sm" type="button" onclick="window.print()">Imprimir / PDF</button>
+        <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/resumen') ?>">← Resumen</a>
+    </div>
 </div>
 
 <div class="balance-sheet">

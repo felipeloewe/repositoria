@@ -35,6 +35,9 @@
             <?php endif; ?>
         </p>
 
+        <?php if (! empty($success)): ?>
+            <div class="alert alert-success"><?= esc($success) ?></div>
+        <?php endif; ?>
         <?php if (! empty($error)): ?>
             <div class="alert alert-error"><?= esc($error) ?></div>
         <?php endif; ?>

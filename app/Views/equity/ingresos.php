@@ -15,14 +15,22 @@ $fmt = static function ($v) use ($ufRate): string {
 
     return '$' . number_format($clp, 0, ',', '.') . ($uf !== null ? ' · ' . number_format($uf, 2, ',', '.') . ' UF' : '');
 };
-$qs = $personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : '';
+$qs = '';
+$personaLabel = '';
+foreach ($personas as $p) {
+    if (($p['id'] ?? '') === $personaId) {
+        $personaLabel = trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''));
+        break;
+    }
+}
 ?>
 
 <section class="banner">
     <h2>Ingresos</h2>
     <p>
         Fuentes de ingreso mensual. Abre cada fuente para cargar o editar montos.
-        UF vigente <?= esc(EquityUf::fmtPesos($ufRate, 2)) ?>.
+        UF vigente <?= esc(EquityUf::fmtPesos($ufRate, 2)) ?>
+        <?= $personaLabel !== '' ? ' · ' . esc($personaLabel) : '' ?>.
     </p>
 </section>
 
@@ -32,26 +40,6 @@ $qs = $personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : '';
 <?php if (! empty($error)): ?>
     <div class="alert alert-error"><?= esc($error) ?></div>
 <?php endif; ?>
-
-<div class="card section-card">
-    <form method="get" action="<?= site_url('equity/ingresos') ?>" class="form-row" style="grid-template-columns:1fr auto">
-        <div>
-            <label for="persona_id">Persona</label>
-            <select id="persona_id" name="persona_id">
-                <option value="">Todas</option>
-                <?php foreach ($personas as $p): ?>
-                    <option value="<?= esc($p['id']) ?>" <?= $personaId === $p['id'] ? 'selected' : '' ?>>
-                        <?= esc(trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''))) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div>
-            <label>&nbsp;</label>
-            <button class="btn btn-primary btn-sm" type="submit">Filtrar</button>
-        </div>
-    </form>
-</div>
 
 <div class="grid" style="margin-top:1rem;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
     <?php foreach ($fuentes as $clave => $meta): ?>

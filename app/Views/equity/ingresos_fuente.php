@@ -38,7 +38,7 @@ $e = static function (string $key, $default = '') use ($editRow, $fmtInput, $isE
 
     return (string) $v;
 };
-$qs = $personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : '';
+$qs = '';
 $periodos = EquityCatalogo::opcionesPeriodicidadIngreso();
 $estados  = EquityCatalogo::opcionesEstadoContratoIngreso();
 $subtipoLabels = [];
@@ -48,11 +48,18 @@ foreach ($meta['campos'] as $c) {
 $formAction = $isEdit
     ? site_url('equity/ingresos/' . $fuente . '/contratos/' . $editRow['id'])
     : site_url('equity/ingresos/' . $fuente . '/contratos');
+$personaLabel = '';
+foreach ($personas as $p) {
+    if (($p['id'] ?? '') === $personaId) {
+        $personaLabel = trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''));
+        break;
+    }
+}
 ?>
 
 <section class="banner">
     <h2>Ingresos · <?= esc($meta['label']) ?></h2>
-    <p><?= esc($meta['descripcion']) ?>. Registra contraparte, contrato, periodicidad y monto.</p>
+    <p><?= esc($meta['descripcion']) ?>. Registra contraparte, contrato, periodicidad y monto<?= $personaLabel !== '' ? ' · ' . esc($personaLabel) : '' ?>.</p>
 </section>
 
 <?php if (! empty($success)): ?>
@@ -63,38 +70,15 @@ $formAction = $isEdit
 <?php endif; ?>
 
 <div class="admin-subnav">
-    <a href="<?= site_url('equity/ingresos' . $qs) ?>">← Resumen ingresos</a>
+    <a href="<?= site_url('equity/ingresos') ?>">← Resumen ingresos</a>
     <?php foreach (EquityCatalogo::fuentesIngreso() as $k => $m): ?>
-        <a href="<?= site_url('equity/ingresos/' . $k . $qs) ?>" class="<?= $k === $fuente ? 'active' : '' ?>"><?= esc($m['label']) ?></a>
+        <a href="<?= site_url('equity/ingresos/' . $k) ?>" class="<?= $k === $fuente ? 'active' : '' ?>"><?= esc($m['label']) ?></a>
     <?php endforeach; ?>
-</div>
-
-<div class="card section-card">
-    <form method="get" action="<?= site_url('equity/ingresos/' . $fuente) ?>" class="form-row" style="grid-template-columns:1fr auto">
-        <div>
-            <label for="persona_id_filter">Persona</label>
-            <select id="persona_id_filter" name="persona_id" onchange="this.form.submit()">
-                <option value="">Selecciona persona…</option>
-                <?php foreach ($personas as $p): ?>
-                    <option value="<?= esc($p['id']) ?>" <?= $personaId === $p['id'] ? 'selected' : '' ?>>
-                        <?= esc(trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''))) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div>
-            <label>&nbsp;</label>
-            <button class="btn btn-ghost btn-sm" type="submit">Filtrar</button>
-        </div>
-    </form>
 </div>
 
 <?php if ($personaId === ''): ?>
     <div class="card section-card">
-        <p class="muted">Selecciona una persona para registrar contratos / contrapartes de <strong><?= esc($meta['label']) ?></strong>.</p>
-        <?php if (($contratos ?? []) !== []): ?>
-            <p class="muted">Hay <?= count($contratos) ?> contrato(s) en esta fuente (todas las personas). Filtra para editar.</p>
-        <?php endif; ?>
+        <p class="muted">No hay persona activa en la sesión. La matriz debe inscribirte o, si representas a alguien, elige persona al ingresar.</p>
     </div>
 <?php elseif (! empty($canManage)): ?>
     <div class="card section-card">

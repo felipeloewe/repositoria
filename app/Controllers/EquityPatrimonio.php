@@ -41,6 +41,33 @@ class EquityPatrimonio extends BaseController
         return $memb;
     }
 
+    /** Persona de la sesión (propia o representada). */
+    private function sessionPersonaId(): string
+    {
+        return (string) ((new MembershipAuth())->equityPersonaId() ?? '');
+    }
+
+    /**
+     * Persona activa + mapa de personas visibles (solo la de sesión, o vacías para admin sin ficha).
+     *
+     * @return array{0: string, 1: list<array<string, mixed>>}
+     */
+    private function personaContexto(array $memb): array
+    {
+        $personaId = $this->sessionPersonaId();
+        $auth      = new MembershipAuth();
+        $uid       = (string) ($auth->usuarioId() ?? '');
+        $personas  = $uid !== ''
+            ? (new \App\Libraries\EquityOrg())->personasDeclarables($uid, $memb['empresa_id'])
+            : [];
+        if ($personaId === '' && count($personas) === 1) {
+            $personaId = (string) $personas[0]['id'];
+            $auth->setEquityPersonaId($personaId);
+        }
+
+        return [$personaId, $personas];
+    }
+
     public function resumen()
     {
         $memb = $this->requireAccess();
@@ -49,8 +76,7 @@ class EquityPatrimonio extends BaseController
         }
 
         $empresaId = $memb['empresa_id'];
-        $personaId = trim((string) $this->request->getGet('persona_id'));
-        $personas  = $this->personas($empresaId);
+        [$personaId, $personas] = $this->personaContexto($memb);
 
         $ufVigente = EquityUf::vigente($empresaId);
         $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
@@ -86,7 +112,7 @@ class EquityPatrimonio extends BaseController
             'totalesUf' => $totalesUf,
             'ufVigente' => $ufVigente,
             'menus'     => EquityCatalogo::menusInicio(),
-            'canManage' => EquityAcl::canManage($memb),
+            'canManage' => EquityAcl::canDeclare($memb),
         ]);
     }
 
@@ -101,8 +127,7 @@ class EquityPatrimonio extends BaseController
         }
 
         $empresaId = $memb['empresa_id'];
-        $personaId = trim((string) $this->request->getGet('persona_id'));
-        $personas  = $this->personas($empresaId);
+        [$personaId, $personas] = $this->personaContexto($memb);
         $personaMap = [];
         foreach ($personas as $p) {
             $personaMap[$p['id']] = $p;
@@ -261,7 +286,7 @@ class EquityPatrimonio extends BaseController
             'totalArriendos'    => $totalArriendos,
             'totalEgresos'      => $totalEgresos,
             'resultadoMensual'  => $totalIngresos - $totalEgresos,
-            'canManage'         => EquityAcl::canManage($memb),
+            'canManage'         => EquityAcl::canDeclare($memb),
         ]);
     }
 
@@ -336,8 +361,7 @@ class EquityPatrimonio extends BaseController
         }
 
         $empresaId = $memb['empresa_id'];
-        $personaId = trim((string) $this->request->getGet('persona_id'));
-        $personas  = $this->personas($empresaId);
+        [$personaId, $personas] = $this->personaContexto($memb);
         $personaMap = [];
         foreach ($personas as $p) {
             $personaMap[$p['id']] = $p;
@@ -496,7 +520,7 @@ class EquityPatrimonio extends BaseController
             'ingresoMensual'          => $ingresoMensual,
             'totalIngresosReportados' => $totalIngresosReportados,
             'totalCuotas'             => $totalCuotas,
-            'canManage'               => EquityAcl::canManage($memb),
+            'canManage'               => EquityAcl::canDeclare($memb),
             'success'                 => session()->getFlashdata('success'),
             'error'                   => session()->getFlashdata('error'),
         ]);
@@ -508,7 +532,7 @@ class EquityPatrimonio extends BaseController
         if (! is_array($memb)) {
             return $memb;
         }
-        if (! EquityAcl::canManage($memb)) {
+        if (! EquityAcl::canDeclare($memb)) {
             return redirect()->to('/equity/situacion-financiera')->with('error', 'Sin permiso para editar cuotas.');
         }
 
@@ -517,7 +541,7 @@ class EquityPatrimonio extends BaseController
             return redirect()->to('/equity/situacion-financiera')->with('error', 'Sin datos de cuotas.');
         }
 
-        $personaId = trim((string) $this->request->getPost('persona_id'));
+        $personaId = $this->sessionPersonaId();
         $updated = 0;
         foreach ($cuotas as $id => $raw) {
             $id = trim((string) $id);
@@ -605,8 +629,7 @@ class EquityPatrimonio extends BaseController
         }
 
         $empresaId = $memb['empresa_id'];
-        $personaId = trim((string) $this->request->getGet('persona_id'));
-        $personas  = $this->personas($empresaId);
+        [$personaId, $personas] = $this->personaContexto($memb);
         $ufVigente = EquityUf::vigente($empresaId);
         $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
 
@@ -714,7 +737,7 @@ class EquityPatrimonio extends BaseController
             'personas'       => $personas,
             'personaId'      => $personaId,
             'ufVigente'      => $ufVigente,
-            'canManage'      => EquityAcl::canManage($memb),
+            'canManage'      => EquityAcl::canDeclare($memb),
             'success'        => session()->getFlashdata('success'),
             'error'          => session()->getFlashdata('error'),
         ]);
@@ -733,8 +756,7 @@ class EquityPatrimonio extends BaseController
         }
 
         $empresaId = $memb['empresa_id'];
-        $personaId = trim((string) $this->request->getGet('persona_id'));
-        $personas  = $this->personas($empresaId);
+        [$personaId, $personas] = $this->personaContexto($memb);
         $ufVigente = EquityUf::vigente($empresaId);
         $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
         $meta      = $fuentes[$fuente];
@@ -800,7 +822,7 @@ class EquityPatrimonio extends BaseController
             'arriendos'   => $arriendos,
             'totalCanon'  => $totalCanon,
             'ufVigente'   => $ufVigente,
-            'canManage'   => EquityAcl::canManage($memb),
+            'canManage'   => EquityAcl::canDeclare($memb),
             'success'     => session()->getFlashdata('success'),
             'error'       => session()->getFlashdata('error'),
         ]);
@@ -812,7 +834,7 @@ class EquityPatrimonio extends BaseController
         if (! is_array($memb)) {
             return $memb;
         }
-        if (! EquityAcl::canManage($memb)) {
+        if (! EquityAcl::canDeclare($memb)) {
             return redirect()->to('/equity/ingresos/' . $fuente)->with('error', 'Sin permiso para editar ingresos.');
         }
 
@@ -821,9 +843,9 @@ class EquityPatrimonio extends BaseController
             return redirect()->to('/equity/ingresos')->with('error', 'Fuente de ingreso no válida.');
         }
 
-        $personaId = trim((string) $this->request->getPost('persona_id'));
+        $personaId = $this->sessionPersonaId();
         if ($personaId === '') {
-            return redirect()->to('/equity/ingresos/' . $fuente)->with('error', 'Selecciona una persona.');
+            return redirect()->to('/equity/ingresos/' . $fuente)->with('error', 'No hay persona activa en la sesión. Contacta a la matriz o elige a quién representas.');
         }
 
         $empresaId = $memb['empresa_id'];
@@ -905,7 +927,7 @@ class EquityPatrimonio extends BaseController
         if (! is_array($memb)) {
             return $memb;
         }
-        if (! EquityAcl::canManage($memb)) {
+        if (! EquityAcl::canDeclare($memb)) {
             return redirect()->to('/equity/ingresos/' . $fuente)->with('error', 'Sin permiso para editar contratos.');
         }
 
@@ -914,7 +936,7 @@ class EquityPatrimonio extends BaseController
             return redirect()->to('/equity/ingresos')->with('error', 'Fuente de ingreso no válida.');
         }
 
-        $personaId = trim((string) $this->request->getPost('persona_id'));
+        $personaId = $this->sessionPersonaId();
         $redirect  = '/equity/ingresos/' . $fuente . ($personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : '');
         if ($personaId === '') {
             return redirect()->to($redirect)->with('error', 'Selecciona una persona.');
@@ -1062,7 +1084,7 @@ class EquityPatrimonio extends BaseController
         if (! is_array($memb)) {
             return $memb;
         }
-        if (! EquityAcl::canManage($memb)) {
+        if (! EquityAcl::canDeclare($memb)) {
             return redirect()->to('/equity/ingresos/' . $fuente)->with('error', 'Sin permiso para eliminar.');
         }
 
@@ -1258,7 +1280,7 @@ class EquityPatrimonio extends BaseController
         }
 
         $empresaId = $memb['empresa_id'];
-        $personaId = trim((string) $this->request->getGet('persona_id'));
+        [$personaId, $personas] = $this->personaContexto($memb);
         $q = model(EquityRespaldoModel::class)
             ->where('empresa_id', $empresaId)
             ->orderBy('created_at', 'DESC');
@@ -1266,7 +1288,6 @@ class EquityPatrimonio extends BaseController
             $q->where('persona_id', $personaId);
         }
         $respaldos = $q->findAll();
-        $personas = $this->personas($empresaId);
         $personaMap = [];
         foreach ($personas as $p) {
             $personaMap[$p['id']] = $p;
@@ -1291,7 +1312,7 @@ class EquityPatrimonio extends BaseController
             'respaldos' => $respaldos,
             'personas'  => $personas,
             'personaId' => $personaId,
-            'canManage' => EquityAcl::canManage($memb),
+            'canManage' => EquityAcl::canDeclare($memb),
         ]);
     }
 
@@ -1308,9 +1329,8 @@ class EquityPatrimonio extends BaseController
         }
 
         $empresaId = $memb['empresa_id'];
-        $personaId = trim((string) $this->request->getGet('persona_id'));
+        [$personaId, $personas] = $this->personaContexto($memb);
         $rows = $this->loadRows($meta, $empresaId, $personaId);
-        $personas = $this->personas($empresaId);
         $personaMap = [];
         foreach ($personas as $p) {
             $personaMap[$p['id']] = $p;
@@ -1322,7 +1342,7 @@ class EquityPatrimonio extends BaseController
 
         $edit = null;
         if ($editId !== null && $editId !== '') {
-            if (! EquityAcl::canManage($memb)) {
+            if (! EquityAcl::canDeclare($memb)) {
                 return redirect()->to($this->pathSeccion($clave))->with('error', 'Sin permiso para editar.');
             }
             $edit = $this->findRegistro($meta, $empresaId, $editId);
@@ -1342,7 +1362,7 @@ class EquityPatrimonio extends BaseController
             'personaId' => $personaId,
             'edit'      => $edit,
             'ufVigente' => EquityUf::vigente($empresaId),
-            'canManage' => EquityAcl::canManage($memb),
+            'canManage' => EquityAcl::canDeclare($memb),
             'success'   => session()->getFlashdata('success'),
             'error'     => session()->getFlashdata('error'),
         ]);
@@ -1354,7 +1374,7 @@ class EquityPatrimonio extends BaseController
         if (! is_array($memb)) {
             return $memb;
         }
-        if (! EquityAcl::canManage($memb)) {
+        if (! EquityAcl::canDeclare($memb)) {
             return redirect()->to('/dashboard')->with('error', 'Sin permiso para editar.');
         }
 
@@ -1363,13 +1383,13 @@ class EquityPatrimonio extends BaseController
             return redirect()->to('/dashboard')->with('error', 'Sección no válida.');
         }
 
-        $personaId = trim((string) $this->request->getPost('persona_id'));
+        $personaId = $this->sessionPersonaId();
         $persona = model(EquityPersonaModel::class)
             ->where('id', $personaId)
             ->where('empresa_id', $memb['empresa_id'])
             ->first();
         if ($persona === null) {
-            return redirect()->back()->with('error', 'Selecciona una persona válida.');
+            return redirect()->back()->with('error', 'No hay persona activa en la sesión para registrar datos.');
         }
 
         helper('id');

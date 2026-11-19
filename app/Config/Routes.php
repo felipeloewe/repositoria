@@ -11,6 +11,7 @@ $routes->get('login', 'Auth::login');
 $routes->post('login', 'Auth::attempt');
 $routes->get('login/empresa', 'Auth::selectEmpresa');
 $routes->post('login/empresa', 'Auth::chooseEmpresa');
+$routes->get('verificar-email', 'Auth::verificarEmail');
 $routes->get('logout', 'Auth::logout');
 
 // Self-serve alta empresa FREE + admin Master
@@ -32,6 +33,10 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('dashboard', 'Dashboard::index');
     $routes->get('empresa/cambiar', 'Auth::switchEmpresa');
     $routes->post('empresa/cambiar', 'Auth::doSwitchEmpresa');
+    $routes->get('cambiar-clave', 'Auth::cambiarClaveForm');
+    $routes->post('cambiar-clave', 'Auth::cambiarClave');
+    $routes->get('login/persona', 'Auth::selectPersona');
+    $routes->post('login/persona', 'Auth::choosePersona');
 
     $routes->get('organizacion', 'Organizacion::index');
     $routes->get('organizacion/log', 'Organizacion::log');
@@ -123,6 +128,9 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('equity/configuracion', 'EquityConfiguracion::index');
     $routes->post('equity/configuracion/uf', 'EquityConfiguracion::storeUf');
     $routes->post('equity/configuracion/uf/(:segment)/eliminar', 'EquityConfiguracion::deleteUf/$1');
+    $routes->get('equity/grupo', 'EquityGrupo::index');
+    $routes->post('equity/grupo/subsidiaria', 'EquityGrupo::storeSubsidiaria');
+    $routes->post('equity/grupo/persona', 'EquityGrupo::storePersonaUsuario');
     $routes->get('equity/activos/(:segment)/(:segment)/editar', 'EquityPatrimonio::editActivo/$1/$2');
     $routes->post('equity/activos/(:segment)/(:segment)', 'EquityPatrimonio::updateActivo/$1/$2');
     $routes->get('equity/activos/(:segment)', 'EquityPatrimonio::activos/$1');

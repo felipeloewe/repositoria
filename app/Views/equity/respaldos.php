@@ -8,26 +8,6 @@
 </section>
 
 <div class="card section-card">
-    <form method="get" action="<?= site_url('equity/respaldos') ?>" class="form-row" style="grid-template-columns:1fr auto">
-        <div>
-            <label for="persona_id">Persona</label>
-            <select id="persona_id" name="persona_id">
-                <option value="">Todas</option>
-                <?php foreach ($personas as $p): ?>
-                    <option value="<?= esc($p['id']) ?>" <?= $personaId === $p['id'] ? 'selected' : '' ?>>
-                        <?= esc(trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''))) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div>
-            <label>&nbsp;</label>
-            <button class="btn btn-primary btn-sm" type="submit">Filtrar</button>
-        </div>
-    </form>
-</div>
-
-<div class="card section-card">
     <h3>Documentos (<?= count($respaldos) ?>)</h3>
     <?php if ($respaldos === []): ?>
         <p class="muted">Sin respaldos. Súbelos desde la ficha de cada persona.</p>

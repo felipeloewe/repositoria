@@ -79,7 +79,20 @@ $isActive = static function (string $clave) use ($title, $equityNav): bool {
     <a href="<?= site_url('organizacion') ?>" class="<?= $title === 'Organización' ? 'active' : '' ?>" data-nav="org"><span class="nav-label">Organización</span></a>
 <?php endif; ?>
 <?php if ($canConfig): ?>
+    <a href="<?= site_url('equity/grupo') ?>" class="<?= ($title === 'Grupo Equity' || $equityNav === 'grupo') ? 'active' : '' ?>" data-nav="grupo"><span class="nav-label">Grupo / Usuarios</span></a>
     <a href="<?= site_url('equity/configuracion') ?>" class="<?= ($title === 'Configuración' || $equityNav === 'configuracion') ? 'active' : '' ?>" data-nav="configuracion"><span class="nav-label">Configuración</span></a>
+<?php endif; ?>
+<?php
+$equityPersonas = [];
+if (! empty($memb['empresa_id']) && ! empty($memb['usuario_id'])) {
+    $equityPersonas = (new \App\Libraries\EquityOrg())->personasDeclarables((string) $memb['usuario_id'], (string) $memb['empresa_id']);
+}
+if (count($equityPersonas) > 1):
+?>
+    <p class="nav-section">Declarando</p>
+    <a href="<?= site_url('login/persona') ?>" class="<?= $title === '¿A quién representas?' ? 'active' : '' ?>" data-nav="persona">
+        <span class="nav-label">Cambiar persona</span>
+    </a>
 <?php endif; ?>
 <?php if ($canPerfiles): ?>
     <a href="<?= site_url('perfiles') ?>" class="<?= $title === 'Perfiles' ? 'active' : '' ?>" data-nav="perfiles"><span class="nav-label">Perfiles</span></a>

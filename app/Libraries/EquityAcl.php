@@ -52,10 +52,25 @@ final class EquityAcl
     /** @param array<string, mixed> $memb */
     public static function canAccess(array $memb): bool
     {
+        // En host Equity, toda membresía activa del grupo puede declarar.
+        if (Product::isEquity()) {
+            return true;
+        }
+
         return PerfilAcl::canMenu($memb, 'menu.equity');
     }
 
-    /** Alta/edición de personas y fichas. @param array<string, mixed> $memb */
+    /**
+     * Completar formularios de la persona de sesión (propios o representados).
+     *
+     * @param array<string, mixed> $memb
+     */
+    public static function canDeclare(array $memb): bool
+    {
+        return self::canAccess($memb);
+    }
+
+    /** Administración de grupo / UF / alta de personas. @param array<string, mixed> $memb */
     public static function canManage(array $memb): bool
     {
         if (! self::canAccess($memb)) {
