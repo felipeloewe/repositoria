@@ -151,6 +151,245 @@ class EquityPatrimonio extends BaseController
         };
     }
 
+    public function situacionFinanciera()
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $empresaId = $memb['empresa_id'];
+        $personaId = trim((string) $this->request->getGet('persona_id'));
+        $personas  = $this->personas($empresaId);
+        $personaMap = [];
+        foreach ($personas as $p) {
+            $personaMap[$p['id']] = $p;
+        }
+
+        $ufVigente = EquityUf::vigente($empresaId);
+        $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+
+        $q = model(EquityPasivoModel::class)
+            ->where('empresa_id', $empresaId)
+            ->whereIn('categoria', ['inmueble', 'circulante', 'otro', 'indirecta'])
+            ->orderBy('banco_descripcion', 'ASC')
+            ->orderBy('created_at', 'DESC');
+        if ($personaId !== '') {
+            $q->where('persona_id', $personaId);
+        }
+        $rows = $q->findAll();
+        foreach ($rows as &$row) {
+            $row['persona'] = $personaMap[$row['persona_id']] ?? null;
+            $row['tipo_credito_label'] = $this->tipoCreditoSituacion($row);
+            $row['total_clp'] = $this->montoClpPreferido(
+                $row['total_credito_clp'] ?? null,
+                $row['total_credito_uf'] ?? null,
+                $row['saldo_clp'] ?? null,
+                $row['saldo_uf'] ?? null,
+                $ufRate
+            );
+            $row['vigente_show'] = $this->montoClpPreferido(
+                $row['vigente_clp'] ?? null,
+                $row['vigente_uf'] ?? null,
+                $row['saldo_clp'] ?? null,
+                $row['saldo_uf'] ?? null,
+                $ufRate
+            );
+            $row['cuota_show'] = $this->montoClpPreferido(
+                $row['cuota_mensual'] ?? null,
+                null,
+                $row['dividendo_clp'] ?? null,
+                $row['dividendo_uf'] ?? null,
+                $ufRate
+            );
+            $row['mora_30_show'] = $this->montoClpPreferido($row['mora_30_59_clp'] ?? null, $row['mora_30_59_uf'] ?? null, null, null, $ufRate);
+            $row['mora_60_show'] = $this->montoClpPreferido($row['mora_60_89_clp'] ?? null, $row['mora_60_89_uf'] ?? null, null, null, $ufRate);
+            $row['mora_90_show'] = $this->montoClpPreferido($row['mora_90_mas_clp'] ?? null, $row['mora_90_mas_uf'] ?? null, null, null, $ufRate);
+        }
+        unset($row);
+
+        // Reporte de ingresos informados (fichas + rentas laborales de la ficha personal).
+        $fq = model(EquityFichaModel::class)
+            ->where('empresa_id', $empresaId)
+            ->orderBy('fecha_corte', 'DESC')
+            ->orderBy('created_at', 'DESC');
+        if ($personaId !== '') {
+            $fq->where('persona_id', $personaId);
+        }
+        $ingresos = $fq->findAll();
+        foreach ($ingresos as &$ing) {
+            $ing['persona'] = $personaMap[$ing['persona_id']] ?? null;
+        }
+        unset($ing);
+
+        $ingresosLaborales = [];
+        foreach ($personas as $p) {
+            if ($personaId !== '' && $p['id'] !== $personaId) {
+                continue;
+            }
+            $renta1 = $p['renta_liquida_persona'] ?? null;
+            $renta2 = $p['renta_liquida_2'] ?? null;
+            if (($renta1 === null || $renta1 === '') && ($renta2 === null || $renta2 === '')) {
+                continue;
+            }
+            $ingresosLaborales[] = [
+                'persona'              => $p,
+                'fuente'               => 'Antecedentes laborales',
+                'renta_liquida'        => $renta1,
+                'renta_liquida_2'      => $renta2,
+                'empleador'            => $p['nombre_empleador'] ?? null,
+                'cargo'                => $p['cargo_actividad'] ?? null,
+            ];
+        }
+
+        $ingresoMensual = null;
+        $totalIngresosReportados = 0.0;
+        if ($personaId !== '') {
+            foreach ($ingresos as $ing) {
+                $v = $ing['ingreso_mensual_total'] ?? $ing['renta_liquida'] ?? null;
+                if ($v !== null && $v !== '') {
+                    $ingresoMensual = (float) $v;
+                    break;
+                }
+            }
+            if ($ingresoMensual === null) {
+                foreach ($ingresosLaborales as $lab) {
+                    $s = (float) ($lab['renta_liquida'] ?? 0) + (float) ($lab['renta_liquida_2'] ?? 0);
+                    if ($s > 0) {
+                        $ingresoMensual = $s;
+                        break;
+                    }
+                }
+            }
+        }
+        foreach ($ingresos as $ing) {
+            $v = $ing['ingreso_mensual_total'] ?? $ing['renta_liquida'] ?? null;
+            if ($v !== null && $v !== '') {
+                $totalIngresosReportados += (float) $v;
+            }
+        }
+
+        $totalCuotas = 0.0;
+        foreach ($rows as $r) {
+            if ($r['cuota_show'] !== null) {
+                $totalCuotas += (float) $r['cuota_show'];
+            }
+        }
+
+        return view('equity/situacion_financiera', [
+            'title'                   => 'Situación financiera',
+            'memb'                    => $memb,
+            'equityNav'               => 'situacion-financiera',
+            'rows'                    => $rows,
+            'ingresos'                => $ingresos,
+            'ingresosLaborales'       => $ingresosLaborales,
+            'personas'                => $personas,
+            'personaId'               => $personaId,
+            'ufVigente'               => $ufVigente,
+            'ingresoMensual'          => $ingresoMensual,
+            'totalIngresosReportados' => $totalIngresosReportados,
+            'totalCuotas'             => $totalCuotas,
+            'canManage'               => EquityAcl::canManage($memb),
+            'success'                 => session()->getFlashdata('success'),
+            'error'                   => session()->getFlashdata('error'),
+        ]);
+    }
+
+    public function guardarCuotasSituacion()
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        if (! EquityAcl::canManage($memb)) {
+            return redirect()->to('/equity/situacion-financiera')->with('error', 'Sin permiso para editar cuotas.');
+        }
+
+        $cuotas = $this->request->getPost('cuota');
+        if (! is_array($cuotas)) {
+            return redirect()->to('/equity/situacion-financiera')->with('error', 'Sin datos de cuotas.');
+        }
+
+        $personaId = trim((string) $this->request->getPost('persona_id'));
+        $updated = 0;
+        foreach ($cuotas as $id => $raw) {
+            $id = trim((string) $id);
+            if ($id === '') {
+                continue;
+            }
+            $row = model(EquityPasivoModel::class)
+                ->where('id', $id)
+                ->where('empresa_id', $memb['empresa_id'])
+                ->first();
+            if ($row === null) {
+                continue;
+            }
+            $parsed = EquityUf::parseDecimal((string) $raw, 2);
+            $data = [
+                'cuota_mensual' => $parsed !== null ? number_format($parsed, 2, '.', '') : null,
+            ];
+            // Hipotecarios: mantener dividendo_clp alineado con la cuota en $.
+            if (($row['categoria'] ?? '') === 'inmueble') {
+                $data['dividendo_clp'] = $data['cuota_mensual'];
+                if ($parsed !== null) {
+                    $par = EquityUf::resolverPar('', (string) $parsed, $memb['empresa_id']);
+                    if ($par['uf'] !== null) {
+                        $data['dividendo_uf'] = $par['uf'];
+                    }
+                }
+            }
+            model(EquityPasivoModel::class)->update($id, $data);
+            $updated++;
+        }
+
+        $qs = $personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : '';
+
+        return redirect()->to('/equity/situacion-financiera' . $qs)
+            ->with('success', $updated > 0 ? "Se actualizaron {$updated} cuota(s) mensual(es)." : 'Sin cambios.');
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function tipoCreditoSituacion(array $row): string
+    {
+        $tipo = trim((string) ($row['tipo'] ?? ''));
+        if ($tipo !== '') {
+            return $tipo;
+        }
+
+        return match ($row['categoria'] ?? '') {
+            'inmueble'   => 'Vivienda',
+            'circulante' => 'Comercial',
+            'indirecta'  => 'Comercial',
+            'otro'       => 'Consumo',
+            default      => '—',
+        };
+    }
+
+    private function montoClpPreferido(
+        mixed $clpPrimary,
+        mixed $ufPrimary,
+        mixed $clpFallback,
+        mixed $ufFallback,
+        float $ufRate
+    ): ?float {
+        if ($clpPrimary !== null && $clpPrimary !== '') {
+            return (float) $clpPrimary;
+        }
+        if ($ufPrimary !== null && $ufPrimary !== '' && $ufRate > 0) {
+            return round((float) $ufPrimary * $ufRate, 2);
+        }
+        if ($clpFallback !== null && $clpFallback !== '') {
+            return (float) $clpFallback;
+        }
+        if ($ufFallback !== null && $ufFallback !== '' && $ufRate > 0) {
+            return round((float) $ufFallback * $ufRate, 2);
+        }
+
+        return null;
+    }
+
     public function ingresos()
     {
         $memb = $this->requireAccess();

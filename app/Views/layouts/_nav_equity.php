@@ -44,6 +44,7 @@ $isActive = static function (string $clave) use ($title, $equityNav): bool {
         'otros-pasivos' => 'Otros pasivos',
         'pasivos-indirecta' => 'Deuda indirecta',
         'pasivos-lineas' => 'Líneas disponibles',
+        'situacion-financiera' => 'Situación financiera',
         default => '',
     };
 };

@@ -23,6 +23,13 @@ final class EquityCatalogo
                 'path'        => '/equity',
                 'descripcion' => 'Antecedentes personales, laborales y cónyuge/conviviente',
             ],
+            [
+                'clave'       => 'situacion-financiera',
+                'label'       => 'Situación financiera',
+                'grupo'       => 'Principal',
+                'path'        => '/equity/situacion-financiera',
+                'descripcion' => 'Créditos, vencimientos y carga mensual (cuotas)',
+            ],
 
             [
                 'clave'       => 'resumen',
@@ -117,6 +124,7 @@ final class EquityCatalogo
         return [
             'Principal' => [
                 ['clave' => 'inicio', 'label' => 'Inicio', 'path' => '/dashboard'],
+                ['clave' => 'situacion-financiera', 'label' => 'Situación financiera', 'path' => '/equity/situacion-financiera'],
                 ['clave' => 'personas', 'label' => 'Grupo Familiar', 'path' => '/equity'],
                 ['clave' => 'socios', 'label' => 'Antecedentes Personales', 'path' => '/equity?tipo=socio'],
                 ['clave' => 'gerentes', 'label' => 'Antecedentes Laborales', 'path' => '/equity?tipo=gerente'],
