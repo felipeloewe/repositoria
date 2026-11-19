@@ -604,14 +604,68 @@ class EquityPatrimonio extends BaseController
 
         $empresaId = $memb['empresa_id'];
         $personaId = trim((string) $this->request->getGet('persona_id'));
+        $personas  = $this->personas($empresaId);
+        $ufVigente = EquityUf::vigente($empresaId);
+        $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+
+        // Última ficha por persona (si filtra, solo esa; si no, una por cada persona)
+        $fichasBase = [];
+        if ($personaId !== '') {
+            $f = $this->ultimaFicha($empresaId, $personaId);
+            if (is_array($f)) {
+                $fichasBase[] = $f;
+            }
+        } else {
+            $seen = [];
+            foreach (model(EquityFichaModel::class)
+                ->where('empresa_id', $empresaId)
+                ->orderBy('fecha_corte', 'DESC')
+                ->orderBy('created_at', 'DESC')
+                ->findAll() as $f) {
+                $pid = (string) ($f['persona_id'] ?? '');
+                if ($pid === '' || isset($seen[$pid])) {
+                    continue;
+                }
+                $seen[$pid] = true;
+                $fichasBase[] = $f;
+            }
+        }
+        $ficha = $fichasBase[0] ?? null;
+
+        $fuentes = EquityCatalogo::fuentesIngreso();
+        $totalesFuente = [];
+        $totalGeneral = 0.0;
+        foreach ($fuentes as $clave => $meta) {
+            $sum = 0.0;
+            foreach ($fichasBase as $fRow) {
+                foreach ($meta['campos'] as $campo) {
+                    $v = $fRow[$campo['key']] ?? null;
+                    if ($v !== null && $v !== '') {
+                        $sum += (float) $v;
+                    }
+                }
+            }
+            if ($clave === 'inversiones') {
+                $arriendosFicha = 0.0;
+                foreach ($fichasBase as $fRow) {
+                    $arriendosFicha += (float) ($fRow['ingreso_arriendos'] ?? 0);
+                }
+                if ($arriendosFicha <= 0) {
+                    $sum += $this->sumCanonArriendos($empresaId, $personaId, $ufRate);
+                }
+            }
+            $totalesFuente[$clave] = $sum;
+            $totalGeneral += $sum;
+        }
+
         $q = model(EquityFichaModel::class)
             ->where('empresa_id', $empresaId)
-            ->orderBy('fecha_corte', 'DESC');
+            ->orderBy('fecha_corte', 'DESC')
+            ->orderBy('created_at', 'DESC');
         if ($personaId !== '') {
             $q->where('persona_id', $personaId);
         }
         $fichas = $q->findAll();
-        $personas = $this->personas($empresaId);
         $personaMap = [];
         foreach ($personas as $p) {
             $personaMap[$p['id']] = $p;
@@ -622,15 +676,232 @@ class EquityPatrimonio extends BaseController
         unset($f);
 
         return view('equity/ingresos', [
-            'title'     => 'Ingresos',
-            'memb'      => $memb,
-            'equityNav' => 'ingresos',
-            'fichas'    => $fichas,
-            'personas'  => $personas,
-            'personaId' => $personaId,
-            'ufVigente' => EquityUf::vigente($empresaId),
-            'canManage' => EquityAcl::canManage($memb),
+            'title'          => 'Ingresos',
+            'memb'           => $memb,
+            'equityNav'      => 'ingresos',
+            'fuentes'        => $fuentes,
+            'totalesFuente'  => $totalesFuente,
+            'totalGeneral'   => $totalGeneral,
+            'ficha'          => $ficha,
+            'fichas'         => $fichas,
+            'personas'       => $personas,
+            'personaId'      => $personaId,
+            'ufVigente'      => $ufVigente,
+            'canManage'      => EquityAcl::canManage($memb),
+            'success'        => session()->getFlashdata('success'),
+            'error'          => session()->getFlashdata('error'),
         ]);
+    }
+
+    public function ingresosFuente(string $fuente)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $fuentes = EquityCatalogo::fuentesIngreso();
+        if (! isset($fuentes[$fuente])) {
+            return redirect()->to('/equity/ingresos')->with('error', 'Fuente de ingreso no válida.');
+        }
+
+        $empresaId = $memb['empresa_id'];
+        $personaId = trim((string) $this->request->getGet('persona_id'));
+        $personas  = $this->personas($empresaId);
+        $ufVigente = EquityUf::vigente($empresaId);
+        $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+        $meta      = $fuentes[$fuente];
+        $ficha     = $this->ultimaFicha($empresaId, $personaId);
+
+        $arriendos = [];
+        $totalCanon = 0.0;
+        if ($fuente === 'inversiones') {
+            $bq = model(EquityBienRaizModel::class)
+                ->where('empresa_id', $empresaId)
+                ->orderBy('direccion', 'ASC');
+            if ($personaId !== '') {
+                $bq->where('persona_id', $personaId);
+            }
+            foreach ($bq->findAll() as $br) {
+                $canon = $br['canon_mensual_clp'] ?? null;
+                if (($canon === null || $canon === '') && ! empty($br['canon_mensual_uf']) && $ufRate > 0) {
+                    $canon = round((float) $br['canon_mensual_uf'] * $ufRate, 2);
+                }
+                if ($canon === null || $canon === '' || (float) $canon <= 0) {
+                    continue;
+                }
+                $br['canon_show'] = (float) $canon;
+                $arriendos[] = $br;
+                $totalCanon += (float) $canon;
+            }
+        }
+
+        return view('equity/ingresos_fuente', [
+            'title'       => $meta['label'],
+            'memb'        => $memb,
+            'equityNav'   => 'ingresos-' . $fuente,
+            'fuente'      => $fuente,
+            'meta'        => $meta,
+            'ficha'       => $ficha,
+            'personas'    => $personas,
+            'personaId'   => $personaId,
+            'arriendos'   => $arriendos,
+            'totalCanon'  => $totalCanon,
+            'ufVigente'   => $ufVigente,
+            'canManage'   => EquityAcl::canManage($memb),
+            'success'     => session()->getFlashdata('success'),
+            'error'       => session()->getFlashdata('error'),
+        ]);
+    }
+
+    public function guardarIngresosFuente(string $fuente)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        if (! EquityAcl::canManage($memb)) {
+            return redirect()->to('/equity/ingresos/' . $fuente)->with('error', 'Sin permiso para editar ingresos.');
+        }
+
+        $fuentes = EquityCatalogo::fuentesIngreso();
+        if (! isset($fuentes[$fuente])) {
+            return redirect()->to('/equity/ingresos')->with('error', 'Fuente de ingreso no válida.');
+        }
+
+        $personaId = trim((string) $this->request->getPost('persona_id'));
+        if ($personaId === '') {
+            return redirect()->to('/equity/ingresos/' . $fuente)->with('error', 'Selecciona una persona.');
+        }
+
+        $empresaId = $memb['empresa_id'];
+        $persona = model(EquityPersonaModel::class)
+            ->where('id', $personaId)
+            ->where('empresa_id', $empresaId)
+            ->first();
+        if (! is_array($persona)) {
+            return redirect()->to('/equity/ingresos/' . $fuente)->with('error', 'Persona no encontrada.');
+        }
+
+        $money = static function ($raw): ?string {
+            $v = trim((string) $raw);
+            if ($v === '') {
+                return null;
+            }
+            $v = str_replace(['$', ' '], '', $v);
+            if (str_contains($v, ',') && str_contains($v, '.')) {
+                $v = str_replace('.', '', $v);
+                $v = str_replace(',', '.', $v);
+            } elseif (str_contains($v, ',')) {
+                $v = str_replace(',', '.', $v);
+            }
+            if (! is_numeric($v)) {
+                return null;
+            }
+
+            return number_format((float) $v, 2, '.', '');
+        };
+
+        $meta = $fuentes[$fuente];
+        $patch = [];
+        foreach ($meta['campos'] as $campo) {
+            $patch[$campo['key']] = $money($this->request->getPost($campo['key']));
+        }
+
+        // Sync arriendos desde bienes raíces si se pidió
+        if ($fuente === 'inversiones' && $this->request->getPost('sync_arriendos') === '1') {
+            $ufVigente = EquityUf::vigente($empresaId);
+            $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+            $canon = $this->sumCanonArriendos($empresaId, $personaId, $ufRate);
+            $patch['ingreso_arriendos'] = $canon > 0 ? number_format($canon, 2, '.', '') : null;
+        }
+
+        $ficha = $this->ultimaFicha($empresaId, $personaId);
+        helper('id');
+
+        if (is_array($ficha)) {
+            // Recalcular total con merge de campos existentes
+            $merged = array_merge($ficha, $patch);
+            $patch['ingreso_mensual_total'] = $this->sumIngresosFicha($merged);
+            $patch['updated_at'] = date('Y-m-d H:i:s');
+            model(EquityFichaModel::class)->update($ficha['id'], $patch);
+            $msg = 'Ingresos de ' . $meta['label'] . ' actualizados.';
+        } else {
+            $row = [
+                'id'            => new_id(),
+                'empresa_id'    => $empresaId,
+                'persona_id'    => $personaId,
+                'fecha_corte'   => date('Y-m-d'),
+                'moneda'        => 'CLP',
+                'creado_por_id' => $memb['usuario_id'],
+            ];
+            foreach ($patch as $k => $v) {
+                $row[$k] = $v;
+            }
+            $row['ingreso_mensual_total'] = $this->sumIngresosFicha($row);
+            model(EquityFichaModel::class)->insert($row);
+            $msg = 'Ficha de ingresos creada con ' . $meta['label'] . '.';
+        }
+
+        return redirect()->to('/equity/ingresos/' . $fuente . '?persona_id=' . rawurlencode($personaId))
+            ->with('success', $msg);
+    }
+
+    /** @return array<string, mixed>|null */
+    private function ultimaFicha(string $empresaId, string $personaId): ?array
+    {
+        $q = model(EquityFichaModel::class)
+            ->where('empresa_id', $empresaId)
+            ->orderBy('fecha_corte', 'DESC')
+            ->orderBy('created_at', 'DESC');
+        if ($personaId !== '') {
+            $q->where('persona_id', $personaId);
+        }
+        $row = $q->first();
+
+        return is_array($row) ? $row : null;
+    }
+
+    private function sumCanonArriendos(string $empresaId, string $personaId, float $ufRate): float
+    {
+        $bq = model(EquityBienRaizModel::class)->where('empresa_id', $empresaId);
+        if ($personaId !== '') {
+            $bq->where('persona_id', $personaId);
+        }
+        $sum = 0.0;
+        foreach ($bq->findAll() as $br) {
+            $canon = $br['canon_mensual_clp'] ?? null;
+            if (($canon === null || $canon === '') && ! empty($br['canon_mensual_uf']) && $ufRate > 0) {
+                $canon = round((float) $br['canon_mensual_uf'] * $ufRate, 2);
+            }
+            if ($canon !== null && $canon !== '' && (float) $canon > 0) {
+                $sum += (float) $canon;
+            }
+        }
+
+        return $sum;
+    }
+
+    /** @param array<string, mixed> $ficha */
+    private function sumIngresosFicha(array $ficha): ?string
+    {
+        $keys = [
+            'ingreso_fijo', 'ingreso_variable',
+            'ingreso_honorarios', 'ingreso_comisiones', 'ingreso_bonos',
+            'ingreso_arriendos', 'ingreso_mutuos', 'ingreso_dividendos',
+            'ingreso_pensiones', 'ingreso_donaciones', 'ingreso_indemnizaciones',
+            'ingreso_otros',
+        ];
+        $sum = 0.0;
+        $any = false;
+        foreach ($keys as $k) {
+            if (isset($ficha[$k]) && $ficha[$k] !== null && $ficha[$k] !== '') {
+                $sum += (float) $ficha[$k];
+                $any = true;
+            }
+        }
+
+        return $any ? number_format($sum, 2, '.', '') : null;
     }
 
     public function respaldos()

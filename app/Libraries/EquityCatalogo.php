@@ -104,9 +104,37 @@ final class EquityCatalogo
             [
                 'clave'       => 'ingresos',
                 'label'       => 'Ingresos',
-                'grupo'       => 'Antecedentes financieros',
+                'grupo'       => 'Ingresos',
                 'path'        => '/equity/ingresos',
-                'descripcion' => 'Rentas, honorarios y totales de ingreso',
+                'descripcion' => 'Renta · Honorarios · Inversiones · Otros',
+            ],
+            [
+                'clave'       => 'ingresos-renta',
+                'label'       => 'Renta',
+                'grupo'       => 'Ingresos',
+                'path'        => '/equity/ingresos/renta',
+                'descripcion' => 'Fija / Variable',
+            ],
+            [
+                'clave'       => 'ingresos-honorarios',
+                'label'       => 'Honorarios',
+                'grupo'       => 'Ingresos',
+                'path'        => '/equity/ingresos/honorarios',
+                'descripcion' => 'Honorarios / Comisiones / Bonos',
+            ],
+            [
+                'clave'       => 'ingresos-inversiones',
+                'label'       => 'Inversiones',
+                'grupo'       => 'Ingresos',
+                'path'        => '/equity/ingresos/inversiones',
+                'descripcion' => 'Arriendos / Mutuos / Dividendos',
+            ],
+            [
+                'clave'       => 'ingresos-otros',
+                'label'       => 'Otros',
+                'grupo'       => 'Ingresos',
+                'path'        => '/equity/ingresos/otros',
+                'descripcion' => 'Pensiones / Donaciones / Indemnizaciones',
             ],
             [
                 'clave'       => 'respaldos',
@@ -134,7 +162,13 @@ final class EquityCatalogo
 
             'Estado de situación' => [
                 ['clave' => 'resumen', 'label' => 'Resumen', 'path' => '/equity/resumen'],
-                ['clave' => 'ingresos', 'label' => 'Ingresos', 'path' => '/equity/ingresos'],
+            ],
+            'Ingresos' => [
+                ['clave' => 'ingresos', 'label' => 'Resumen ingresos', 'path' => '/equity/ingresos'],
+                ['clave' => 'ingresos-renta', 'label' => 'Renta', 'path' => '/equity/ingresos/renta'],
+                ['clave' => 'ingresos-honorarios', 'label' => 'Honorarios', 'path' => '/equity/ingresos/honorarios'],
+                ['clave' => 'ingresos-inversiones', 'label' => 'Inversiones', 'path' => '/equity/ingresos/inversiones'],
+                ['clave' => 'ingresos-otros', 'label' => 'Otros', 'path' => '/equity/ingresos/otros'],
             ],
             'Activos' => [
                 ['clave' => 'bienes-raices', 'label' => 'Bienes raíces', 'path' => '/equity/activos/bienes-raices'],
@@ -151,6 +185,56 @@ final class EquityCatalogo
             ],
             'Documentos' => [
                 ['clave' => 'respaldos', 'label' => 'Respaldos', 'path' => '/equity/respaldos'],
+            ],
+        ];
+    }
+
+    /**
+     * Fuentes de ingreso del menú Ingresos.
+     *
+     * @return array<string, array{clave: string, label: string, descripcion: string, campos: list<array{key: string, label: string}>}>
+     */
+    public static function fuentesIngreso(): array
+    {
+        return [
+            'renta' => [
+                'clave'       => 'renta',
+                'label'       => 'Renta',
+                'descripcion' => 'Ingreso laboral fijo y variable',
+                'campos'      => [
+                    ['key' => 'ingreso_fijo', 'label' => 'Fija'],
+                    ['key' => 'ingreso_variable', 'label' => 'Variable'],
+                ],
+            ],
+            'honorarios' => [
+                'clave'       => 'honorarios',
+                'label'       => 'Honorarios',
+                'descripcion' => 'Honorarios profesionales, comisiones y bonos',
+                'campos'      => [
+                    ['key' => 'ingreso_honorarios', 'label' => 'Honorarios'],
+                    ['key' => 'ingreso_comisiones', 'label' => 'Comisiones'],
+                    ['key' => 'ingreso_bonos', 'label' => 'Bonos'],
+                ],
+            ],
+            'inversiones' => [
+                'clave'       => 'inversiones',
+                'label'       => 'Inversiones',
+                'descripcion' => 'Arriendos, mutuos y dividendos',
+                'campos'      => [
+                    ['key' => 'ingreso_arriendos', 'label' => 'Arriendos'],
+                    ['key' => 'ingreso_mutuos', 'label' => 'Mutuos'],
+                    ['key' => 'ingreso_dividendos', 'label' => 'Dividendos'],
+                ],
+            ],
+            'otros' => [
+                'clave'       => 'otros',
+                'label'       => 'Otros',
+                'descripcion' => 'Pensiones, donaciones e indemnizaciones',
+                'campos'      => [
+                    ['key' => 'ingreso_pensiones', 'label' => 'Pensiones'],
+                    ['key' => 'ingreso_donaciones', 'label' => 'Donaciones'],
+                    ['key' => 'ingreso_indemnizaciones', 'label' => 'Indemnizaciones'],
+                ],
             ],
         ];
     }

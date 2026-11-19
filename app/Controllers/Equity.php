@@ -855,21 +855,28 @@ class Equity extends BaseController
         $notas = trim((string) $this->request->getPost('notas'));
         $moneda = strtoupper(trim((string) $this->request->getPost('moneda'))) ?: 'CLP';
 
-        $ingresoFijo       = $money($this->request->getPost('ingreso_fijo'));
-        $ingresoHonorarios = $money($this->request->getPost('ingreso_honorarios'));
-        $ingresoArriendos  = $money($this->request->getPost('ingreso_arriendos'));
-        $ingresoVariable   = $money($this->request->getPost('ingreso_variable'));
-        $ingresoComisiones = $money($this->request->getPost('ingreso_comisiones'));
-        $ingresoPensiones  = $money($this->request->getPost('ingreso_pensiones'));
-        $ingresoBonos      = $money($this->request->getPost('ingreso_bonos'));
-        $ingresoOtros      = $money($this->request->getPost('ingreso_otros'));
-        $rentaLiquida      = $money($this->request->getPost('renta_liquida'));
-        $activos           = $money($this->request->getPost('activos_total'));
-        $pasivos           = $money($this->request->getPost('pasivos_total'));
+        $ingresoFijo            = $money($this->request->getPost('ingreso_fijo'));
+        $ingresoHonorarios      = $money($this->request->getPost('ingreso_honorarios'));
+        $ingresoArriendos       = $money($this->request->getPost('ingreso_arriendos'));
+        $ingresoVariable        = $money($this->request->getPost('ingreso_variable'));
+        $ingresoComisiones      = $money($this->request->getPost('ingreso_comisiones'));
+        $ingresoPensiones       = $money($this->request->getPost('ingreso_pensiones'));
+        $ingresoBonos           = $money($this->request->getPost('ingreso_bonos'));
+        $ingresoOtros           = $money($this->request->getPost('ingreso_otros'));
+        $ingresoMutuos          = $money($this->request->getPost('ingreso_mutuos'));
+        $ingresoDividendos      = $money($this->request->getPost('ingreso_dividendos'));
+        $ingresoDonaciones      = $money($this->request->getPost('ingreso_donaciones'));
+        $ingresoIndemnizaciones = $money($this->request->getPost('ingreso_indemnizaciones'));
+        $rentaLiquida           = $money($this->request->getPost('renta_liquida'));
+        $activos                = $money($this->request->getPost('activos_total'));
+        $pasivos                = $money($this->request->getPost('pasivos_total'));
 
         $parts = array_filter([
-            $ingresoFijo, $ingresoHonorarios, $ingresoArriendos, $ingresoVariable,
-            $ingresoComisiones, $ingresoPensiones, $ingresoBonos, $ingresoOtros,
+            $ingresoFijo, $ingresoVariable,
+            $ingresoHonorarios, $ingresoComisiones, $ingresoBonos,
+            $ingresoArriendos, $ingresoMutuos, $ingresoDividendos,
+            $ingresoPensiones, $ingresoDonaciones, $ingresoIndemnizaciones,
+            $ingresoOtros,
         ], static fn ($v) => $v !== null);
         $totalIngreso = $money($this->request->getPost('ingreso_mensual_total'));
         if ($totalIngreso === null && $parts !== []) {
@@ -886,22 +893,26 @@ class Equity extends BaseController
         }
 
         return [
-            'fecha_corte'           => $fecha !== '' ? $fecha : null,
-            'moneda'                => substr($moneda, 0, 8),
-            'renta_liquida'         => $rentaLiquida,
-            'ingreso_fijo'          => $ingresoFijo,
-            'ingreso_honorarios'    => $ingresoHonorarios,
-            'ingreso_arriendos'     => $ingresoArriendos,
-            'ingreso_variable'      => $ingresoVariable,
-            'ingreso_comisiones'    => $ingresoComisiones,
-            'ingreso_pensiones'     => $ingresoPensiones,
-            'ingreso_bonos'         => $ingresoBonos,
-            'ingreso_otros'         => $ingresoOtros,
-            'ingreso_mensual_total' => $totalIngreso,
-            'activos_total'         => $activos,
-            'pasivos_total'         => $pasivos,
-            'patrimonio_neto'       => $patrimonio,
-            'notas'                 => $notas !== '' ? $notas : null,
+            'fecha_corte'              => $fecha !== '' ? $fecha : null,
+            'moneda'                   => substr($moneda, 0, 8),
+            'renta_liquida'            => $rentaLiquida,
+            'ingreso_fijo'             => $ingresoFijo,
+            'ingreso_honorarios'       => $ingresoHonorarios,
+            'ingreso_arriendos'        => $ingresoArriendos,
+            'ingreso_variable'         => $ingresoVariable,
+            'ingreso_comisiones'       => $ingresoComisiones,
+            'ingreso_pensiones'        => $ingresoPensiones,
+            'ingreso_bonos'            => $ingresoBonos,
+            'ingreso_otros'            => $ingresoOtros,
+            'ingreso_mutuos'           => $ingresoMutuos,
+            'ingreso_dividendos'       => $ingresoDividendos,
+            'ingreso_donaciones'       => $ingresoDonaciones,
+            'ingreso_indemnizaciones'  => $ingresoIndemnizaciones,
+            'ingreso_mensual_total'    => $totalIngreso,
+            'activos_total'            => $activos,
+            'pasivos_total'            => $pasivos,
+            'patrimonio_neto'          => $patrimonio,
+            'notas'                    => $notas !== '' ? $notas : null,
         ];
     }
 

@@ -95,32 +95,36 @@ if ($ingresoMensual !== null && (float) $ingresoMensual > 0) {
 
 <div class="card section-card" style="margin-top:1rem">
     <h3>Reporte de ingresos informados (<?= count($ingresos ?? []) ?>)</h3>
-    <p class="muted" style="margin-top:0">Fichas de ingreso registradas. Luego se podrá ampliar con más fuentes.</p>
+    <p class="muted" style="margin-top:0">
+        Fichas cargadas en <a href="<?= site_url('equity/ingresos') ?>">Ingresos</a>
+        (Renta · Honorarios · Inversiones · Otros).
+    </p>
     <?php if (($ingresos ?? []) === []): ?>
-        <p class="muted">Sin fichas de ingreso. Cárgalas en Ingresos o desde la ficha de cada persona.</p>
+        <p class="muted">Sin fichas de ingreso. Cárgalas en <a href="<?= site_url('equity/ingresos') ?>">Ingresos</a> por fuente.</p>
     <?php else: ?>
         <div style="overflow-x:auto">
             <table class="table">
                 <thead>
                     <tr>
                         <th>Persona</th>
-                        <th>Fecha corte</th>
-                        <th>Renta líquida</th>
-                        <th>Fijo</th>
-                        <th>Honorarios</th>
-                        <th>Arriendos</th>
-                        <th>Variable</th>
-                        <th>Comisiones</th>
-                        <th>Pensiones</th>
-                        <th>Bonos</th>
-                        <th>Otros</th>
-                        <th>Total ingreso mensual</th>
+                        <th>Corte</th>
+                        <th>Renta<br><span class="muted">Fija+Var</span></th>
+                        <th>Honorarios<br><span class="muted">Hon+Com+Bon</span></th>
+                        <th>Inversiones<br><span class="muted">Arr+Mut+Div</span></th>
+                        <th>Otros<br><span class="muted">Pen+Don+Ind</span></th>
+                        <th>Total mensual</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                 <?php foreach ($ingresos as $f): ?>
-                    <?php $p = $f['persona'] ?? null; ?>
+                    <?php
+                    $p = $f['persona'] ?? null;
+                    $renta = (float) ($f['ingreso_fijo'] ?? 0) + (float) ($f['ingreso_variable'] ?? 0);
+                    $hon   = (float) ($f['ingreso_honorarios'] ?? 0) + (float) ($f['ingreso_comisiones'] ?? 0) + (float) ($f['ingreso_bonos'] ?? 0);
+                    $inv   = (float) ($f['ingreso_arriendos'] ?? 0) + (float) ($f['ingreso_mutuos'] ?? 0) + (float) ($f['ingreso_dividendos'] ?? 0);
+                    $otr   = (float) ($f['ingreso_pensiones'] ?? 0) + (float) ($f['ingreso_donaciones'] ?? 0) + (float) ($f['ingreso_indemnizaciones'] ?? 0) + (float) ($f['ingreso_otros'] ?? 0);
+                    ?>
                     <tr>
                         <td>
                             <?php if ($p): ?>
@@ -130,19 +134,14 @@ if ($ingresoMensual !== null && (float) $ingresoMensual > 0) {
                             <?php endif; ?>
                         </td>
                         <td><?= esc($f['fecha_corte'] ?? '—') ?></td>
-                        <td><?= esc($fmtDual($f['renta_liquida'] ?? null)) ?></td>
-                        <td><?= esc($fmtPesos($f['ingreso_fijo'] ?? null)) ?></td>
-                        <td><?= esc($fmtPesos($f['ingreso_honorarios'] ?? null)) ?></td>
-                        <td><?= esc($fmtPesos($f['ingreso_arriendos'] ?? null)) ?></td>
-                        <td><?= esc($fmtPesos($f['ingreso_variable'] ?? null)) ?></td>
-                        <td><?= esc($fmtPesos($f['ingreso_comisiones'] ?? null)) ?></td>
-                        <td><?= esc($fmtPesos($f['ingreso_pensiones'] ?? null)) ?></td>
-                        <td><?= esc($fmtPesos($f['ingreso_bonos'] ?? null)) ?></td>
-                        <td><?= esc($fmtPesos($f['ingreso_otros'] ?? null)) ?></td>
+                        <td><?= esc($fmtPesos($renta > 0 ? $renta : null)) ?></td>
+                        <td><?= esc($fmtPesos($hon > 0 ? $hon : null)) ?></td>
+                        <td><?= esc($fmtPesos($inv > 0 ? $inv : null)) ?></td>
+                        <td><?= esc($fmtPesos($otr > 0 ? $otr : null)) ?></td>
                         <td><strong><?= esc($fmtDual($f['ingreso_mensual_total'] ?? $f['renta_liquida'] ?? null)) ?></strong></td>
                         <td>
                             <?php if ($p && ! empty($canManage)): ?>
-                                <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/' . $p['id'] . '/fichas/' . $f['id'] . '/editar') ?>">Editar</a>
+                                <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/ingresos?persona_id=' . rawurlencode($p['id'])) ?>">Ingresos</a>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -150,7 +149,7 @@ if ($ingresoMensual !== null && (float) $ingresoMensual > 0) {
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="11" style="text-align:right"><strong>Suma totales fichas</strong></td>
+                        <td colspan="6" style="text-align:right"><strong>Suma totales fichas</strong></td>
                         <td><strong><?= esc($fmtPesos($totalFichasIngresos ?? 0)) ?></strong></td>
                         <td></td>
                     </tr>

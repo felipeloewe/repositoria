@@ -45,6 +45,10 @@ $isActive = static function (string $clave) use ($title, $equityNav): bool {
         'pasivos-indirecta' => 'Deuda indirecta',
         'pasivos-lineas' => 'Líneas disponibles',
         'situacion-financiera' => 'Situación financiera',
+        'ingresos-renta' => 'Renta',
+        'ingresos-honorarios' => 'Honorarios',
+        'ingresos-inversiones' => 'Inversiones',
+        'ingresos-otros' => 'Otros ingresos',
         default => '',
     };
 };
@@ -54,7 +58,7 @@ $isActive = static function (string $clave) use ($title, $equityNav): bool {
         <p class="nav-section"><?= esc($grupo) ?></p>
         <?php foreach ($items as $item): ?>
             <?php
-                $sub = in_array($item['clave'], ['socios', 'gerentes', 'familiares', 'bienes-raices', 'vehiculos', 'sociedades', 'otros-activos', 'pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos', 'pasivos-indirecta', 'pasivos-lineas'], true);
+                $sub = in_array($item['clave'], ['socios', 'gerentes', 'familiares', 'bienes-raices', 'vehiculos', 'sociedades', 'otros-activos', 'pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos', 'pasivos-indirecta', 'pasivos-lineas', 'ingresos-renta', 'ingresos-honorarios', 'ingresos-inversiones', 'ingresos-otros'], true);
             ?>
             <a href="<?= site_url(ltrim($item['path'], '/')) ?>"
                class="<?= $sub ? 'nav-sub ' : '' ?><?= $isActive($item['clave']) ? 'active' : '' ?>"

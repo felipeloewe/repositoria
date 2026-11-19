@@ -18,7 +18,8 @@ class EquityFichaModel extends Model
         'id', 'empresa_id', 'persona_id', 'fecha_corte', 'moneda',
         'renta_liquida', 'ingreso_fijo', 'ingreso_honorarios', 'ingreso_arriendos',
         'ingreso_variable', 'ingreso_comisiones', 'ingreso_pensiones', 'ingreso_bonos',
-        'ingreso_otros', 'ingreso_mensual_total',
+        'ingreso_otros', 'ingreso_mutuos', 'ingreso_dividendos',
+        'ingreso_donaciones', 'ingreso_indemnizaciones', 'ingreso_mensual_total',
         'activos_total', 'pasivos_total', 'patrimonio_neto',
         'notas', 'creado_por_id',
     ];
