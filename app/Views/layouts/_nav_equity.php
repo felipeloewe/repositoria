@@ -48,7 +48,7 @@ $isActive = static function (string $clave) use ($title, $equityNav): bool {
         'ingresos-renta' => 'Renta',
         'ingresos-honorarios' => 'Honorarios',
         'ingresos-inversiones' => 'Inversiones',
-        'ingresos-otros' => 'Otros ingresos',
+        'ingresos-otros' => 'Otros',
         default => '',
     };
 };
