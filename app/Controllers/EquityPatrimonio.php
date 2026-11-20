@@ -1033,10 +1033,15 @@ class EquityPatrimonio extends BaseController
             return number_format((float) $v, 2, '.', '');
         };
 
-        $fecha = trim((string) $this->request->getPost('fecha_inicio_contrato'));
-        $rut   = trim((string) $this->request->getPost('contraparte_rut'));
-        $notas = trim((string) $this->request->getPost('notas'));
-        $monto = $money($this->request->getPost('monto_contrato_clp'));
+        $fecha    = trim((string) $this->request->getPost('fecha_inicio_contrato'));
+        $fechaVen = trim((string) $this->request->getPost('fecha_vencimiento'));
+        $rut      = trim((string) $this->request->getPost('contraparte_rut'));
+        $notas    = trim((string) $this->request->getPost('notas'));
+        $monto    = $money($this->request->getPost('monto_contrato_clp'));
+
+        if ($fechaVen !== '' && $fecha !== '' && $fechaVen < $fecha) {
+            return redirect()->to($redirect)->with('error', 'La fecha de vencimiento no puede ser anterior al inicio del contrato.');
+        }
 
         helper('id');
         $isEdit = $id !== null && $id !== '';
@@ -1059,6 +1064,7 @@ class EquityPatrimonio extends BaseController
             'contraparte_rut'       => $rut !== '' ? $rut : null,
             'contraparte_nombre'    => $nombre,
             'fecha_inicio_contrato' => $fecha !== '' ? $fecha : null,
+            'fecha_vencimiento'     => $fechaVen !== '' ? $fechaVen : null,
             'periodicidad'          => $periodicidad,
             'monto_contrato_clp'    => $monto,
             'estado'                => $estado,

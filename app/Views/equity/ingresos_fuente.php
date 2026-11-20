@@ -119,6 +119,11 @@ foreach ($personas as $p) {
                     <input id="fecha_inicio_contrato" name="fecha_inicio_contrato" type="date" value="<?= esc($e('fecha_inicio_contrato')) ?>">
                 </div>
                 <div>
+                    <label for="fecha_vencimiento">Fecha de vencimiento</label>
+                    <input id="fecha_vencimiento" name="fecha_vencimiento" type="date" value="<?= esc($e('fecha_vencimiento')) ?>">
+                    <p class="muted" style="margin:.25rem 0 0;font-size:.85em">Para contratos vencidos (cualquier tipo): indica cuándo terminó.</p>
+                </div>
+                <div>
                     <label for="periodicidad">Periodicidad *</label>
                     <select id="periodicidad" name="periodicidad" required>
                         <?php foreach ($periodos as $k => $lab): ?>
@@ -178,6 +183,7 @@ foreach ($personas as $p) {
                         <th>Contraparte</th>
                         <th>RUT</th>
                         <th>Inicio</th>
+                        <th>Vencimiento</th>
                         <th>Periodicidad</th>
                         <th>Monto contrato</th>
                         <th>Equiv. mensual</th>
@@ -193,6 +199,7 @@ foreach ($personas as $p) {
                         <td><?= esc($c['contraparte_nombre'] ?? '—') ?></td>
                         <td><?= esc($c['contraparte_rut'] ?? '—') ?></td>
                         <td><?= esc($c['fecha_inicio_contrato'] ?? '—') ?></td>
+                        <td><?= esc($c['fecha_vencimiento'] ?? '—') ?></td>
                         <td><?= esc($periodos[$c['periodicidad'] ?? ''] ?? ($c['periodicidad'] ?? '—')) ?></td>
                         <td><?= esc($fmt($c['monto_contrato_clp'] ?? null)) ?></td>
                         <td><strong><?= esc($fmt($c['monto_mensual'] ?? null)) ?></strong></td>
