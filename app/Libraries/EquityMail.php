@@ -77,7 +77,31 @@ final class EquityMail
     private static function send(string $fromEmail, string $fromName, string $to, string $subject, string $body): bool
     {
         try {
-            $emailSvc = \Config\Services::email();
+            $config = config('Email');
+            // Asegura SMTP desde .env (Factories a veces no hidrata si el request ya tenía Email cacheado).
+            $protocol = strtolower(trim((string) (env('email.protocol') ?: $config->protocol ?: 'mail')));
+            $config->protocol   = $protocol !== '' ? $protocol : 'mail';
+            $config->fromEmail  = $fromEmail;
+            $config->fromName   = $fromName !== '' ? $fromName : (string) ($config->fromName ?: 'Equity');
+            if ($config->protocol === 'smtp') {
+                $host = trim((string) (env('email.SMTPHost') ?: $config->SMTPHost));
+                $user = trim((string) (env('email.SMTPUser') ?: $config->SMTPUser));
+                $pass = (string) (env('email.SMTPPass') ?: $config->SMTPPass);
+                $port = (int) (env('email.SMTPPort') ?: $config->SMTPPort ?: 587);
+                $crypto = strtolower(trim((string) (env('email.SMTPCrypto') ?: $config->SMTPCrypto ?: 'tls')));
+                if ($host === '' || $user === '' || $pass === '') {
+                    log_message('error', 'EquityMail SMTP incompleto (host/user/pass).');
+
+                    return false;
+                }
+                $config->SMTPHost   = $host;
+                $config->SMTPUser   = $user;
+                $config->SMTPPass   = $pass;
+                $config->SMTPPort   = $port > 0 ? $port : 587;
+                $config->SMTPCrypto = in_array($crypto, ['tls', 'ssl', ''], true) ? $crypto : 'tls';
+            }
+
+            $emailSvc = new \CodeIgniter\Email\Email($config);
             $emailSvc->setFrom($fromEmail, $fromName);
             $emailSvc->setTo($to);
             $emailSvc->setSubject($subject);
