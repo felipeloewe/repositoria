@@ -34,13 +34,13 @@
         </ul>
     <?php endif; ?>
 
-    <form method="post" action="<?= site_url('equity/grupo/subsidiaria') ?>" class="form-grid" style="margin-top:1rem;max-width:32rem">
+    <form method="post" action="<?= site_url('equity/grupo/subsidiaria') ?>" class="form-grid" style="margin-top:1rem">
         <?= csrf_field() ?>
         <label for="sub_nombre">Nueva subsidiaria · Nombre *</label>
-        <input id="sub_nombre" name="nombre" required>
+        <input id="sub_nombre" name="nombre" type="text" required>
 
         <label for="sub_rut">RUT</label>
-        <input id="sub_rut" name="rut" placeholder="76.xxx.xxx-x">
+        <input id="sub_rut" name="rut" type="text" placeholder="76.xxx.xxx-x">
 
         <button class="btn btn-primary" type="submit">Registrar subsidiaria</button>
     </form>
@@ -54,7 +54,7 @@
         Si la persona será representada por un tercero, indícalo: no se crea login propio y el representante elegirá a quién declarar al inicio de sesión.
     </p>
 
-    <form method="post" action="<?= site_url('equity/grupo/persona') ?>" class="form-grid" style="max-width:36rem">
+    <form method="post" action="<?= site_url('equity/grupo/persona') ?>" class="form-grid">
         <?= csrf_field() ?>
         <label for="empresa_id">Empresa *</label>
         <select id="empresa_id" name="empresa_id" required>
@@ -64,25 +64,35 @@
             <?php endforeach; ?>
         </select>
 
-        <label for="nombre">Nombre *</label>
-        <input id="nombre" name="nombre" required>
-
-        <label for="apellido">Apellido</label>
-        <input id="apellido" name="apellido">
+        <div class="form-grid-2">
+            <div>
+                <label for="nombre">Nombre *</label>
+                <input id="nombre" name="nombre" type="text" required>
+            </div>
+            <div>
+                <label for="apellido">Apellido</label>
+                <input id="apellido" name="apellido" type="text">
+            </div>
+        </div>
 
         <label for="email">Correo (obligatorio si no es representado)</label>
         <input id="email" type="email" name="email">
 
-        <label for="rut">RUT</label>
-        <input id="rut" name="rut">
-
-        <label for="tipo">Tipo</label>
-        <select id="tipo" name="tipo">
-            <option value="socio">Socio</option>
-            <option value="gerente">Gerente</option>
-            <option value="familiar">Familiar</option>
-            <option value="otro">Otro</option>
-        </select>
+        <div class="form-grid-2">
+            <div>
+                <label for="rut">RUT</label>
+                <input id="rut" name="rut" type="text">
+            </div>
+            <div>
+                <label for="tipo">Tipo</label>
+                <select id="tipo" name="tipo">
+                    <option value="socio">Socio</option>
+                    <option value="gerente">Gerente</option>
+                    <option value="familiar">Familiar</option>
+                    <option value="otro">Otro</option>
+                </select>
+            </div>
+        </div>
 
         <label for="representado_por_usuario_id">Lo representa un tercero (usuario existente)</label>
         <select id="representado_por_usuario_id" name="representado_por_usuario_id">
