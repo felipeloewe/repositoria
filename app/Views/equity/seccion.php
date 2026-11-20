@@ -3,6 +3,7 @@
 <?= $this->section('content') ?>
 
 <?php
+use App\Libraries\EquityActivoBitacora;
 use App\Libraries\EquityCatalogo;
 use App\Libraries\EquityUf;
 
@@ -53,6 +54,21 @@ $reportAction = match ($clave) {
 $grupoReportAction = str_starts_with($clave, 'pasivos') || $clave === 'otros-pasivos'
     ? site_url('equity/reporte/pasivos')
     : site_url('equity/reporte/activos');
+$esActivo = in_array($clave, ['bienes-raices', 'vehiculos', 'sociedades', 'otros-activos'], true);
+$bitacoraPath = static function (string $id) use ($clave, $esActivo): string {
+    if (! $esActivo) {
+        return '#';
+    }
+    $seg = match ($clave) {
+        'bienes-raices' => 'bienes-raices',
+        'vehiculos'     => 'vehiculos',
+        'sociedades'    => 'sociedades',
+        'otros-activos' => 'otros',
+        default         => '',
+    };
+
+    return site_url('equity/activos/' . $seg . '/' . $id . '/bitacora');
+};
 $edit = $edit ?? null;
 $isEdit = is_array($edit) && ! empty($edit['id']);
 $action = $isEdit ? rtrim($listAction, '/') . '/' . $edit['id'] : $listAction;
@@ -97,6 +113,12 @@ $chk = static function (string $key) use ($edit): string {
         <a class="btn btn-primary btn-sm" href="<?= esc($reportAction) ?>">Reporte</a>
         <a class="btn btn-ghost btn-sm" href="<?= esc($grupoReportAction) ?>">Reporte <?= esc(str_starts_with($clave, 'pasivos') || $clave === 'otros-pasivos' ? 'pasivos' : 'activos') ?></a>
     </p>
+    <?php if ($esActivo): ?>
+        <p class="muted" style="margin-top:.6rem;margin-bottom:0;font-size:.9rem">
+            Valor comercial<?= $clave === 'bienes-raices' ? ' y avalúo fiscal' : '' ?>:
+            los cambios se atribuyen al <strong>cierre del mes en curso</strong>; el mes anterior conserva el valor previo.
+        </p>
+    <?php endif; ?>
 </section>
 
 <?php if (! empty($success)): ?>
@@ -542,10 +564,55 @@ foreach ($personas as $p) {
             <button class="btn btn-primary" type="submit"><?= $isEdit ? 'Actualizar' : 'Guardar' ?></button>
             <?php if ($isEdit): ?>
                 <a class="btn btn-ghost" href="<?= esc($listAction) ?>">Cancelar</a>
+                <?php if ($esActivo): ?>
+                    <a class="btn btn-ghost" href="<?= esc($bitacoraPath((string) $edit['id'])) ?>">Bitácora de valores</a>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </form>
 </div>
+<?php if ($isEdit && $esActivo): ?>
+    <?php $bitacoraRows = $bitacora ?? []; ?>
+    <div class="card section-card">
+        <h3>Bitácora de valores (cierres de mes)</h3>
+        <p class="muted" style="margin-top:0">
+            Si cambias el valor hoy, queda como corte de fin de este mes; el mes anterior mantiene el monto anterior.
+        </p>
+        <?php if ($bitacoraRows === []): ?>
+            <p class="muted">Sin cortes aún. Se crearán al guardar un valor comercial<?= $clave === 'bienes-raices' ? ' o avalúo fiscal' : '' ?>.</p>
+        <?php else: ?>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Cierre</th>
+                        <th>Campo</th>
+                        <th>UF</th>
+                        <th>$</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach (array_slice($bitacoraRows, 0, 8) as $h): ?>
+                    <tr>
+                        <td><?= esc((string) ($h['fecha_cierre'] ?? '')) ?></td>
+                        <td><?= esc(EquityActivoBitacora::labelCampo((string) ($h['campo'] ?? ''))) ?></td>
+                        <td>
+                            <?php if (($h['campo'] ?? '') === EquityActivoBitacora::CAMPO_AVALUO_FISCAL): ?>
+                                —
+                            <?php else: ?>
+                                <?= esc(($h['valor_uf'] ?? null) !== null && $h['valor_uf'] !== '' ? EquityUf::fmtUf((float) $h['valor_uf'], 2) : '—') ?>
+                            <?php endif; ?>
+                        </td>
+                        <td><?= esc(($h['valor_clp'] ?? null) !== null && $h['valor_clp'] !== '' ? EquityUf::fmtPesos((float) $h['valor_clp'], 0) : '—') ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <p style="margin-top:.5rem">
+                <a class="btn btn-ghost btn-sm" href="<?= esc($bitacoraPath((string) $edit['id'])) ?>">Ver bitácora completa</a>
+            </p>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
 <?php elseif ($personaId === ''): ?>
     <div class="alert alert-info">No hay persona activa en la sesión. La matriz debe inscribirte en <a href="<?= site_url('equity/grupo') ?>">Grupo / Usuarios</a>, o elige a quién representas al iniciar sesión.</div>
 <?php endif; ?>
@@ -684,8 +751,11 @@ foreach ($personas as $p) {
                     <td><?= esc($ufShow !== null ? EquityUf::fmtUf($ufShow, 2) : '—') ?></td>
                     <td><?= esc($clpShow !== null ? EquityUf::fmtPesos($clpShow, 0) : '—') ?></td>
                     <?php if (! empty($canManage)): ?>
-                        <td>
+                        <td style="white-space:nowrap">
                             <a class="btn btn-ghost btn-sm" href="<?= esc($editPath((string) $row['id'])) ?>">Editar</a>
+                            <?php if ($esActivo): ?>
+                                <a class="btn btn-ghost btn-sm" href="<?= esc($bitacoraPath((string) $row['id'])) ?>">Bitácora</a>
+                            <?php endif; ?>
                         </td>
                     <?php endif; ?>
                 </tr>

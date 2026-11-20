@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Libraries\DocumentStorage;
 use App\Libraries\EquityAcl;
+use App\Libraries\EquityActivoBitacora;
 use App\Libraries\EquityCatalogo;
 use App\Libraries\EquityUf;
 use App\Libraries\MembershipAuth;
@@ -1381,6 +1382,7 @@ class EquityPatrimonio extends BaseController
         unset($row);
 
         $edit = null;
+        $bitacora = [];
         if ($editId !== null && $editId !== '') {
             if (! EquityAcl::canDeclare($memb)) {
                 return redirect()->to($this->pathSeccion($clave))->with('error', 'Sin permiso para editar.');
@@ -1390,6 +1392,10 @@ class EquityPatrimonio extends BaseController
                 return redirect()->to($this->pathSeccion($clave))->with('error', 'Registro no encontrado.');
             }
             $personaId = (string) ($edit['persona_id'] ?? $personaId);
+            $tipoBit = EquityActivoBitacora::tipoDesdeClave($clave);
+            if ($tipoBit !== null) {
+                $bitacora = EquityActivoBitacora::historial($tipoBit, (string) $editId);
+            }
         }
 
         return view('equity/seccion', [
@@ -1401,10 +1407,55 @@ class EquityPatrimonio extends BaseController
             'personas'  => $personas,
             'personaId' => $personaId,
             'edit'      => $edit,
+            'bitacora'  => $bitacora,
             'ufVigente' => EquityUf::vigente($empresaId),
             'canManage' => EquityAcl::canDeclare($memb),
             'success'   => session()->getFlashdata('success'),
             'error'     => session()->getFlashdata('error'),
+        ]);
+    }
+
+    public function bitacoraActivo(string $seccion, string $id)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $clave = $this->claveActivo($seccion);
+        $meta  = EquityCatalogo::seccion($clave);
+        $tipo  = EquityActivoBitacora::tipoDesdeClave($clave);
+        if ($meta === null || $tipo === null || $clave === '') {
+            return redirect()->to('/dashboard')->with('error', 'Sección no válida.');
+        }
+
+        $row = $this->findRegistro($meta, $memb['empresa_id'], $id);
+        if ($row === null) {
+            return redirect()->to($this->pathSeccion($clave))->with('error', 'Registro no encontrado.');
+        }
+
+        $historial = EquityActivoBitacora::historial($tipo, $id);
+        $personaMap = [];
+        [, $personas] = $this->personaContexto($memb);
+        foreach ($personas as $p) {
+            $personaMap[$p['id']] = $p;
+        }
+        $persona = $personaMap[$row['persona_id'] ?? ''] ?? null;
+
+        return view('equity/bitacora_activo', [
+            'title'         => 'Bitácora · ' . $meta['label'],
+            'memb'          => $memb,
+            'equityNav'     => $clave,
+            'meta'          => $meta,
+            'row'           => $row,
+            'persona'       => $persona,
+            'historial'     => $historial,
+            'campos'        => EquityActivoBitacora::camposParaClave($clave),
+            'cierreActual'  => EquityActivoBitacora::fechaCierreMes(),
+            'backUrl'       => $this->pathSeccion($clave),
+            'editUrl'       => rtrim($this->pathSeccion($clave), '/') . '/' . $id . '/editar',
+            'detalle'       => $this->detalleRegistro($clave, $row),
+            'ufVigente'     => EquityUf::vigente($memb['empresa_id']),
         ]);
     }
 
@@ -1458,6 +1509,7 @@ class EquityPatrimonio extends BaseController
 
         $redirectPath = $this->pathSeccion($clave);
         $isEdit = $editId !== null && $editId !== '';
+        $existing = null;
         if ($isEdit) {
             $existing = $this->findRegistro($meta, $memb['empresa_id'], $editId);
             if ($existing === null) {
@@ -1732,15 +1784,30 @@ class EquityPatrimonio extends BaseController
         }
 
         if ($isEdit) {
+            $before = $existing ?? null;
             $model->update($editId, $data);
+            $activoId = (string) $editId;
             $msg = 'Registro actualizado.';
         } else {
+            $before = null;
             $data['id']            = new_id();
             $data['empresa_id']    = $memb['empresa_id'];
             $data['creado_por_id'] = $memb['usuario_id'];
             $model->insert($data);
+            $activoId = (string) $data['id'];
             $msg = 'Registro agregado.';
         }
+
+        // Bitácora mensual de valor comercial / avalúo (solo activos).
+        EquityActivoBitacora::sincronizarDesdeStore(
+            $clave,
+            (string) $memb['empresa_id'],
+            (string) $personaId,
+            $activoId,
+            is_array($before ?? null) ? $before : null,
+            $data,
+            (string) ($memb['usuario_id'] ?? '')
+        );
 
         return redirect()->to($redirectPath . ($personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : ''))
             ->with('success', $msg);
