@@ -92,7 +92,7 @@
             <thead>
             <tr>
                 <th>Nombre</th>
-                <th>Correo</th>
+                <th>Correo / RUT</th>
                 <th>Estado</th>
                 <th>Declarante</th>
                 <th></th>
@@ -113,7 +113,14 @@
                             <br><code><?= esc($a['alias']) ?></code>
                         <?php endif; ?>
                     </td>
-                    <td><?= esc($a['email'] ?? '') ?></td>
+                    <td>
+                        <?= esc($a['email'] ?? '') ?>
+                        <?php if (! empty($a['rut'])): ?>
+                            <br><code><?= esc($a['rut']) ?></code>
+                        <?php else: ?>
+                            <br><span class="muted">Sin RUT</span>
+                        <?php endif; ?>
+                    </td>
                     <td>
                         <?php if ($inactive): ?>
                             <span class="tag">Inactivo</span>
@@ -133,6 +140,8 @@
                                 <input type="hidden" name="es_declarante" value="0">
                                 <span class="tag" style="margin-right:.35rem">Sí</span>
                                 <button class="btn btn-ghost btn-sm" type="submit">Quitar</button>
+                            <?php elseif (empty($a['rut'])): ?>
+                                <span class="muted" title="Carga el RUT del Admin para homologar con la ficha Declarante">Sin RUT</span>
                             <?php else: ?>
                                 <input type="hidden" name="es_declarante" value="1">
                                 <span class="muted" style="margin-right:.35rem">No</span>
@@ -160,7 +169,7 @@
     <p class="hint">
         Crea el contacto (o asocia un usuario existente) como Admin Master de esta empresa.
         Recibe verificación + clave temporal; al entrar define su propia clave.
-        Si también declara, se crea su ficha patrimonial en esta empresa.
+        Si también declara, el RUT homologa usuario ↔ ficha persona; el patrimonio queda bajo ese persona_id.
     </p>
     <form method="post" action="<?= site_url('admin/empresas/' . $empresa['id'] . '/invitar-admin') ?>">
         <?= csrf_field() ?>
@@ -175,7 +184,7 @@
             </div>
             <div>
                 <label for="adm_rut">RUT</label>
-                <input id="adm_rut" type="text" name="admin_rut" maxlength="32" placeholder="Opcional">
+                <input id="adm_rut" type="text" name="admin_rut" maxlength="32" placeholder="Obligatorio si también declara">
                 <label for="adm_email">Correo *</label>
                 <input id="adm_email" type="email" name="admin_email" required maxlength="191" placeholder="admin@empresa.cl">
                 <label style="display:flex;gap:.5rem;align-items:center;margin-top:.75rem">

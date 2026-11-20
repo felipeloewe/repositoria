@@ -187,6 +187,7 @@ final class EquityOrg
                 'id'                   => $usuarioId,
                 'email'                => $email,
                 'nombre'               => trim($nombre . ' ' . $apellido),
+                'rut'                  => $rut !== '' ? $rut : null,
                 'password_hash'        => password_hash($plain, PASSWORD_DEFAULT),
                 'activo'               => 1,
                 'es_admin_central'     => 0,
@@ -197,13 +198,18 @@ final class EquityOrg
             ]);
         } else {
             $usuarioId = (string) $existing['id'];
+            $userPatch = [];
+            if ($rut !== '' && IdentityHomolog::normalizeRut($existing['rut'] ?? null) === '') {
+                $userPatch['rut'] = $rut;
+            }
             if (empty($existing['email_verified_at'])) {
-                $usuarios->update($usuarioId, [
-                    'email_verify_token'   => $verifyToken,
-                    'email_verify_sent_at' => date('Y-m-d H:i:s'),
-                ]);
+                $userPatch['email_verify_token']   = $verifyToken;
+                $userPatch['email_verify_sent_at'] = date('Y-m-d H:i:s');
             } else {
                 $verifyToken = null;
+            }
+            if ($userPatch !== []) {
+                $usuarios->update($usuarioId, $userPatch);
             }
         }
 

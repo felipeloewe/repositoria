@@ -83,6 +83,11 @@ final class EmpresaOnboarding
         $inviteAdmin = (bool) ($input['invite_admin'] ?? false);
         $equityMatriz = (bool) ($input['equity_matriz'] ?? false);
         $adminEsDeclarante = (bool) ($input['admin_es_declarante'] ?? false);
+        if ($adminEsDeclarante && ($adminRut === null || IdentityHomolog::normalizeRut($adminRut) === '')) {
+            throw new RuntimeException(
+                'Si el Admin también es Declarante, el RUT es obligatorio (homologa usuario y ficha persona).'
+            );
+        }
 
         if ($nombre === '') {
             throw new RuntimeException('El nombre de la empresa es obligatorio.');
@@ -480,6 +485,14 @@ final class EmpresaOnboarding
         }
 
         $existing = model(UsuarioModel::class)->findByEmail($adminEmail);
+        if ($adminRut === null && $existing !== null) {
+            $adminRut = trim((string) ($existing['rut'] ?? '')) ?: null;
+        }
+        if ($adminEsDeclarante && ($adminRut === null || IdentityHomolog::normalizeRut($adminRut) === '')) {
+            throw new RuntimeException(
+                'Si el Admin también es Declarante, el RUT es obligatorio (homologa usuario y ficha persona).'
+            );
+        }
         if ($existing !== null) {
             $memb = $this->db->table('membresias')
                 ->where('empresa_id', $empresaId)
@@ -684,6 +697,8 @@ final class EmpresaOnboarding
                 isset($user['rut']) ? (string) $user['rut'] : null,
                 $usuarioId
             );
+            // Patrimonio va por persona_id: alinea empresa_id residual (seed/import).
+            (new PatrimonioRelink($this->db))->alignEmpresaToPersona($personaId);
         } else {
             $this->db->table('equity_personas')
                 ->where('empresa_id', $empresaId)
@@ -704,7 +719,8 @@ final class EmpresaOnboarding
     }
 
     /**
-     * Crea o reactiva la ficha equity_personas del Admin declarante en la empresa.
+     * Crea o vincula la ficha equity_personas del Admin declarante en la empresa.
+     * Homologa RUT/nombre/email con el usuario; si ya hay persona con ese RUT, la reutiliza (no duplica).
      */
     private function ensureDeclarantePersona(
         string $empresaId,
@@ -716,49 +732,53 @@ final class EmpresaOnboarding
     ): string {
         helper('id');
 
-        $existing = $this->db->table('equity_personas')
-            ->where('empresa_id', $empresaId)
-            ->where('usuario_id', $usuarioId)
-            ->get()
-            ->getRowArray();
+        $rut = trim((string) $rut) ?: null;
+        if ($rut === null || IdentityHomolog::normalizeRut($rut) === '') {
+            throw new RuntimeException(
+                'Para marcar Admin como Declarante debe homologar el RUT (mismo RUT en usuario y ficha persona).'
+            );
+        }
 
-        $parts    = preg_split('/\s+/', trim($nombreCompleto), 2) ?: [];
-        $nombre   = trim((string) ($parts[0] ?? 'Admin'));
-        $apellido = trim((string) ($parts[1] ?? '')) ?: null;
+        $existing = IdentityHomolog::findPersonaForUsuario($this->db, $empresaId, $usuarioId, $rut);
         $now      = date('Y-m-d H:i:s');
 
         if ($existing !== null) {
-            $this->db->table('equity_personas')->where('id', $existing['id'])->update([
-                'nombre'     => $nombre !== '' ? $nombre : (string) ($existing['nombre'] ?? 'Admin'),
-                'apellido'   => $apellido,
-                'email'      => $email !== '' ? $email : ($existing['email'] ?? null),
-                'rut'        => $rut !== null && $rut !== '' ? $rut : ($existing['rut'] ?? null),
-                'activo'     => 1,
-                'updated_at' => $now,
+            $personaId = (string) $existing['id'];
+            IdentityHomolog::syncUsuarioPersona($this->db, $usuarioId, $personaId, [
+                'nombre_completo' => $nombreCompleto,
+                'email'           => $email,
+                'rut'             => $rut,
             ]);
 
-            return (string) $existing['id'];
+            return $personaId;
         }
 
-        $personaId = new_id();
-        $row = [
-            'id'                          => $personaId,
-            'empresa_id'                  => $empresaId,
-            'tipo'                        => 'socio',
-            'nombre'                      => $nombre !== '' ? $nombre : 'Admin',
-            'apellido'                    => $apellido,
-            'rut'                         => $rut !== null && $rut !== '' ? $rut : null,
-            'email'                       => $email !== '' ? $email : null,
-            'usuario_id'                  => $usuarioId,
-            'activo'                      => 1,
-            'creado_por_id'               => $creadoPorId,
-            'created_at'                  => $now,
-            'updated_at'                  => $now,
+        [$nombre, $apellido] = IdentityHomolog::splitNombre($nombreCompleto);
+        $personaId           = new_id();
+        $row                 = [
+            'id'            => $personaId,
+            'empresa_id'    => $empresaId,
+            'tipo'          => 'socio',
+            'nombre'        => $nombre,
+            'apellido'      => $apellido,
+            'rut'           => $rut,
+            'email'         => $email !== '' ? $email : null,
+            'usuario_id'    => $usuarioId,
+            'activo'        => 1,
+            'creado_por_id' => $creadoPorId,
+            'created_at'    => $now,
+            'updated_at'    => $now,
         ];
         if ($this->db->fieldExists('representado_por_usuario_id', 'equity_personas')) {
             $row['representado_por_usuario_id'] = null;
         }
         $this->db->table('equity_personas')->insert($row);
+
+        IdentityHomolog::syncUsuarioPersona($this->db, $usuarioId, $personaId, [
+            'nombre_completo' => $nombreCompleto,
+            'email'           => $email,
+            'rut'             => $rut,
+        ]);
 
         return $personaId;
     }
