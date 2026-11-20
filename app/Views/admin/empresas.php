@@ -95,6 +95,7 @@
                 <th>Usuarios</th>
                 <th>Disco vs plan</th>
                 <th>Asignar plan</th>
+                <th></th>
             </tr>
             </thead>
             <tbody>
@@ -165,6 +166,9 @@
                             </select>
                             <button class="btn btn-primary btn-sm" type="submit">Guardar</button>
                         </form>
+                    </td>
+                    <td>
+                        <a class="btn btn-ghost btn-sm" href="<?= site_url('admin/empresas/' . $e['id']) ?>">Editar</a>
                     </td>
                 </tr>
             <?php endforeach; ?>

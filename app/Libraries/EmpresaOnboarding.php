@@ -323,9 +323,345 @@ final class EmpresaOnboarding
     }
 
     /**
-     * Normalize empresa Alias → empresas.slug; required + unique (no auto-suffix).
+     * Actualiza datos de empresa (nombre, alias, RUT, activa, matriz Equity).
+     *
+     * @param array{
+     *   nombre?: string,
+     *   alias?: ?string,
+     *   slug?: ?string,
+     *   rut?: ?string,
+     *   activa?: bool|int,
+     *   equity_matriz?: bool|int
+     * } $input
+     *
+     * @return array<string, mixed> fila empresas actualizada
      */
-    public function normalizeRequiredAlias(string $alias): string
+    public function updateEmpresa(string $empresaId, array $input): array
+    {
+        $empresa = model(EmpresaModel::class)->find($empresaId);
+        if ($empresa === null) {
+            throw new RuntimeException('Empresa no encontrada.');
+        }
+
+        $nombre = array_key_exists('nombre', $input)
+            ? trim((string) $input['nombre'])
+            : (string) $empresa['nombre'];
+        if ($nombre === '') {
+            throw new RuntimeException('El nombre de la empresa es obligatorio.');
+        }
+
+        $aliasIn = array_key_exists('alias', $input) || array_key_exists('slug', $input)
+            ? trim((string) ($input['alias'] ?? $input['slug'] ?? ''))
+            : (string) $empresa['slug'];
+        $slug = $this->normalizeRequiredAlias($aliasIn, $empresaId);
+
+        $rut = array_key_exists('rut', $input)
+            ? (trim((string) $input['rut']) ?: null)
+            : ($empresa['rut'] ?? null);
+
+        $now  = date('Y-m-d H:i:s');
+        $patch = [
+            'nombre'     => $nombre,
+            'slug'       => $slug,
+            'rut'        => $rut,
+            'updated_at' => $now,
+        ];
+
+        if (array_key_exists('activa', $input)) {
+            $patch['activa'] = ((int) $input['activa']) === 1 ? 1 : 0;
+        }
+
+        if ($this->db->fieldExists('equity_es_matriz', 'empresas') && array_key_exists('equity_matriz', $input)) {
+            $patch['equity_es_matriz'] = ((int) $input['equity_matriz']) === 1 ? 1 : 0;
+            if ((int) $patch['equity_es_matriz'] === 1) {
+                $patch['equity_matriz_id'] = null;
+            }
+        }
+
+        $this->db->table('empresas')->where('id', $empresaId)->update($patch);
+
+        $updated = model(EmpresaModel::class)->find($empresaId);
+        if ($updated === null) {
+            throw new RuntimeException('No se pudo actualizar la empresa.');
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Admins Master activos/inactivos de la empresa.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listMasterAdmins(string $empresaId): array
+    {
+        return $this->db->table('membresias m')
+            ->select('m.id AS membresia_id, m.activa AS membresia_activa, m.created_at AS membresia_desde, u.*')
+            ->join('usuarios u', 'u.id = m.usuario_id')
+            ->where('m.empresa_id', $empresaId)
+            ->where('m.rol', Roles::ADMINISTRADOR_MASTER)
+            ->orderBy('u.nombre', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
+
+    /**
+     * Invita (o agrega) un Admin Master a una empresa ya existente.
+     *
+     * @param array{
+     *   admin_nombre: string,
+     *   admin_email: string,
+     *   admin_alias: string,
+     *   admin_cargo?: ?string,
+     *   admin_rut?: ?string
+     * } $input
+     *
+     * @return array{
+     *   empresa_id: string,
+     *   usuario_id: string,
+     *   membresia_id: string,
+     *   created_user: bool,
+     *   admin_email: string,
+     *   admin_temp_password: ?string,
+     *   admin_verify_url: ?string
+     * }
+     */
+    public function inviteAdminMaster(string $empresaId, array $input): array
+    {
+        helper('id');
+
+        $empresa = model(EmpresaModel::class)->find($empresaId);
+        if ($empresa === null) {
+            throw new RuntimeException('Empresa no encontrada.');
+        }
+
+        $adminNombre = trim((string) ($input['admin_nombre'] ?? ''));
+        $adminEmail  = strtolower(trim((string) ($input['admin_email'] ?? '')));
+        $adminAlias  = trim((string) ($input['admin_alias'] ?? ''));
+        $adminCargo  = trim((string) ($input['admin_cargo'] ?? '')) ?: null;
+        $adminRut    = trim((string) ($input['admin_rut'] ?? '')) ?: null;
+
+        if ($adminNombre === '' || $adminEmail === '') {
+            throw new RuntimeException('Nombre y correo del administrador son obligatorios.');
+        }
+        if (! filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException('El correo del administrador no es válido.');
+        }
+
+        $existing = model(UsuarioModel::class)->findByEmail($adminEmail);
+        if ($existing !== null) {
+            $memb = $this->db->table('membresias')
+                ->where('empresa_id', $empresaId)
+                ->where('usuario_id', $existing['id'])
+                ->where('rol', Roles::ADMINISTRADOR_MASTER)
+                ->get()
+                ->getRowArray();
+            if ($memb !== null) {
+                throw new RuntimeException(
+                    'Ese correo ya es Admin Master de esta empresa. Usa Reinvitar para reenviar acceso.'
+                );
+            }
+        }
+
+        $tempPassword = EquityPassword::mintDefault(8);
+        $verifyToken  = bin2hex(random_bytes(24));
+        $now          = date('Y-m-d H:i:s');
+        $createdUser  = false;
+        $usuarioId    = null;
+        $membresiaId  = null;
+
+        $this->db->transBegin();
+
+        try {
+            if ($existing === null) {
+                (new PlanEntitlement($this->db))->assertCanAddUser($empresaId);
+                $userAlias = $this->normalizeRequiredUserAlias($adminAlias);
+                $usuarioId = new_id();
+                $this->db->table('usuarios')->insert([
+                    'id'                    => $usuarioId,
+                    'email'                 => $adminEmail,
+                    'nombre'                => $adminNombre,
+                    'alias'                 => $userAlias,
+                    'cargo'                 => $adminCargo,
+                    'rut'                   => $adminRut,
+                    'password_hash'         => password_hash($tempPassword, PASSWORD_DEFAULT),
+                    'activo'                => 1,
+                    'es_admin_central'      => 0,
+                    'email_verified_at'     => null,
+                    'email_verify_token'    => $verifyToken,
+                    'email_verify_sent_at'  => $now,
+                    'must_change_password'  => 1,
+                    'created_at'            => $now,
+                    'updated_at'            => $now,
+                ]);
+                $createdUser = true;
+            } else {
+                $usuarioId = (string) $existing['id'];
+                $anyMemb = $this->db->table('membresias')
+                    ->where('empresa_id', $empresaId)
+                    ->where('usuario_id', $usuarioId)
+                    ->get()
+                    ->getRowArray();
+                if ($anyMemb === null) {
+                    (new PlanEntitlement($this->db))->assertCanAddUser($empresaId);
+                }
+
+                $userPatch = [
+                    'nombre'               => $adminNombre,
+                    'cargo'                => $adminCargo,
+                    'rut'                  => $adminRut,
+                    'activo'               => 1,
+                    'password_hash'        => password_hash($tempPassword, PASSWORD_DEFAULT),
+                    'email_verified_at'    => null,
+                    'email_verify_token'   => $verifyToken,
+                    'email_verify_sent_at' => $now,
+                    'must_change_password' => 1,
+                    'updated_at'           => $now,
+                ];
+                if ($adminAlias !== '') {
+                    $currentAlias = (string) ($existing['alias'] ?? '');
+                    if ($currentAlias === '' || strcasecmp($currentAlias, $adminAlias) !== 0) {
+                        $userPatch['alias'] = $this->normalizeRequiredUserAlias($adminAlias);
+                    }
+                }
+                $this->db->table('usuarios')->where('id', $usuarioId)->update($userPatch);
+
+                if ($anyMemb !== null && ($anyMemb['rol'] ?? '') !== Roles::ADMINISTRADOR_MASTER) {
+                    $this->db->table('membresias')->where('id', $anyMemb['id'])->update([
+                        'rol'        => Roles::ADMINISTRADOR_MASTER,
+                        'activa'     => 1,
+                        'updated_at' => $now,
+                    ]);
+                    $membresiaId = (string) $anyMemb['id'];
+                } elseif ($anyMemb !== null) {
+                    $this->db->table('membresias')->where('id', $anyMemb['id'])->update([
+                        'activa'     => 1,
+                        'updated_at' => $now,
+                    ]);
+                    $membresiaId = (string) $anyMemb['id'];
+                }
+            }
+
+            if ($membresiaId === null) {
+                $membresiaId = new_id();
+                $this->db->table('membresias')->insert([
+                    'id'          => $membresiaId,
+                    'empresa_id'  => $empresaId,
+                    'usuario_id'  => $usuarioId,
+                    'rol'         => Roles::ADMINISTRADOR_MASTER,
+                    'sucursal_id' => null,
+                    'activa'      => 1,
+                    'created_at'  => $now,
+                    'updated_at'  => $now,
+                ]);
+            }
+
+            if ($this->db->transStatus() === false) {
+                throw new RuntimeException('No se pudo completar la invitación del Admin.');
+            }
+            $this->db->transCommit();
+        } catch (Throwable $e) {
+            $this->db->transRollback();
+            throw $e;
+        }
+
+        $verifyUrl = site_url('verificar-email?t=' . rawurlencode($verifyToken));
+        EquityMail::enviarInvitacionAdmin(
+            $adminEmail,
+            $adminNombre,
+            $verifyUrl,
+            $tempPassword,
+            (string) $empresa['nombre']
+        );
+
+        return [
+            'empresa_id'          => $empresaId,
+            'usuario_id'          => (string) $usuarioId,
+            'membresia_id'        => (string) $membresiaId,
+            'created_user'        => $createdUser,
+            'admin_email'         => $adminEmail,
+            'admin_temp_password' => $tempPassword,
+            'admin_verify_url'    => $verifyUrl,
+        ];
+    }
+
+    /**
+     * Reenvía acceso (clave temporal + verificación) a un Admin Master existente.
+     *
+     * @return array{
+     *   empresa_id: string,
+     *   usuario_id: string,
+     *   admin_email: string,
+     *   admin_temp_password: string,
+     *   admin_verify_url: string
+     * }
+     */
+    public function reinviteAdminMaster(string $empresaId, string $usuarioId): array
+    {
+        $empresa = model(EmpresaModel::class)->find($empresaId);
+        if ($empresa === null) {
+            throw new RuntimeException('Empresa no encontrada.');
+        }
+
+        $memb = $this->db->table('membresias')
+            ->where('empresa_id', $empresaId)
+            ->where('usuario_id', $usuarioId)
+            ->where('rol', Roles::ADMINISTRADOR_MASTER)
+            ->get()
+            ->getRowArray();
+        if ($memb === null) {
+            throw new RuntimeException('Ese usuario no es Admin Master de esta empresa.');
+        }
+
+        $user = model(UsuarioModel::class)->find($usuarioId);
+        if ($user === null) {
+            throw new RuntimeException('Usuario no encontrado.');
+        }
+
+        $tempPassword = EquityPassword::mintDefault(8);
+        $verifyToken  = bin2hex(random_bytes(24));
+        $now          = date('Y-m-d H:i:s');
+
+        $this->db->table('usuarios')->where('id', $usuarioId)->update([
+            'activo'               => 1,
+            'password_hash'        => password_hash($tempPassword, PASSWORD_DEFAULT),
+            'email_verified_at'    => null,
+            'email_verify_token'   => $verifyToken,
+            'email_verify_sent_at' => $now,
+            'must_change_password' => 1,
+            'updated_at'           => $now,
+        ]);
+        $this->db->table('membresias')->where('id', $memb['id'])->update([
+            'activa'     => 1,
+            'updated_at' => $now,
+        ]);
+
+        $email     = (string) $user['email'];
+        $nombre    = (string) ($user['nombre'] ?? $email);
+        $verifyUrl = site_url('verificar-email?t=' . rawurlencode($verifyToken));
+        EquityMail::enviarInvitacionAdmin(
+            $email,
+            $nombre,
+            $verifyUrl,
+            $tempPassword,
+            (string) $empresa['nombre']
+        );
+
+        return [
+            'empresa_id'          => $empresaId,
+            'usuario_id'          => $usuarioId,
+            'admin_email'         => $email,
+            'admin_temp_password' => $tempPassword,
+            'admin_verify_url'    => $verifyUrl,
+        ];
+    }
+
+    /**
+     * Normalize empresa Alias → empresas.slug; required + unique (no auto-suffix).
+     *
+     * @param string|null $excludeEmpresaId al editar, permite conservar el mismo alias
+     */
+    public function normalizeRequiredAlias(string $alias, ?string $excludeEmpresaId = null): string
     {
         $alias = trim($alias);
         if ($alias === '') {
@@ -345,7 +681,11 @@ final class EmpresaOnboarding
             );
         }
 
-        if (model(EmpresaModel::class)->where('slug', $slug)->countAllResults() > 0) {
+        $q = model(EmpresaModel::class)->where('slug', $slug);
+        if ($excludeEmpresaId !== null && $excludeEmpresaId !== '') {
+            $q->where('id !=', $excludeEmpresaId);
+        }
+        if ($q->countAllResults() > 0) {
             throw new RuntimeException('Ese Alias de empresa ya está en uso. Elige otro.');
         }
 

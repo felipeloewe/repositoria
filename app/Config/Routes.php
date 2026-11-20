@@ -174,6 +174,10 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('admin/empresas', 'AdminCentral::empresas');
     $routes->post('admin/empresas/asignar-plan', 'AdminCentral::assignPlan');
     $routes->post('admin/empresas/crear', 'AdminCentral::crearEmpresa');
+    $routes->get('admin/empresas/(:segment)', 'AdminCentral::editarEmpresa/$1');
+    $routes->post('admin/empresas/(:segment)/actualizar', 'AdminCentral::actualizarEmpresa/$1');
+    $routes->post('admin/empresas/(:segment)/invitar-admin', 'AdminCentral::invitarAdmin/$1');
+    $routes->post('admin/empresas/(:segment)/reinvitar-admin', 'AdminCentral::reinvitarAdmin/$1');
     $routes->get('admin/promociones', 'AdminCentral::index');
     $routes->post('admin/promociones/promover', 'AdminCentral::promover');
 
