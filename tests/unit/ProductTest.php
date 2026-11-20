@@ -48,6 +48,8 @@ final class ProductTest extends CIUnitTestCase
         $this->assertTrue(Product::isPathAllowed('/equity/resumen'));
         $this->assertTrue(Product::isPathAllowed('/admin'));
         $this->assertTrue(Product::isPathAllowed('/admin/empresas'));
+        $this->assertTrue(Product::isPathAllowed('/bienvenida'));
+        $this->assertTrue(Product::isPathAllowed('/verificar-email'));
         $this->assertTrue(Product::isPathAllowed('/documentos/abc123'));
         $this->assertTrue(Product::isPathAllowed('/documentos/abc123/download'));
         $this->assertFalse(Product::isPathAllowed('/documentos'));

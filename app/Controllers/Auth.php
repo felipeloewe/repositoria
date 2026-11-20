@@ -93,18 +93,27 @@ class Auth extends BaseController
     {
         $token = trim((string) $this->request->getGet('t'));
         if ($token === '') {
-            return redirect()->to('/login')->with('error', 'Enlace de verificación inválido.');
+            return redirect()->to('/bienvenida')->with('error', 'Enlace de verificación inválido.');
         }
         $user = model(UsuarioModel::class)->where('email_verify_token', $token)->first();
         if (! is_array($user)) {
-            return redirect()->to('/login')->with('error', 'Enlace de verificación inválido o ya usado.');
+            return redirect()->to('/bienvenida')->with('error', 'Enlace de verificación inválido o ya usado.');
         }
         model(UsuarioModel::class)->update($user['id'], [
             'email_verified_at'  => date('Y-m-d H:i:s'),
             'email_verify_token' => null,
         ]);
 
-        return redirect()->to('/login')->with('success', 'Correo verificado. Ya puedes ingresar con tu clave temporal.');
+        return redirect()->to('/bienvenida');
+    }
+
+    /** Página pública post-verificación (mismo look auth / Equity). */
+    public function bienvenida()
+    {
+        return view('auth/bienvenida', [
+            'title' => 'Bienvenido',
+            'error' => session()->getFlashdata('error'),
+        ]);
     }
 
     public function cambiarClaveForm()

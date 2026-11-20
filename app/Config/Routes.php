@@ -12,6 +12,7 @@ $routes->post('login', 'Auth::attempt');
 $routes->get('login/empresa', 'Auth::selectEmpresa');
 $routes->post('login/empresa', 'Auth::chooseEmpresa');
 $routes->get('verificar-email', 'Auth::verificarEmail');
+$routes->get('bienvenida', 'Auth::bienvenida');
 $routes->get('logout', 'Auth::logout');
 
 // Self-serve alta empresa FREE + admin Master

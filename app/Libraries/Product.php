@@ -98,6 +98,7 @@ final class Product
             '/empresa/cambiar',
             '/cambiar-clave',
             '/verificar-email',
+            '/bienvenida',
             '/login',
             '/logout',
             // Respaldos reutilizan detalle/descarga documental
