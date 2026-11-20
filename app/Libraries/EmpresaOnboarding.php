@@ -41,7 +41,8 @@ final class EmpresaOnboarding
      *   admin_rut?: ?string,
      *   create_defaults?: bool,
      *   invite_admin?: bool,
-     *   equity_matriz?: bool
+     *   equity_matriz?: bool,
+     *   admin_es_declarante?: bool
      * } $input
      *
      * @return array{
@@ -54,7 +55,9 @@ final class EmpresaOnboarding
      *   plan_codigo: ?string,
      *   admin_temp_password?: ?string,
      *   admin_verify_url?: ?string,
-     *   admin_email?: string
+     *   admin_email?: string,
+     *   admin_es_declarante?: bool,
+     *   persona_id?: ?string
      * }
      */
     public function createEmpresaWithAdmin(array $input): array
@@ -79,6 +82,7 @@ final class EmpresaOnboarding
         $createDefs  = ($input['create_defaults'] ?? true) !== false;
         $inviteAdmin = (bool) ($input['invite_admin'] ?? false);
         $equityMatriz = (bool) ($input['equity_matriz'] ?? false);
+        $adminEsDeclarante = (bool) ($input['admin_es_declarante'] ?? false);
 
         if ($nombre === '') {
             throw new RuntimeException('El nombre de la empresa es obligatorio.');
@@ -166,6 +170,7 @@ final class EmpresaOnboarding
         $membresiaId = new_id();
         $deptoId     = null;
         $sucursalId  = null;
+        $personaId   = null;
 
         $this->db->transBegin();
 
@@ -242,7 +247,7 @@ final class EmpresaOnboarding
                 ]);
             }
 
-            $this->db->table('membresias')->insert([
+            $membRow = [
                 'id'          => $membresiaId,
                 'empresa_id'  => $empresaId,
                 'usuario_id'  => $usuarioId,
@@ -251,7 +256,22 @@ final class EmpresaOnboarding
                 'activa'      => 1,
                 'created_at'  => $now,
                 'updated_at'  => $now,
-            ]);
+            ];
+            if ($this->db->fieldExists('es_declarante', 'membresias')) {
+                $membRow['es_declarante'] = $adminEsDeclarante ? 1 : 0;
+            }
+            $this->db->table('membresias')->insert($membRow);
+
+            if ($adminEsDeclarante) {
+                $personaId = $this->ensureDeclarantePersona(
+                    $empresaId,
+                    $usuarioId,
+                    $adminNombre,
+                    $adminEmail,
+                    $adminRut,
+                    $usuarioId
+                );
+            }
 
             if ($this->db->transStatus() === false) {
                 throw new RuntimeException('No se pudo completar el alta de la empresa.');
@@ -288,6 +308,8 @@ final class EmpresaOnboarding
             'admin_email'          => $adminEmail,
             'admin_temp_password'  => $tempPassword,
             'admin_verify_url'     => $verifyUrl,
+            'admin_es_declarante'  => $adminEsDeclarante,
+            'persona_id'           => $personaId ?? null,
         ];
     }
 
@@ -395,8 +417,13 @@ final class EmpresaOnboarding
      */
     public function listMasterAdmins(string $empresaId): array
     {
+        $select = 'm.id AS membresia_id, m.activa AS membresia_activa, m.created_at AS membresia_desde, u.*';
+        if ($this->db->fieldExists('es_declarante', 'membresias')) {
+            $select .= ', m.es_declarante';
+        }
+
         return $this->db->table('membresias m')
-            ->select('m.id AS membresia_id, m.activa AS membresia_activa, m.created_at AS membresia_desde, u.*')
+            ->select($select)
             ->join('usuarios u', 'u.id = m.usuario_id')
             ->where('m.empresa_id', $empresaId)
             ->where('m.rol', Roles::ADMINISTRADOR_MASTER)
@@ -413,7 +440,8 @@ final class EmpresaOnboarding
      *   admin_email: string,
      *   admin_alias: string,
      *   admin_cargo?: ?string,
-     *   admin_rut?: ?string
+     *   admin_rut?: ?string,
+     *   admin_es_declarante?: bool
      * } $input
      *
      * @return array{
@@ -423,7 +451,9 @@ final class EmpresaOnboarding
      *   created_user: bool,
      *   admin_email: string,
      *   admin_temp_password: ?string,
-     *   admin_verify_url: ?string
+     *   admin_verify_url: ?string,
+     *   admin_es_declarante: bool,
+     *   persona_id?: ?string
      * }
      */
     public function inviteAdminMaster(string $empresaId, array $input): array
@@ -440,6 +470,7 @@ final class EmpresaOnboarding
         $adminAlias  = trim((string) ($input['admin_alias'] ?? ''));
         $adminCargo  = trim((string) ($input['admin_cargo'] ?? '')) ?: null;
         $adminRut    = trim((string) ($input['admin_rut'] ?? '')) ?: null;
+        $adminEsDeclarante = (bool) ($input['admin_es_declarante'] ?? false);
 
         if ($adminNombre === '' || $adminEmail === '') {
             throw new RuntimeException('Nombre y correo del administrador son obligatorios.');
@@ -527,24 +558,32 @@ final class EmpresaOnboarding
                 $this->db->table('usuarios')->where('id', $usuarioId)->update($userPatch);
 
                 if ($anyMemb !== null && ($anyMemb['rol'] ?? '') !== Roles::ADMINISTRADOR_MASTER) {
-                    $this->db->table('membresias')->where('id', $anyMemb['id'])->update([
+                    $patch = [
                         'rol'        => Roles::ADMINISTRADOR_MASTER,
                         'activa'     => 1,
                         'updated_at' => $now,
-                    ]);
+                    ];
+                    if ($this->db->fieldExists('es_declarante', 'membresias')) {
+                        $patch['es_declarante'] = $adminEsDeclarante ? 1 : 0;
+                    }
+                    $this->db->table('membresias')->where('id', $anyMemb['id'])->update($patch);
                     $membresiaId = (string) $anyMemb['id'];
                 } elseif ($anyMemb !== null) {
-                    $this->db->table('membresias')->where('id', $anyMemb['id'])->update([
+                    $patch = [
                         'activa'     => 1,
                         'updated_at' => $now,
-                    ]);
+                    ];
+                    if ($this->db->fieldExists('es_declarante', 'membresias')) {
+                        $patch['es_declarante'] = $adminEsDeclarante ? 1 : 0;
+                    }
+                    $this->db->table('membresias')->where('id', $anyMemb['id'])->update($patch);
                     $membresiaId = (string) $anyMemb['id'];
                 }
             }
 
             if ($membresiaId === null) {
                 $membresiaId = new_id();
-                $this->db->table('membresias')->insert([
+                $membRow = [
                     'id'          => $membresiaId,
                     'empresa_id'  => $empresaId,
                     'usuario_id'  => $usuarioId,
@@ -553,7 +592,23 @@ final class EmpresaOnboarding
                     'activa'      => 1,
                     'created_at'  => $now,
                     'updated_at'  => $now,
-                ]);
+                ];
+                if ($this->db->fieldExists('es_declarante', 'membresias')) {
+                    $membRow['es_declarante'] = $adminEsDeclarante ? 1 : 0;
+                }
+                $this->db->table('membresias')->insert($membRow);
+            }
+
+            $personaId = null;
+            if ($adminEsDeclarante) {
+                $personaId = $this->ensureDeclarantePersona(
+                    $empresaId,
+                    (string) $usuarioId,
+                    $adminNombre,
+                    $adminEmail,
+                    $adminRut,
+                    (string) $usuarioId
+                );
             }
 
             if ($this->db->transStatus() === false) {
@@ -582,7 +637,130 @@ final class EmpresaOnboarding
             'admin_email'         => $adminEmail,
             'admin_temp_password' => $tempPassword,
             'admin_verify_url'    => $verifyUrl,
+            'admin_es_declarante' => $adminEsDeclarante,
+            'persona_id'          => $personaId ?? null,
         ];
+    }
+
+    /**
+     * Marca/desmarca Admin Master como declarante en esa empresa (crea o desactiva ficha).
+     *
+     * @return array{es_declarante: bool, persona_id: ?string}
+     */
+    public function setAdminEsDeclarante(string $empresaId, string $usuarioId, bool $esDeclarante): array
+    {
+        helper('id');
+
+        $memb = $this->db->table('membresias')
+            ->where('empresa_id', $empresaId)
+            ->where('usuario_id', $usuarioId)
+            ->where('rol', Roles::ADMINISTRADOR_MASTER)
+            ->get()
+            ->getRowArray();
+        if ($memb === null) {
+            throw new RuntimeException('Ese usuario no es Admin Master de esta empresa.');
+        }
+
+        $user = model(UsuarioModel::class)->find($usuarioId);
+        if ($user === null) {
+            throw new RuntimeException('Usuario no encontrado.');
+        }
+
+        $now = date('Y-m-d H:i:s');
+        if ($this->db->fieldExists('es_declarante', 'membresias')) {
+            $this->db->table('membresias')->where('id', $memb['id'])->update([
+                'es_declarante' => $esDeclarante ? 1 : 0,
+                'updated_at'    => $now,
+            ]);
+        }
+
+        $personaId = null;
+        if ($esDeclarante) {
+            $personaId = $this->ensureDeclarantePersona(
+                $empresaId,
+                $usuarioId,
+                (string) ($user['nombre'] ?? $user['email']),
+                (string) $user['email'],
+                isset($user['rut']) ? (string) $user['rut'] : null,
+                $usuarioId
+            );
+        } else {
+            $this->db->table('equity_personas')
+                ->where('empresa_id', $empresaId)
+                ->where('usuario_id', $usuarioId)
+                ->update(['activo' => 0, 'updated_at' => $now]);
+            $row = $this->db->table('equity_personas')
+                ->where('empresa_id', $empresaId)
+                ->where('usuario_id', $usuarioId)
+                ->get()
+                ->getRowArray();
+            $personaId = $row['id'] ?? null;
+        }
+
+        return [
+            'es_declarante' => $esDeclarante,
+            'persona_id'    => $personaId !== null ? (string) $personaId : null,
+        ];
+    }
+
+    /**
+     * Crea o reactiva la ficha equity_personas del Admin declarante en la empresa.
+     */
+    private function ensureDeclarantePersona(
+        string $empresaId,
+        string $usuarioId,
+        string $nombreCompleto,
+        string $email,
+        ?string $rut,
+        ?string $creadoPorId
+    ): string {
+        helper('id');
+
+        $existing = $this->db->table('equity_personas')
+            ->where('empresa_id', $empresaId)
+            ->where('usuario_id', $usuarioId)
+            ->get()
+            ->getRowArray();
+
+        $parts    = preg_split('/\s+/', trim($nombreCompleto), 2) ?: [];
+        $nombre   = trim((string) ($parts[0] ?? 'Admin'));
+        $apellido = trim((string) ($parts[1] ?? '')) ?: null;
+        $now      = date('Y-m-d H:i:s');
+
+        if ($existing !== null) {
+            $this->db->table('equity_personas')->where('id', $existing['id'])->update([
+                'nombre'     => $nombre !== '' ? $nombre : (string) ($existing['nombre'] ?? 'Admin'),
+                'apellido'   => $apellido,
+                'email'      => $email !== '' ? $email : ($existing['email'] ?? null),
+                'rut'        => $rut !== null && $rut !== '' ? $rut : ($existing['rut'] ?? null),
+                'activo'     => 1,
+                'updated_at' => $now,
+            ]);
+
+            return (string) $existing['id'];
+        }
+
+        $personaId = new_id();
+        $row = [
+            'id'                          => $personaId,
+            'empresa_id'                  => $empresaId,
+            'tipo'                        => 'socio',
+            'nombre'                      => $nombre !== '' ? $nombre : 'Admin',
+            'apellido'                    => $apellido,
+            'rut'                         => $rut !== null && $rut !== '' ? $rut : null,
+            'email'                       => $email !== '' ? $email : null,
+            'usuario_id'                  => $usuarioId,
+            'activo'                      => 1,
+            'creado_por_id'               => $creadoPorId,
+            'created_at'                  => $now,
+            'updated_at'                  => $now,
+        ];
+        if ($this->db->fieldExists('representado_por_usuario_id', 'equity_personas')) {
+            $row['representado_por_usuario_id'] = null;
+        }
+        $this->db->table('equity_personas')->insert($row);
+
+        return $personaId;
     }
 
     /**

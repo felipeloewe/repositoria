@@ -126,10 +126,11 @@ class AdminCentral extends BaseController
             'admin_alias'    => (string) $this->request->getPost('admin_alias'),
             'admin_cargo'    => (string) $this->request->getPost('admin_cargo'),
             'admin_rut'      => (string) $this->request->getPost('admin_rut'),
-            'admin_email'    => (string) $this->request->getPost('admin_email'),
+            'admin_email'         => (string) $this->request->getPost('admin_email'),
             // El Superadmin no define la clave: el Admin la autogestiona tras verificar correo.
-            'invite_admin'   => true,
-            'equity_matriz'  => true,
+            'invite_admin'        => true,
+            'equity_matriz'       => true,
+            'admin_es_declarante' => (bool) $this->request->getPost('admin_es_declarante'),
         ];
 
         try {
@@ -144,11 +145,15 @@ class AdminCentral extends BaseController
 
         $planLabel = $result['plan_codigo'] ?? ($result['tipo'] === 'a' ? 'sin plan (requires_plan)' : '—');
         $email     = (string) ($result['admin_email'] ?? $this->request->getPost('admin_email'));
-        $msg       = sprintf(
-            'Empresa creada (tipo %s, plan %s). Se invitó al Admin %s: debe verificar correo, entrar con clave temporal y definir su propia clave. Luego en Grupo / Usuarios puede inscribir a los declarantes.',
+        $declMsg = ! empty($result['admin_es_declarante'])
+            ? ' El Admin también quedó como declarante en esta empresa.'
+            : ' Luego en Grupo / Usuarios puede inscribir a los declarantes.';
+        $msg     = sprintf(
+            'Empresa creada (tipo %s, plan %s). Se invitó al Admin %s: debe verificar correo, entrar con clave temporal y definir su propia clave.%s',
             $result['tipo'],
             $planLabel,
-            $email
+            $email,
+            $declMsg
         );
 
         $inviteBits = [];
@@ -240,11 +245,12 @@ class AdminCentral extends BaseController
         }
 
         $payload = [
-            'admin_nombre' => (string) $this->request->getPost('admin_nombre'),
-            'admin_alias'  => (string) $this->request->getPost('admin_alias'),
-            'admin_cargo'  => (string) $this->request->getPost('admin_cargo'),
-            'admin_rut'    => (string) $this->request->getPost('admin_rut'),
-            'admin_email'  => (string) $this->request->getPost('admin_email'),
+            'admin_nombre'        => (string) $this->request->getPost('admin_nombre'),
+            'admin_alias'         => (string) $this->request->getPost('admin_alias'),
+            'admin_cargo'         => (string) $this->request->getPost('admin_cargo'),
+            'admin_rut'           => (string) $this->request->getPost('admin_rut'),
+            'admin_email'         => (string) $this->request->getPost('admin_email'),
+            'admin_es_declarante' => (bool) $this->request->getPost('admin_es_declarante'),
         ];
 
         try {
@@ -258,14 +264,46 @@ class AdminCentral extends BaseController
         }
 
         $msg = sprintf(
-            'Se invitó al Admin %s. Debe verificar correo, entrar con clave temporal y definir su propia clave.',
-            $result['admin_email']
+            'Se invitó al Admin %s. Debe verificar correo, entrar con clave temporal y definir su propia clave.%s',
+            $result['admin_email'],
+            ! empty($result['admin_es_declarante']) ? ' También quedó como declarante.' : ''
         );
         $inviteBits = [
             'Verificación: ' . ($result['admin_verify_url'] ?? ''),
             'Clave temporal: ' . ($result['admin_temp_password'] ?? ''),
         ];
         session()->setFlashdata('inviteInfo', implode("\n", $inviteBits));
+
+        return redirect()->to('/admin/empresas/' . rawurlencode($id))->with('success', $msg);
+    }
+
+    /** Marca/desmarca Admin Master como declarante en esta empresa. */
+    public function adminEsDeclarante(string $id)
+    {
+        $memb = $this->requireAdminCentral();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $usuarioId = trim((string) $this->request->getPost('usuario_id'));
+        $flag      = (bool) $this->request->getPost('es_declarante');
+        if ($usuarioId === '') {
+            return redirect()->to('/admin/empresas/' . rawurlencode($id))->with('error', 'Usuario obligatorio.');
+        }
+
+        try {
+            $result = (new EmpresaOnboarding())->setAdminEsDeclarante($id, $usuarioId, $flag);
+        } catch (RuntimeException $e) {
+            return redirect()->to('/admin/empresas/' . rawurlencode($id))->with('error', $e->getMessage());
+        } catch (Throwable $e) {
+            log_message('error', 'AdminCentral adminEsDeclarante: {msg}', ['msg' => $e->getMessage()]);
+
+            return redirect()->to('/admin/empresas/' . rawurlencode($id))->with('error', 'No se pudo actualizar el flag declarante.');
+        }
+
+        $msg = $result['es_declarante']
+            ? 'Admin marcado como declarante en esta empresa (ficha patrimonial lista).'
+            : 'Admin ya no declara en esta empresa (ficha desactivada; el patrimonio histórico se conserva).';
 
         return redirect()->to('/admin/empresas/' . rawurlencode($id))->with('success', $msg);
     }

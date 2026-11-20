@@ -94,6 +94,7 @@
                 <th>Nombre</th>
                 <th>Correo</th>
                 <th>Estado</th>
+                <th>Declarante</th>
                 <th></th>
             </tr>
             </thead>
@@ -103,6 +104,7 @@
                 $pending  = ! $verified && ! empty($a['email_verify_token']);
                 $mustChg  = (int) ($a['must_change_password'] ?? 0) === 1;
                 $inactive = (int) ($a['activo'] ?? 1) !== 1 || (int) ($a['membresia_activa'] ?? 1) !== 1;
+                $esDecl   = (int) ($a['es_declarante'] ?? 0) === 1;
                 ?>
                 <tr>
                     <td>
@@ -124,6 +126,21 @@
                         <?php endif; ?>
                     </td>
                     <td>
+                        <form method="post" action="<?= site_url('admin/empresas/' . $empresa['id'] . '/admin-declarante') ?>" class="inline-form">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="usuario_id" value="<?= esc($a['id']) ?>">
+                            <?php if ($esDecl): ?>
+                                <input type="hidden" name="es_declarante" value="0">
+                                <span class="tag" style="margin-right:.35rem">Sí</span>
+                                <button class="btn btn-ghost btn-sm" type="submit">Quitar</button>
+                            <?php else: ?>
+                                <input type="hidden" name="es_declarante" value="1">
+                                <span class="muted" style="margin-right:.35rem">No</span>
+                                <button class="btn btn-ghost btn-sm" type="submit">Marcar</button>
+                            <?php endif; ?>
+                        </form>
+                    </td>
+                    <td>
                         <form method="post" action="<?= site_url('admin/empresas/' . $empresa['id'] . '/reinvitar-admin') ?>" class="inline-form"
                               onsubmit="return confirm('¿Reenviar verificación y nueva clave temporal a <?= esc($a['email'] ?? '', 'attr') ?>?');">
                             <?= csrf_field() ?>
@@ -143,6 +160,7 @@
     <p class="hint">
         Crea el contacto (o asocia un usuario existente) como Admin Master de esta empresa.
         Recibe verificación + clave temporal; al entrar define su propia clave.
+        Si también declara, se crea su ficha patrimonial en esta empresa.
     </p>
     <form method="post" action="<?= site_url('admin/empresas/' . $empresa['id'] . '/invitar-admin') ?>">
         <?= csrf_field() ?>
@@ -160,6 +178,10 @@
                 <input id="adm_rut" type="text" name="admin_rut" maxlength="32" placeholder="Opcional">
                 <label for="adm_email">Correo *</label>
                 <input id="adm_email" type="email" name="admin_email" required maxlength="191" placeholder="admin@empresa.cl">
+                <label style="display:flex;gap:.5rem;align-items:center;margin-top:.75rem">
+                    <input type="checkbox" name="admin_es_declarante" value="1" checked>
+                    También es declarante en esta empresa
+                </label>
                 <button class="btn btn-primary" type="submit" style="width:auto;margin-top:.75rem">Invitar Admin</button>
             </div>
         </div>

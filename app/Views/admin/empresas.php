@@ -74,7 +74,11 @@
                 <input id="adm_rut" type="text" name="admin_rut" maxlength="32" placeholder="Opcional">
                 <label for="adm_email">Correo admin *</label>
                 <input id="adm_email" type="email" name="admin_email" required maxlength="191" placeholder="admin@empresa.cl">
-                <p class="hint" style="margin:.35rem 0 0">Recibirá verificación + clave temporal; al entrar debe cambiarla.</p>
+                <label style="display:flex;gap:.5rem;align-items:center;margin-top:.75rem">
+                    <input type="checkbox" name="admin_es_declarante" value="1" checked>
+                    Admin también es declarante en esta empresa
+                </label>
+                <p class="hint" style="margin:.35rem 0 0">Recibirá verificación + clave temporal; al entrar debe cambiarla. Si además declara, se crea su ficha patrimonial.</p>
                 <button class="btn btn-primary" type="submit" style="width:auto;margin-top:.75rem">Crear empresa e invitar Admin</button>
             </div>
         </div>
