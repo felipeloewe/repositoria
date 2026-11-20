@@ -25,7 +25,7 @@ final class MembershipAuth
         $usuarios = model(UsuarioModel::class);
         $user     = $usuarios->findByEmail(strtolower(trim($email)));
 
-        if ($user === null || ! (int) ($user['activo'] ?? 0)) {
+        if ($user === null || ! IdentityVault::isUsuarioActivo($user)) {
             return ['ok' => false, 'error' => 'Credenciales inválidas.'];
         }
 

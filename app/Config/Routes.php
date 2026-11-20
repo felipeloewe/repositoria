@@ -135,8 +135,11 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('equity/configuracion/uf', 'EquityConfiguracion::storeUf');
     $routes->post('equity/configuracion/uf/(:segment)/eliminar', 'EquityConfiguracion::deleteUf/$1');
     $routes->get('equity/grupo', 'EquityGrupo::index');
+    $routes->get('equity/grupo/privacidad', 'EquityGrupo::privacidad');
     $routes->post('equity/grupo/subsidiaria', 'EquityGrupo::storeSubsidiaria');
     $routes->post('equity/grupo/persona', 'EquityGrupo::storePersonaUsuario');
+    $routes->post('equity/grupo/persona/(:segment)/baja', 'EquityGrupo::bajaPersona/$1');
+    $routes->post('equity/grupo/persona/(:segment)/scrub', 'EquityGrupo::scrubPersona/$1');
     $routes->get('equity/activos/(:segment)/(:segment)/editar', 'EquityPatrimonio::editActivo/$1/$2');
     $routes->post('equity/activos/(:segment)/(:segment)', 'EquityPatrimonio::updateActivo/$1/$2');
     $routes->get('equity/activos/(:segment)', 'EquityPatrimonio::activos/$1');

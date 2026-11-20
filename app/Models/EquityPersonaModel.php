@@ -17,6 +17,7 @@ class EquityPersonaModel extends Model
     protected $allowedFields    = [
         'id', 'empresa_id', 'tipo', 'nombre', 'apellido', 'apellido_materno', 'rut', 'email', 'cargo',
         'usuario_id', 'representado_por_usuario_id', 'activo', 'notas', 'creado_por_id',
+        'deactivated_at', 'pii_scrubbed_at',
         // personales
         'fecha_nacimiento', 'sexo', 'nacionalidad', 'nacionalidad_detalle', 'grupo_familiar_n',
         'estado_civil', 'regimen_patrimonial', 'lugar_habita',

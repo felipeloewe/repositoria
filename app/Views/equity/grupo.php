@@ -11,6 +11,12 @@
     <div class="alert alert-success" style="white-space:pre-wrap;font-size:.9rem"><?= esc($inviteInfo) ?></div>
 <?php endif; ?>
 
+<?php use App\Libraries\IdentityVault; ?>
+
+<p style="margin:0 0 1rem;display:flex;gap:.5rem;flex-wrap:wrap">
+    <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/grupo/privacidad') ?>">Privacidad · inventario PII</a>
+</p>
+
 <section class="card-panel" style="margin-bottom:1.25rem">
     <h2 style="margin-top:0">Empresa matriz</h2>
     <p class="muted" style="margin-top:0">
@@ -108,6 +114,9 @@
 
 <section class="card-panel">
     <h2 style="margin-top:0">Personas del grupo</h2>
+    <p class="muted" style="margin-top:0">
+        Baja = desactiva acceso y marca la identidad. Anonimizar = borra PII (nombre/RUT/correo) y deja solo el ID para el patrimonio histórico.
+    </p>
     <?php if (($personas ?? []) === []): ?>
         <p class="muted">Sin personas aún.</p>
     <?php else: ?>
@@ -118,7 +127,9 @@
                     <th>Nombre</th>
                     <th>Empresa</th>
                     <th>Correo</th>
+                    <th>Estado</th>
                     <th>Acceso</th>
+                    <th></th>
                 </tr>
                 </thead>
                 <tbody>
@@ -127,15 +138,36 @@
                     $emp = $empresasMap[$p['empresa_id'] ?? ''] ?? null;
                     $rep = $usuariosGrupo[$p['representado_por_usuario_id'] ?? ''] ?? null;
                     $own = $usuariosGrupo[$p['usuario_id'] ?? ''] ?? null;
-                    $acceso = $rep
-                        ? ('Representado por ' . ($rep['nombre'] ?? $rep['email'] ?? ''))
-                        : ($own ? ('Usuario: ' . ($own['email'] ?? '')) : 'Sin usuario');
+                    $scrubbed = ! empty($p['pii_scrubbed_at']);
+                    $baja = $scrubbed || ! empty($p['deactivated_at']) || (int) ($p['activo'] ?? 1) !== 1;
+                    $acceso = $scrubbed
+                        ? 'Anonimizado'
+                        : ($rep
+                            ? ('Representado por ' . ($rep['nombre'] ?? $rep['email'] ?? ''))
+                            : ($own ? ('Usuario: ' . ($own['email'] ?? '')) : 'Sin usuario'));
+                    $estado = $scrubbed ? 'Anonimizada' : ($baja ? 'Dada de baja' : 'Activa');
                     ?>
                     <tr>
-                        <td><?= esc(trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''))) ?></td>
-                        <td><?= esc(is_array($emp) ? ($emp['nombre'] ?? '') : '') ?></td>
-                        <td><?= esc($p['email'] ?? '—') ?></td>
+                        <td><?= esc(IdentityVault::labelPersona($p)) ?></td>
+                        <td><?= esc(IdentityVault::labelEmpresa(is_array($emp) ? $emp : null)) ?></td>
+                        <td><?= esc($scrubbed ? '—' : ($p['email'] ?? '—')) ?></td>
+                        <td><?= esc($estado) ?></td>
                         <td><?= esc($acceso) ?></td>
+                        <td style="white-space:nowrap">
+                            <?php if ($scrubbed): ?>
+                                <span class="muted">—</span>
+                            <?php elseif (! $baja): ?>
+                                <form method="post" action="<?= site_url('equity/grupo/persona/' . $p['id'] . '/baja') ?>" style="display:inline" onsubmit="return confirm('¿Dar de baja a esta persona? Conservará el patrimonio por ID.');">
+                                    <?= csrf_field() ?>
+                                    <button class="btn btn-ghost btn-sm" type="submit">Baja</button>
+                                </form>
+                            <?php else: ?>
+                                <form method="post" action="<?= site_url('equity/grupo/persona/' . $p['id'] . '/scrub') ?>" style="display:inline" onsubmit="return confirm('¿Anonimizar PII de forma irreversible? Esta acción no se puede deshacer.');">
+                                    <?= csrf_field() ?>
+                                    <button class="btn btn-ghost btn-sm" type="submit">Anonimizar</button>
+                                </form>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

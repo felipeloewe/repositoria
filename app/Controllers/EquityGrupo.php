@@ -6,6 +6,8 @@ namespace App\Controllers;
 
 use App\Libraries\EquityAcl;
 use App\Libraries\EquityOrg;
+use App\Libraries\IdentityVault;
+use App\Libraries\PiiCatalog;
 use App\Libraries\MembershipAuth;
 use App\Models\EmpresaModel;
 use App\Models\EquityPersonaModel;
@@ -47,11 +49,14 @@ class EquityGrupo extends BaseController
         $subs     = $org->subsidiariasDe($matrizId);
 
         $grupoIds = $org->empresaIdsDelGrupo($memb['empresa_id']);
-        $personas = model(EquityPersonaModel::class)
-            ->whereIn('empresa_id', $grupoIds)
-            ->where('activo', 1)
-            ->orderBy('nombre', 'ASC')
-            ->findAll();
+        // Incluye bajas (para scrub); las anonimizadas se listan al final.
+        $personaQ = model(EquityPersonaModel::class)->whereIn('empresa_id', $grupoIds);
+        $db = db_connect();
+        if ($db->fieldExists('pii_scrubbed_at', 'equity_personas')) {
+            $personaQ->orderBy('pii_scrubbed_at', 'ASC');
+        }
+        $personaQ->orderBy('activo', 'DESC')->orderBy('nombre', 'ASC');
+        $personas = $personaQ->findAll();
 
         $usuariosGrupo = [];
         foreach (model(MembresiaModel::class)->whereIn('empresa_id', $grupoIds)->where('activa', 1)->findAll() as $m) {
@@ -165,5 +170,77 @@ class EquityGrupo extends BaseController
         return redirect()->to('/equity/grupo')
             ->with('success', 'Declarante habilitado. Se envió (o registró) verificación de correo.')
             ->with('inviteInfo', $info);
+    }
+
+    public function privacidad()
+    {
+        $memb = $this->requireManage();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        return view('equity/privacidad', [
+            'title'     => 'Privacidad · Identidad',
+            'memb'      => $memb,
+            'equityNav' => 'grupo',
+            'inventory' => PiiCatalog::inventory(),
+        ]);
+    }
+
+    public function bajaPersona(string $id)
+    {
+        $memb = $this->requireManage();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $persona = model(EquityPersonaModel::class)->find($id);
+        if (! is_array($persona) || ! $this->personaEnGrupo($memb, $persona)) {
+            return redirect()->to('/equity/grupo')->with('error', 'Persona fuera del grupo.');
+        }
+
+        $result = IdentityVault::deactivatePersona($id, (string) $memb['usuario_id']);
+        if (! ($result['ok'] ?? false)) {
+            return redirect()->to('/equity/grupo')->with('error', $result['error'] ?? 'No se pudo dar de baja.');
+        }
+
+        return redirect()->to('/equity/grupo')->with(
+            'success',
+            'Persona dada de baja. Los datos patrimoniales se conservan por ID; el PII sigue hasta que ejecutes “Anonimizar”.'
+        );
+    }
+
+    public function scrubPersona(string $id)
+    {
+        $memb = $this->requireManage();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $persona = model(EquityPersonaModel::class)->find($id);
+        if (! is_array($persona) || ! $this->personaEnGrupo($memb, $persona)) {
+            return redirect()->to('/equity/grupo')->with('error', 'Persona fuera del grupo.');
+        }
+
+        $result = IdentityVault::scrubPersona($id);
+        if (! ($result['ok'] ?? false)) {
+            return redirect()->to('/equity/grupo')->with('error', $result['error'] ?? 'No se pudo anonimizar.');
+        }
+
+        return redirect()->to('/equity/grupo')->with(
+            'success',
+            'PII anonimizado. El patrimonio queda solo con el ID; no se puede rearmar nombre/RUT/correo desde la base operativa.'
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $memb
+     * @param array<string, mixed> $persona
+     */
+    private function personaEnGrupo(array $memb, array $persona): bool
+    {
+        $grupo = (new EquityOrg())->empresaIdsDelGrupo((string) $memb['empresa_id']);
+
+        return in_array((string) ($persona['empresa_id'] ?? ''), $grupo, true);
     }
 }
