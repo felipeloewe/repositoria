@@ -11,7 +11,7 @@ $canOrg = $nav('menu.organizacion');
 // En host Equity la IA patrimonial es el producto: se muestra siempre.
 // menu.equity / EquityAcl siguen gobernando el acceso a las rutas.
 $canEquity = true;
-$canPerfiles = $nav('menu.perfiles');
+// Perfiles (ACL Repositoria) no se muestra en Equity.
 $canConfig = EquityAcl::canManage($memb);
 
 $isActive = static function (string $clave) use ($title, $equityNav): bool {
@@ -74,7 +74,7 @@ $isActive = static function (string $clave) use ($title, $equityNav): bool {
 
 <?php
 $isSuperadmin = ! empty($memb['es_admin_central']);
-if ($canOrg || $canPerfiles || $canConfig || $isSuperadmin):
+if ($canOrg || $canConfig || $isSuperadmin):
 ?>
     <p class="nav-section">Administración</p>
 <?php endif; ?>
@@ -99,8 +99,5 @@ if (count($equityPersonas) > 1):
     <a href="<?= site_url('login/persona') ?>" class="<?= $title === '¿A quién representas?' ? 'active' : '' ?>" data-nav="persona">
         <span class="nav-label">Cambiar persona</span>
     </a>
-<?php endif; ?>
-<?php if ($canPerfiles): ?>
-    <a href="<?= site_url('perfiles') ?>" class="<?= $title === 'Perfiles' ? 'active' : '' ?>" data-nav="perfiles"><span class="nav-label">Perfiles</span></a>
 <?php endif; ?>
 <a href="<?= site_url('logout') ?>" class="nav-exit" data-nav="salir"><span class="nav-label">Salir</span></a>

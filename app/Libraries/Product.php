@@ -89,12 +89,15 @@ final class Product
             $path = rtrim($path, '/') ?: '/';
         }
 
+        // Organización en Equity: listado + toggle de Recursos genéricos (no Log / membresías / sucursales).
+        if ($path === '/organizacion' || $path === '/organizacion/recursos-sistema/toggle') {
+            return true;
+        }
+
         $prefixes = [
             '/dashboard',
             '/equity',
             '/admin',
-            '/organizacion',
-            '/perfiles',
             '/empresa/cambiar',
             '/cambiar-clave',
             '/verificar-email',
