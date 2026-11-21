@@ -10,6 +10,7 @@ use App\Models\UsuarioModel;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
+use Config\Session;
 
 class AuthFilter implements FilterInterface
 {
@@ -17,6 +18,16 @@ class AuthFilter implements FilterInterface
     {
         $auth = new MembershipAuth();
         $path = '/' . ltrim($request->getUri()->getPath(), '/');
+
+        // Idle timeout (default 10 min): cierra sesión si no hubo actividad.
+        if ($auth->usuarioId() !== null && $this->idleExpired()) {
+            $auth->logout();
+
+            return redirect()->to('/login')->with('error', 'Sesión cerrada por inactividad (10 minutos).');
+        }
+        if ($auth->usuarioId() !== null) {
+            session()->set('auth_last_activity', time());
+        }
 
         // Cambio de clave: basta con usuario en sesión (aún sin membresía completa).
         if ($path === '/cambiar-clave' || str_starts_with($path, '/cambiar-clave/')) {
@@ -62,5 +73,21 @@ class AuthFilter implements FilterInterface
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
         return null;
+    }
+
+    /** True si la última actividad supera session.expiration (mín. 60s, default 600). */
+    private function idleExpired(): bool
+    {
+        $ttl = (int) (config(Session::class)->expiration ?? 600);
+        if ($ttl <= 0) {
+            $ttl = 600;
+        }
+        $ttl  = max(60, $ttl);
+        $last = (int) session()->get('auth_last_activity');
+        if ($last <= 0) {
+            return false;
+        }
+
+        return (time() - $last) > $ttl;
     }
 }

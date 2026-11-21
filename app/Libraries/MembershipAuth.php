@@ -45,6 +45,7 @@ final class MembershipAuth
 
         $session = session();
         $session->set(self::SESSION_USER, $user['id']);
+        $session->set('auth_last_activity', time());
         $session->remove(self::SESSION_PERSONA);
 
         if (count($membresias) === 1) {
@@ -102,13 +103,14 @@ final class MembershipAuth
         $session = session();
         $session->set(self::SESSION_USER, $usuarioId);
         $session->set(self::SESSION_MEMB, $membresiaId);
+        $session->set('auth_last_activity', time());
 
         return ['ok' => true];
     }
 
     public function logout(): void
     {
-        session()->remove([self::SESSION_USER, self::SESSION_MEMB, self::SESSION_NOTICE, self::SESSION_PERSONA]);
+        session()->remove([self::SESSION_USER, self::SESSION_MEMB, self::SESSION_NOTICE, self::SESSION_PERSONA, 'auth_last_activity']);
         session()->destroy();
     }
 
