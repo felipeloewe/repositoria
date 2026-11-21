@@ -65,9 +65,11 @@ final class PerfilAcl
             'menu.organizacion',
             'menu.departamentos',
             'menu.recursos',
+            'menu.configuracion',
             'menu.perfiles' => Roles::isMaster($rol),
             'menu.formularios' => EmpresaFormService::canAccess($memb),
             'menu.socios' => DocumentAcl::isSocio($memb),
+            'menu.equity' => Roles::isMaster($rol),
             'menu.flujos' => FlujosAcl::canBrowseFlujos($memb),
             default => false,
         };
@@ -94,6 +96,9 @@ final class PerfilAcl
             'cap.socios_delete',
             'cap.socios_contratos_upload',
             'cap.socios_contratos_delete' => DocumentAcl::isSocio($memb),
+            'cap.equity_manage',
+            'cap.equity_upload',
+            'cap.equity_delete' => Roles::isMaster($rol),
             default => false,
         };
     }

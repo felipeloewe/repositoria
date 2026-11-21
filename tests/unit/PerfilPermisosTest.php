@@ -15,6 +15,8 @@ final class PerfilPermisosTest extends CIUnitTestCase
         $d = PerfilPermisos::defaultsFor(PerfilPermisos::ESTEREOTIPO_MASTER);
         $this->assertTrue($d['menu.perfiles']);
         $this->assertTrue($d['menu.socios']);
+        $this->assertTrue($d['menu.equity']);
+        $this->assertTrue($d['cap.equity_manage']);
         $this->assertTrue($d['cap.docs_upload']);
         $this->assertTrue($d['cap.contratos_delete']);
     }
@@ -34,6 +36,7 @@ final class PerfilPermisosTest extends CIUnitTestCase
         $this->assertFalse($d['cap.contratos_delete']);
         $this->assertFalse($d['menu.perfiles']);
         $this->assertFalse($d['menu.socios']);
+        $this->assertFalse($d['menu.equity']);
     }
 
     public function testExternoIsReadOnlyCaps(): void

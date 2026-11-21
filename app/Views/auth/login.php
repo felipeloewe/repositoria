@@ -3,7 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ingresar · Repositoria</title>
+    <?php $productName = \App\Libraries\Product::name(); ?>
+    <title>Ingresar · <?= esc($productName) ?></title>
     <link rel="icon" href="<?= base_url('assets/brand/mark.svg') ?>" type="image/svg+xml">
     <link rel="icon" href="<?= base_url('favicon.ico') ?>?v=20261104b" sizes="any">
     <link rel="icon" type="image/png" href="<?= base_url('assets/brand/favicon-32.png') ?>?v=20261104b" sizes="32x32">
@@ -17,11 +18,26 @@
 <div class="auth-page">
     <div class="auth-card">
         <div class="brand brand--auth">
-            <img class="brand-logo" src="<?= base_url('assets/brand/logo.svg') ?>" width="280" height="64" alt="Repositoria — Gestor documental">
+            <img class="brand-logo" src="<?= base_url('assets/brand/logo.svg') ?>" width="280" height="64" alt="<?= esc($productName) ?> — <?= esc(\App\Libraries\Product::tagline()) ?>">
+            <?php if (\App\Libraries\Product::isEquity()): ?>
+                <div class="brand-text" style="text-align:center;margin-top:.75rem">
+                    <h1 style="margin:0;font-family:var(--font-nav);font-size:1.6rem"><?= esc($productName) ?></h1>
+                    <p style="margin:.25rem 0 0;color:var(--muted,#64748b)"><?= esc(\App\Libraries\Product::tagline()) ?></p>
+                </div>
+            <?php endif; ?>
         </div>
         <h2>Bienvenido</h2>
-        <p class="lead">Usa tu correo y contraseña. El perfil sale de tu membresía activa — sin switcher de roles.</p>
+        <p class="lead">
+            <?php if (\App\Libraries\Product::isEquity()): ?>
+                Accede para gestionar fichas financieras de socios y gerentes, con sus respaldos.
+            <?php else: ?>
+                Usa tu correo y contraseña. El perfil sale de tu membresía activa — sin switcher de roles.
+            <?php endif; ?>
+        </p>
 
+        <?php if (! empty($success)): ?>
+            <div class="alert alert-success"><?= esc($success) ?></div>
+        <?php endif; ?>
         <?php if (! empty($error)): ?>
             <div class="alert alert-error"><?= esc($error) ?></div>
         <?php endif; ?>
@@ -29,7 +45,7 @@
         <form method="post" action="<?= site_url('login') ?>">
             <?= csrf_field() ?>
             <label for="email">Correo</label>
-            <input id="email" type="email" name="email" required autocomplete="username" placeholder="admin@repositoria.local">
+            <input id="email" type="email" name="email" required autocomplete="username" placeholder="correo@empresa.cl">
 
             <label for="password">Contraseña</label>
             <input id="password" type="password" name="password" required autocomplete="current-password" placeholder="••••••••">
@@ -37,14 +53,16 @@
             <button class="btn btn-primary" type="submit">Ingresar</button>
         </form>
 
-        <p class="auth-alt">
-            ¿Nueva empresa? <a href="<?= site_url('registro') ?>">Inicia FREE</a>
-        </p>
+        <?php if (! \App\Libraries\Product::isEquity()): ?>
+            <p class="auth-alt">
+                ¿Nueva empresa? <a href="<?= site_url('registro') ?>">Inicia FREE</a>
+            </p>
 
-        <div class="demo-hint">
-            Seed: <code>admin@repositoria.local</code> / <code>demo123</code><br>
-            Multi-empresa: <code>multi@repositoria.local</code>
-        </div>
+            <div class="demo-hint">
+                Seed: <code>admin@repositoria.local</code> / <code>demo123</code><br>
+                Multi-empresa: <code>multi@repositoria.local</code>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 </body>

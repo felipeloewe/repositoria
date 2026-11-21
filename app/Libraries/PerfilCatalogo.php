@@ -60,17 +60,67 @@ final class PerfilCatalogo
      */
     public static function permisosMap(string $perfilId): array
     {
+        // Claves nuevas del catálogo (p.ej. menu.equity) que aún no están en perfil_permisos
+        // heredan el default del estereotipo — no se apagan en falso por omisión.
+        self::syncMissingPermisos($perfilId);
+
+        $perfil = self::find($perfilId);
+        $defaults = $perfil !== null
+            ? PerfilPermisos::defaultsFor((string) $perfil['estereotipo'])
+            : array_fill_keys(PerfilPermisos::allClaves(), false);
+
         $rows = db_connect()->table('perfil_permisos')
             ->where('perfil_id', $perfilId)
             ->get()
             ->getResultArray();
 
-        $map = array_fill_keys(PerfilPermisos::allClaves(), false);
+        $map = $defaults;
         foreach ($rows as $r) {
-            $map[(string) $r['clave']] = (int) $r['habilitado'] === 1;
+            $clave = (string) $r['clave'];
+            if (! array_key_exists($clave, $map)) {
+                continue;
+            }
+            $map[$clave] = (int) $r['habilitado'] === 1;
         }
 
         return $map;
+    }
+
+    /**
+     * Inserta claves del catálogo faltantes con el default del estereotipo.
+     */
+    public static function syncMissingPermisos(string $perfilId): void
+    {
+        $perfil = self::find($perfilId);
+        if ($perfil === null) {
+            return;
+        }
+
+        helper('id');
+        $db       = db_connect();
+        $existing = $db->table('perfil_permisos')->select('clave')->where('perfil_id', $perfilId)->get()->getResultArray();
+        $have     = array_column($existing, 'clave');
+        $defaults = PerfilPermisos::defaultsFor((string) $perfil['estereotipo']);
+        $now      = date('Y-m-d H:i:s');
+        $batch    = [];
+
+        foreach ($defaults as $clave => $hab) {
+            if (in_array($clave, $have, true)) {
+                continue;
+            }
+            $batch[] = [
+                'id'         => new_id(),
+                'perfil_id'  => $perfilId,
+                'clave'      => $clave,
+                'habilitado' => $hab ? 1 : 0,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        if ($batch !== []) {
+            $db->table('perfil_permisos')->insertBatch($batch);
+        }
     }
 
     public static function createPerfil(

@@ -7,10 +7,11 @@ namespace App\Libraries;
 /**
  * Fase 2 document ACL + aislamiento por ámbito.
  *
- * Master: all tenant docs (general / contrato).
+ * Master: all tenant docs (general / contrato / equity).
  * Jefe: own sucursal + departamento-level (sucursal_id null) of their depto (general/contrato).
  * Externals (Contador/Abogado/Prevencionista): authorized only (general/contrato).
  * Socio docs (ambito=socio | socio_contrato): only membresías with es_socio in the same empresa.
+ * Equity docs (ambito=equity): membresías con acceso Equity (Master por defecto).
  */
 final class DocumentAcl
 {
@@ -18,6 +19,7 @@ final class DocumentAcl
     public const AMBITO_SOCIO           = 'socio';
     public const AMBITO_CONTRATO        = 'contrato';
     public const AMBITO_SOCIO_CONTRATO  = 'socio_contrato';
+    public const AMBITO_EQUITY          = 'equity';
 
     public static function isExternal(string $rol): bool
     {
@@ -48,6 +50,11 @@ final class DocumentAcl
         return self::normalizeAmbito($doc['ambito'] ?? null) === self::AMBITO_SOCIO_CONTRATO;
     }
 
+    public static function isEquityDoc(array $doc): bool
+    {
+        return self::normalizeAmbito($doc['ambito'] ?? null) === self::AMBITO_EQUITY;
+    }
+
     /** Pools aislados del listado Documentos / archivados generales. */
     public static function isIsolatedPool(?string $ambito): bool
     {
@@ -55,6 +62,7 @@ final class DocumentAcl
             self::AMBITO_SOCIO,
             self::AMBITO_CONTRATO,
             self::AMBITO_SOCIO_CONTRATO,
+            self::AMBITO_EQUITY,
         ], true);
     }
 
@@ -67,12 +75,18 @@ final class DocumentAcl
         ], true);
     }
 
+    public static function isEquityPool(?string $ambito): bool
+    {
+        return self::normalizeAmbito($ambito) === self::AMBITO_EQUITY;
+    }
+
     public static function normalizeAmbito(?string $ambito): string
     {
         return match ($ambito) {
             self::AMBITO_SOCIO          => self::AMBITO_SOCIO,
             self::AMBITO_CONTRATO       => self::AMBITO_CONTRATO,
             self::AMBITO_SOCIO_CONTRATO => self::AMBITO_SOCIO_CONTRATO,
+            self::AMBITO_EQUITY         => self::AMBITO_EQUITY,
             default                     => self::AMBITO_GENERAL,
         };
     }
@@ -84,6 +98,7 @@ final class DocumentAcl
             self::AMBITO_SOCIO          => '/socios',
             self::AMBITO_CONTRATO       => '/contratos',
             self::AMBITO_SOCIO_CONTRATO => '/socios/contratos',
+            self::AMBITO_EQUITY         => '/equity',
             default                     => '/documentos',
         };
     }
@@ -100,6 +115,10 @@ final class DocumentAcl
 
         if (self::isSocioPool($doc['ambito'] ?? null)) {
             return self::isSocio($memb);
+        }
+
+        if (self::isEquityPool($doc['ambito'] ?? null)) {
+            return EquityAcl::canAccess($memb);
         }
 
         $rol = (string) ($memb['rol'] ?? '');
@@ -141,6 +160,8 @@ final class DocumentAcl
         $legacy = false;
         if (self::isSocioPool($ambito)) {
             $legacy = self::isSocio($memb);
+        } elseif ($ambito === self::AMBITO_EQUITY) {
+            $legacy = Roles::isMaster((string) ($memb['rol'] ?? ''));
         } elseif ($ambito === self::AMBITO_CONTRATO) {
             $legacy = Roles::canUploadDocs((string) ($memb['rol'] ?? ''));
         } else {
@@ -165,6 +186,7 @@ final class DocumentAcl
             self::AMBITO_SOCIO          => 'cap.socios_upload',
             self::AMBITO_SOCIO_CONTRATO => 'cap.socios_contratos_upload',
             self::AMBITO_CONTRATO       => 'cap.contratos_upload',
+            self::AMBITO_EQUITY         => 'cap.equity_upload',
             default                     => 'cap.docs_upload',
         };
 
@@ -184,6 +206,8 @@ final class DocumentAcl
         $legacy = false;
         if (self::isSocioPool($doc['ambito'] ?? null)) {
             $legacy = self::isSocio($memb);
+        } elseif (self::isEquityPool($doc['ambito'] ?? null)) {
+            $legacy = Roles::isMaster((string) ($memb['rol'] ?? ''));
         } else {
             $rol = (string) ($memb['rol'] ?? '');
 
@@ -204,6 +228,7 @@ final class DocumentAcl
             self::AMBITO_SOCIO          => 'cap.socios_delete',
             self::AMBITO_SOCIO_CONTRATO => 'cap.socios_contratos_delete',
             self::AMBITO_CONTRATO       => 'cap.contratos_delete',
+            self::AMBITO_EQUITY         => 'cap.equity_delete',
             default                     => 'cap.docs_delete',
         };
 

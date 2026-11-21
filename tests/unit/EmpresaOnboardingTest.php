@@ -193,4 +193,87 @@ final class EmpresaOnboardingTest extends CIUnitTestCase
             'admin_alias' => '',
         ]));
     }
+
+    public function testInviteAdminMintsTempPasswordAndRequiresChange(): void
+    {
+        $this->seedFreePlan();
+        $svc = new EmpresaOnboarding();
+
+        $result = $svc->createEmpresaWithAdmin($this->baseInput([
+            'nombre'        => 'Invitada SpA',
+            'alias'         => 'invitada-spa',
+            'admin_alias'   => 'admin.invitada',
+            'admin_email'   => 'admin@invitada.local',
+            'invite_admin'  => true,
+            'equity_matriz' => true,
+            // admin_password omitido a propósito
+        ]));
+
+        $this->assertNotEmpty($result['admin_temp_password']);
+        $this->assertNotEmpty($result['admin_verify_url']);
+        $this->assertStringContainsString('verificar-email', (string) $result['admin_verify_url']);
+
+        $user = db_connect()->table('usuarios')->where('id', $result['usuario_id'])->get()->getRowArray();
+        $this->assertSame(1, (int) ($user['must_change_password'] ?? 0));
+        $this->assertNotEmpty($user['email_verify_token'] ?? null);
+        $this->assertEmpty($user['email_verified_at'] ?? null);
+        $this->assertTrue(password_verify((string) $result['admin_temp_password'], (string) $user['password_hash']));
+
+        $empresa = db_connect()->table('empresas')->where('id', $result['empresa_id'])->get()->getRowArray();
+        if (array_key_exists('equity_es_matriz', $empresa)) {
+            $this->assertSame(1, (int) $empresa['equity_es_matriz']);
+        }
+    }
+
+    public function testUpdateEmpresaKeepsAliasAndRenames(): void
+    {
+        $this->seedFreePlan();
+        $svc = new EmpresaOnboarding();
+        $created = $svc->createEmpresaWithAdmin($this->baseInput([
+            'nombre'      => 'Original SA',
+            'alias'       => 'original-sa',
+            'admin_alias' => 'admin.original',
+            'admin_email' => 'admin@original.local',
+        ]));
+
+        $updated = $svc->updateEmpresa($created['empresa_id'], [
+            'nombre' => 'Renombrada SA',
+            'alias'  => 'original-sa',
+            'rut'    => '76.123.456-7',
+            'activa' => 1,
+        ]);
+
+        $this->assertSame('Renombrada SA', $updated['nombre']);
+        $this->assertSame('original-sa', $updated['slug']);
+        $this->assertSame('76.123.456-7', $updated['rut']);
+    }
+
+    public function testInviteAndReinviteAdminMaster(): void
+    {
+        $this->seedFreePlan();
+        $svc = new EmpresaOnboarding();
+        $created = $svc->createEmpresaWithAdmin($this->baseInput([
+            'nombre'      => 'Con Admin',
+            'alias'       => 'con-admin',
+            'admin_alias' => 'primero.admin',
+            'admin_email' => 'primero@con.local',
+        ]));
+
+        $invite = $svc->inviteAdminMaster($created['empresa_id'], [
+            'admin_nombre' => 'Segundo Admin',
+            'admin_alias'  => 'segundo.admin',
+            'admin_email'  => 'segundo@con.local',
+        ]);
+
+        $this->assertTrue($invite['created_user']);
+        $this->assertNotEmpty($invite['admin_temp_password']);
+        $masters = $svc->listMasterAdmins($created['empresa_id']);
+        $this->assertCount(2, $masters);
+
+        $re = $svc->reinviteAdminMaster($created['empresa_id'], $invite['usuario_id']);
+        $this->assertSame('segundo@con.local', $re['admin_email']);
+        $user = db_connect()->table('usuarios')->where('id', $invite['usuario_id'])->get()->getRowArray();
+        $this->assertSame(1, (int) $user['must_change_password']);
+        $this->assertTrue(password_verify($re['admin_temp_password'], (string) $user['password_hash']));
+    }
 }

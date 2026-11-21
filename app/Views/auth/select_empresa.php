@@ -3,7 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= esc($title ?? 'Empresa') ?> · Repositoria</title>
+    <?php $productName = \App\Libraries\Product::name(); ?>
+    <title><?= esc($title ?? 'Empresa') ?> · <?= esc($productName) ?></title>
     <link rel="icon" href="<?= base_url('assets/brand/mark.svg') ?>" type="image/svg+xml">
     <link rel="icon" href="<?= base_url('favicon.ico') ?>?v=20261104b" sizes="any">
     <link rel="icon" type="image/png" href="<?= base_url('assets/brand/favicon-32.png') ?>?v=20261104b" sizes="32x32">
@@ -19,7 +20,7 @@
         <div class="brand">
             <img class="brand-mark" src="<?= base_url('assets/brand/mark.svg') ?>" width="42" height="42" alt="">
             <div>
-                <h1>Repositoria</h1>
+                <h1><?= esc($productName) ?></h1>
                 <p>Selecciona la empresa de esta sesión</p>
             </div>
         </div>
