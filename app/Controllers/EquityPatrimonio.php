@@ -9,6 +9,7 @@ use App\Libraries\EquityAcl;
 use App\Libraries\EquityActivoBitacora;
 use App\Libraries\EquityArriendoSync;
 use App\Libraries\EquityCatalogo;
+use App\Libraries\EquityEgresosProyeccion;
 use App\Libraries\EquityUf;
 use App\Libraries\MembershipAuth;
 use App\Models\EquityBienRaizModel;
@@ -23,7 +24,7 @@ use App\Models\EquityVehiculoModel;
 use App\Models\DocumentoModel;
 
 /**
- * Menús patrimoniales Equity: resumen, activos, pasivos, ingresos, respaldos.
+ * Menús patrimoniales Equity: resumen, activos, pasivos, ingresos, egresos, respaldos.
  */
 class EquityPatrimonio extends BaseController
 {
@@ -894,6 +895,160 @@ class EquityPatrimonio extends BaseController
             'canManage'      => EquityAcl::canDeclare($memb),
             'success'        => session()->getFlashdata('success'),
             'error'          => session()->getFlashdata('error'),
+        ]);
+    }
+
+    /**
+     * Hub Egresos: totales mensuales por tipo de pasivo (pestañas como Ingresos).
+     */
+    public function egresos()
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $empresaId = $memb['empresa_id'];
+        [$personaId, $personas] = $this->personaContexto($memb);
+        $ufVigente = EquityUf::vigente($empresaId);
+        $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+        $fuentes   = EquityCatalogo::fuentesEgreso();
+
+        $totalesFuente = [];
+        $conteosFuente = [];
+        $totalGeneral  = 0.0;
+
+        foreach ($fuentes as $clave => $meta) {
+            $q = model(EquityPasivoModel::class)
+                ->where('categoria', $meta['categoria'])
+                ->orderBy('banco_descripcion', 'ASC');
+            if ($personaId !== '') {
+                $q->where('persona_id', $personaId);
+            } else {
+                $q->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
+            }
+            $rows = $q->findAll();
+            $conteosFuente[$clave] = count($rows);
+            $sum = 0.0;
+            if ($clave !== 'lineas') {
+                foreach ($rows as $row) {
+                    $cuota = EquityEgresosProyeccion::cuotaClp($row, $ufRate);
+                    if ($cuota !== null) {
+                        $sum += $cuota;
+                    }
+                }
+            }
+            $totalesFuente[$clave] = $sum;
+            $totalGeneral += $sum;
+        }
+
+        return view('equity/egresos', [
+            'title'          => 'Egresos',
+            'memb'           => $memb,
+            'equityNav'      => 'egresos',
+            'fuentes'        => $fuentes,
+            'totalesFuente'  => $totalesFuente,
+            'conteosFuente'  => $conteosFuente,
+            'totalGeneral'   => $totalGeneral,
+            'personas'       => $personas,
+            'personaId'      => $personaId,
+            'ufVigente'      => $ufVigente,
+            'canManage'      => EquityAcl::canDeclare($memb),
+            'success'        => session()->getFlashdata('success'),
+            'error'          => session()->getFlashdata('error'),
+        ]);
+    }
+
+    /**
+     * Egresos por fuente/pasivo: listado + proyección de vencimientos.
+     */
+    public function egresosFuente(string $fuente)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $fuentes = EquityCatalogo::fuentesEgreso();
+        if (! isset($fuentes[$fuente])) {
+            return redirect()->to('/equity/egresos')->with('error', 'Tipo de egreso no válido.');
+        }
+
+        $empresaId = $memb['empresa_id'];
+        [$personaId, $personas] = $this->personaContexto($memb);
+        $ufVigente = EquityUf::vigente($empresaId);
+        $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+        $meta      = $fuentes[$fuente];
+        $meses     = 12;
+
+        $q = model(EquityPasivoModel::class)
+            ->where('categoria', $meta['categoria'])
+            ->orderBy('banco_descripcion', 'ASC')
+            ->orderBy('numero_credito', 'ASC');
+        if ($personaId !== '') {
+            $q->where('persona_id', $personaId);
+        } else {
+            $q->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
+        }
+        $items = $q->findAll();
+
+        $totalFuente = 0.0;
+        $proyeccionMeses = [];
+        $desarrollos = [];
+
+        foreach ($items as &$row) {
+            $cuota = EquityEgresosProyeccion::cuotaClp($row, $ufRate);
+            $row['_cuota_clp'] = $cuota;
+            if ($fuente !== 'lineas' && $cuota !== null) {
+                $totalFuente += $cuota;
+            }
+
+            $cuotas = EquityEgresosProyeccion::proyectar($row, $ufRate, $meses);
+            if ($fuente === 'hipotecarios' && $cuotas !== []) {
+                $desarrollos[] = [
+                    'label'  => (string) ($row['banco_descripcion'] ?? 'Crédito'),
+                    'numero' => $row['numero_credito'] ?? null,
+                    'cuotas' => $cuotas,
+                ];
+            }
+            foreach ($cuotas as $c) {
+                $mesKey = substr((string) $c['fecha'], 0, 7);
+                if (! isset($proyeccionMeses[$mesKey])) {
+                    $proyeccionMeses[$mesKey] = ['total' => 0.0, 'items' => []];
+                }
+                $label = trim(
+                    (string) ($row['banco_descripcion'] ?? 'Crédito')
+                    . (! empty($row['numero_credito']) ? ' · ' . $row['numero_credito'] : '')
+                );
+                $proyeccionMeses[$mesKey]['items'][] = [
+                    'label'       => $label,
+                    'fecha'       => $c['fecha'],
+                    'dividendo_n' => $c['dividendo_n'] ?? null,
+                    'cuota_clp'   => $c['cuota_clp'] ?? null,
+                ];
+                $proyeccionMeses[$mesKey]['total'] += (float) ($c['cuota_clp'] ?? 0);
+            }
+        }
+        unset($row);
+        ksort($proyeccionMeses);
+
+        return view('equity/egresos_fuente', [
+            'title'            => 'Egresos · ' . $meta['label'],
+            'memb'             => $memb,
+            'equityNav'        => 'egresos-' . $fuente,
+            'fuente'           => $fuente,
+            'meta'             => $meta,
+            'items'            => $items,
+            'totalFuente'      => $totalFuente,
+            'proyeccionMeses'  => $proyeccionMeses,
+            'desarrollos'      => $desarrollos,
+            'mesesProyeccion'  => $meses,
+            'personas'         => $personas,
+            'personaId'        => $personaId,
+            'ufVigente'        => $ufVigente,
+            'canManage'        => EquityAcl::canDeclare($memb),
+            'success'          => session()->getFlashdata('success'),
+            'error'            => session()->getFlashdata('error'),
         ]);
     }
 

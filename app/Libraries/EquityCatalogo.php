@@ -6,7 +6,7 @@ namespace App\Libraries;
 
 /**
  * Menús e IA de Equity según Estado de Situación Patrimonial
- * (activos / pasivos / ingresos / respaldos).
+ * (activos / pasivos / ingresos / egresos / respaldos).
  */
 final class EquityCatalogo
 {
@@ -137,6 +137,48 @@ final class EquityCatalogo
                 'descripcion' => 'Pensiones / Donaciones / Indemnizaciones',
             ],
             [
+                'clave'       => 'egresos',
+                'label'       => 'Egresos',
+                'grupo'       => 'Egresos',
+                'path'        => '/equity/egresos',
+                'descripcion' => 'Hipotecarios · Circulantes · Otros · Indirecta · Líneas',
+            ],
+            [
+                'clave'       => 'egresos-hipotecarios',
+                'label'       => 'Hipotecarios',
+                'grupo'       => 'Egresos',
+                'path'        => '/equity/egresos/hipotecarios',
+                'descripcion' => 'Dividendos y próximos vencimientos',
+            ],
+            [
+                'clave'       => 'egresos-circulantes',
+                'label'       => 'Circulantes',
+                'grupo'       => 'Egresos',
+                'path'        => '/equity/egresos/circulantes',
+                'descripcion' => 'Cuotas de corto plazo',
+            ],
+            [
+                'clave'       => 'egresos-otros',
+                'label'       => 'Otros',
+                'grupo'       => 'Egresos',
+                'path'        => '/equity/egresos/otros',
+                'descripcion' => 'Consumo y otros pasivos',
+            ],
+            [
+                'clave'       => 'egresos-indirecta',
+                'label'       => 'Deuda indirecta',
+                'grupo'       => 'Egresos',
+                'path'        => '/equity/egresos/indirecta',
+                'descripcion' => 'Codeudor / fiador / avalista',
+            ],
+            [
+                'clave'       => 'egresos-lineas',
+                'label'       => 'Líneas',
+                'grupo'       => 'Egresos',
+                'path'        => '/equity/egresos/lineas',
+                'descripcion' => 'Cupos disponibles (sin cuota fija)',
+            ],
+            [
                 'clave'       => 'respaldos',
                 'label'       => 'Respaldos',
                 'grupo'       => 'Documentos',
@@ -169,6 +211,14 @@ final class EquityCatalogo
                 ['clave' => 'ingresos-honorarios', 'label' => 'Honorarios', 'path' => '/equity/ingresos/honorarios'],
                 ['clave' => 'ingresos-inversiones', 'label' => 'Inversiones', 'path' => '/equity/ingresos/inversiones'],
                 ['clave' => 'ingresos-otros', 'label' => 'Otros', 'path' => '/equity/ingresos/otros'],
+            ],
+            'Egresos' => [
+                ['clave' => 'egresos', 'label' => 'Resumen egresos', 'path' => '/equity/egresos'],
+                ['clave' => 'egresos-hipotecarios', 'label' => 'Hipotecarios', 'path' => '/equity/egresos/hipotecarios'],
+                ['clave' => 'egresos-circulantes', 'label' => 'Circulantes', 'path' => '/equity/egresos/circulantes'],
+                ['clave' => 'egresos-otros', 'label' => 'Otros', 'path' => '/equity/egresos/otros'],
+                ['clave' => 'egresos-indirecta', 'label' => 'Deuda indirecta', 'path' => '/equity/egresos/indirecta'],
+                ['clave' => 'egresos-lineas', 'label' => 'Líneas', 'path' => '/equity/egresos/lineas'],
             ],
             'Activos' => [
                 ['clave' => 'bienes-raices', 'label' => 'Bienes raíces', 'path' => '/equity/activos/bienes-raices'],
@@ -235,6 +285,52 @@ final class EquityCatalogo
                     ['key' => 'ingreso_donaciones', 'label' => 'Donaciones', 'subtipo' => 'donaciones'],
                     ['key' => 'ingreso_indemnizaciones', 'label' => 'Indemnizaciones', 'subtipo' => 'indemnizaciones'],
                 ],
+            ],
+        ];
+    }
+
+    /**
+     * Fuentes de egreso (pasivos) del menú Egresos — una pestaña por categoría.
+     *
+     * @return array<string, array{clave: string, label: string, descripcion: string, categoria: string, pasivo_path: string}>
+     */
+    public static function fuentesEgreso(): array
+    {
+        return [
+            'hipotecarios' => [
+                'clave'       => 'hipotecarios',
+                'label'       => 'Hipotecarios',
+                'descripcion' => 'Dividendos proyectados desde la fecha de registro',
+                'categoria'   => 'inmueble',
+                'pasivo_path' => '/equity/pasivos/inmuebles',
+            ],
+            'circulantes' => [
+                'clave'       => 'circulantes',
+                'label'       => 'Circulantes',
+                'descripcion' => 'Cuotas de créditos de corto plazo',
+                'categoria'   => 'circulante',
+                'pasivo_path' => '/equity/pasivos/circulantes',
+            ],
+            'otros' => [
+                'clave'       => 'otros',
+                'label'       => 'Otros',
+                'descripcion' => 'Consumo, descuentos y otros pasivos',
+                'categoria'   => 'otro',
+                'pasivo_path' => '/equity/pasivos/otros',
+            ],
+            'indirecta' => [
+                'clave'       => 'indirecta',
+                'label'       => 'Deuda indirecta',
+                'descripcion' => 'Codeudor, fiador o avalista',
+                'categoria'   => 'indirecta',
+                'pasivo_path' => '/equity/pasivos/indirecta',
+            ],
+            'lineas' => [
+                'clave'       => 'lineas',
+                'label'       => 'Líneas',
+                'descripcion' => 'Cupos disponibles (no generan cuota hasta usarse)',
+                'categoria'   => 'linea',
+                'pasivo_path' => '/equity/pasivos/lineas',
             ],
         ];
     }

@@ -132,6 +132,8 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('equity/ingresos/(:segment)/sync-arriendos', 'EquityPatrimonio::syncArriendosDesdeBienes/$1');
     $routes->get('equity/ingresos/(:segment)', 'EquityPatrimonio::ingresosFuente/$1');
     $routes->post('equity/ingresos/(:segment)', 'EquityPatrimonio::guardarIngresosFuente/$1');
+    $routes->get('equity/egresos', 'EquityPatrimonio::egresos');
+    $routes->get('equity/egresos/(:segment)', 'EquityPatrimonio::egresosFuente/$1');
     $routes->get('equity/respaldos', 'EquityPatrimonio::respaldos');
     $routes->get('equity/configuracion', 'EquityConfiguracion::index');
     $routes->post('equity/configuracion/uf', 'EquityConfiguracion::storeUf');
