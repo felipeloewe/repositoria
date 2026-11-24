@@ -129,6 +129,7 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('equity/ingresos/(:segment)/contratos/(:segment)/eliminar', 'EquityPatrimonio::eliminarContratoIngreso/$1/$2');
     $routes->post('equity/ingresos/(:segment)/contratos/(:segment)', 'EquityPatrimonio::guardarContratoIngreso/$1/$2');
     $routes->post('equity/ingresos/(:segment)/contratos', 'EquityPatrimonio::guardarContratoIngreso/$1');
+    $routes->post('equity/ingresos/(:segment)/sync-arriendos', 'EquityPatrimonio::syncArriendosDesdeBienes/$1');
     $routes->get('equity/ingresos/(:segment)', 'EquityPatrimonio::ingresosFuente/$1');
     $routes->post('equity/ingresos/(:segment)', 'EquityPatrimonio::guardarIngresosFuente/$1');
     $routes->get('equity/respaldos', 'EquityPatrimonio::respaldos');

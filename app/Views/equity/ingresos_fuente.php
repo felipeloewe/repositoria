@@ -60,8 +60,21 @@ foreach ($personas as $p) {
 <section class="banner">
     <h2>Ingresos · <?= esc($meta['label']) ?></h2>
     <p><?= esc($meta['descripcion']) ?>. Registra contraparte, contrato, periodicidad y monto<?= $personaLabel !== '' ? ' · ' . esc($personaLabel) : '' ?>.</p>
-    <p style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
+    <?php if ($fuente === 'inversiones'): ?>
+        <p class="muted" style="margin-top:.6rem;margin-bottom:0;font-size:.9rem">
+            Flujo: en el onboarding se carga el <strong>bien raíz</strong> (arrendatario / cánon) y luego se
+            <strong>actualizan los contratos</strong> con esa información. La gestión diaria queda en el
+            <strong>contrato</strong> (vigente → vencido → nuevo).
+        </p>
+    <?php endif; ?>
+    <p style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
         <a class="btn btn-primary btn-sm" href="<?= site_url('equity/reporte/ingresos') ?>">Reporte</a>
+        <?php if ($fuente === 'inversiones' && ! empty($canManage) && $personaId !== ''): ?>
+            <form method="post" action="<?= site_url('equity/ingresos/inversiones/sync-arriendos') ?>" style="display:inline" onsubmit="return confirm('¿Actualizar contratos de arriendo con arrendatario/cánon de los bienes raíces activos? Los vigentes se alinean; se crean los que falten.');">
+                <?= csrf_field() ?>
+                <button class="btn btn-ghost btn-sm" type="submit">Actualizar contratos desde bienes raíces</button>
+            </form>
+        <?php endif; ?>
     </p>
 </section>
 
@@ -143,6 +156,24 @@ foreach ($personas as $p) {
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <?php if ($fuente === 'inversiones' && ($bienesOpciones ?? []) !== []): ?>
+                    <div style="grid-column:1/-1">
+                        <label for="bien_raiz_id">Bien raíz vinculado <span class="muted">(arriendos)</span></label>
+                        <select id="bien_raiz_id" name="bien_raiz_id">
+                            <option value="">— Sin vínculo —</option>
+                            <?php foreach ($bienesOpciones as $bo): ?>
+                                <?php
+                                    $boId = (string) ($bo['id'] ?? '');
+                                    $boLab = trim((string) (($bo['direccion'] ?? '') !== '' ? $bo['direccion'] : ($bo['descripcion'] ?? $boId)));
+                                    if (! empty($bo['arrendatario'])) {
+                                        $boLab .= ' · ' . $bo['arrendatario'];
+                                    }
+                                ?>
+                                <option value="<?= esc($boId) ?>" <?= $e('bien_raiz_id') === $boId ? 'selected' : '' ?>><?= esc($boLab) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                <?php endif; ?>
                 <div style="grid-column:1/-1">
                     <label for="contrato_archivo">Adjuntar contrato <?= $isEdit && ! empty($editRow['contrato_ruta_relativa']) ? '<span class="muted">(opcional · reemplaza el actual)</span>' : '' ?></label>
                     <input id="contrato_archivo" name="contrato_archivo" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip">
@@ -181,6 +212,7 @@ foreach ($personas as $p) {
                     <tr>
                         <th>Tipo</th>
                         <th>Contraparte</th>
+                        <?php if ($fuente === 'inversiones'): ?><th>Bien raíz</th><?php endif; ?>
                         <th>RUT</th>
                         <th>Inicio</th>
                         <th>Vencimiento</th>
@@ -197,6 +229,21 @@ foreach ($personas as $p) {
                     <tr>
                         <td><?= esc($subtipoLabels[$c['subtipo'] ?? ''] ?? ($c['subtipo'] ?? '—')) ?></td>
                         <td><?= esc($c['contraparte_nombre'] ?? '—') ?></td>
+                        <?php if ($fuente === 'inversiones'): ?>
+                            <td>
+                                <?php
+                                    $bien = $c['bien'] ?? null;
+                                    $bienLab = is_array($bien)
+                                        ? trim((string) (($bien['direccion'] ?? '') !== '' ? $bien['direccion'] : ($bien['descripcion'] ?? '')))
+                                        : '';
+                                ?>
+                                <?php if ($bienLab !== '' && is_array($bien)): ?>
+                                    <a href="<?= site_url('equity/activos/bienes-raices/' . $bien['id'] . '/editar') ?>"><?= esc($bienLab) ?></a>
+                                <?php else: ?>
+                                    <span class="muted">—</span>
+                                <?php endif; ?>
+                            </td>
+                        <?php endif; ?>
                         <td><?= esc($c['contraparte_rut'] ?? '—') ?></td>
                         <td><?= esc($c['fecha_inicio_contrato'] ?? '—') ?></td>
                         <td><?= esc($c['fecha_vencimiento'] ?? '—') ?></td>
@@ -233,28 +280,53 @@ foreach ($personas as $p) {
 
 <?php if ($fuente === 'inversiones' && ($arriendos ?? []) !== []): ?>
 <div class="card section-card">
-    <h3>Referencia · Arriendos desde bienes raíces (<?= count($arriendos) ?>)</h3>
-    <p class="muted" style="margin-top:0">Puedes crear un contrato de tipo Arriendos con la contraparte (arrendatario) y monto del cánon.</p>
+    <h3>Onboarding · Bienes con cánon (<?= count($arriendos) ?>)</h3>
+    <p class="muted" style="margin-top:0">
+        Datos del bien usados para alimentar contratos. Si el vínculo falta o el monto difiere, usa
+        <strong>Actualizar contratos desde bienes raíces</strong>. Después gestiona el ciclo en la tabla de contratos.
+    </p>
     <table class="table">
         <thead>
             <tr>
                 <th>Dirección</th>
                 <th>Arrendatario</th>
                 <th>Pago</th>
-                <th>Cánon</th>
+                <th>Cánon (bien)</th>
+                <th>Contrato</th>
                 <th></th>
             </tr>
         </thead>
         <tbody>
         <?php foreach ($arriendos as $ar): ?>
+            <?php
+                $ct = $ar['contrato_vigente'] ?? null;
+                $ctEstado = is_array($ct) ? (string) ($ct['estado'] ?? '') : '';
+                $ctMonto  = is_array($ct) && isset($ct['monto_contrato_clp']) ? (float) $ct['monto_contrato_clp'] : null;
+                $canonBien = (float) ($ar['canon_show'] ?? 0);
+                $ok = is_array($ct) && $ctEstado === 'vigente' && $ctMonto !== null && abs($ctMonto - $canonBien) < 1;
+            ?>
             <tr>
                 <td><?= esc($ar['direccion'] ?? $ar['descripcion'] ?? '—') ?></td>
                 <td><?= esc($ar['arrendatario'] ?? '—') ?></td>
                 <td><?= esc($ar['medio_pago'] ?? '—') ?></td>
                 <td><strong><?= esc($fmt($ar['canon_show'] ?? null)) ?></strong></td>
                 <td>
+                    <?php if ($ok): ?>
+                        <span>Alineado · vigente</span>
+                    <?php elseif (is_array($ct) && $ctEstado === 'vigente'): ?>
+                        <span class="muted">Vigente · monto distinto (<?= esc($fmt($ctMonto)) ?>)</span>
+                    <?php elseif (is_array($ct)): ?>
+                        <span class="muted"><?= esc($estados[$ctEstado] ?? $ctEstado) ?></span>
+                    <?php else: ?>
+                        <span class="muted">Sin contrato vinculado</span>
+                    <?php endif; ?>
+                </td>
+                <td style="white-space:nowrap">
                     <?php if (! empty($canManage)): ?>
                         <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/activos/bienes-raices/' . $ar['id'] . '/editar') ?>">Editar bien</a>
+                        <?php if (is_array($ct) && ! empty($ct['id'])): ?>
+                            <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/ingresos/inversiones?persona_id=' . rawurlencode($personaId) . '&edit=' . rawurlencode($ct['id'])) ?>">Editar contrato</a>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </td>
             </tr>
@@ -262,9 +334,9 @@ foreach ($personas as $p) {
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="3" style="text-align:right"><strong>Total cánones</strong></td>
+                <td colspan="3" style="text-align:right"><strong>Total cánones (bienes)</strong></td>
                 <td><strong><?= esc($fmt($totalCanon ?? 0)) ?></strong></td>
-                <td></td>
+                <td colspan="2"></td>
             </tr>
         </tfoot>
     </table>

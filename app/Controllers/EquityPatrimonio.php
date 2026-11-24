@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Libraries\DocumentStorage;
 use App\Libraries\EquityAcl;
 use App\Libraries\EquityActivoBitacora;
+use App\Libraries\EquityArriendoSync;
 use App\Libraries\EquityCatalogo;
 use App\Libraries\EquityUf;
 use App\Libraries\MembershipAuth;
@@ -417,8 +418,66 @@ class EquityPatrimonio extends BaseController
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
+        $cerrados = EquityArriendoSync::cerrarContratosDelBien($id);
+        if ($cerrados > 0) {
+            $pid = (string) ($row['persona_id'] ?? '');
+            if ($pid !== '') {
+                $this->sincronizarFichaDesdeContratos($empresaId, $pid, (string) ($memb['usuario_id'] ?? ''));
+            }
+        }
+        $extra = $cerrados > 0
+            ? ' Se marcaron ' . $cerrados . ' contrato(s) de arriendo como vencido(s).'
+            : '';
+
         return redirect()->to('/equity/activos/bienes-raices')
-            ->with('success', 'Bien raíz dado de baja. Queda fuera de listados y totales; el historial se conserva.');
+            ->with('success', 'Bien raíz dado de baja. Queda fuera de listados y totales; el historial se conserva.' . $extra);
+    }
+
+    /**
+     * Onboarding: vuelca arrendatario/cánon de bienes raíces activos a contratos de Inversiones.
+     * Luego la gestión diaria es sobre el contrato (vigente → vencido → nuevo).
+     */
+    public function syncArriendosDesdeBienes(string $fuente)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        if ($fuente !== 'inversiones') {
+            return redirect()->to('/equity/ingresos/' . $fuente)
+                ->with('error', 'La sincronización desde bienes raíces aplica solo a Inversiones.');
+        }
+        if (! EquityAcl::canDeclare($memb)) {
+            return redirect()->to('/equity/ingresos/inversiones')->with('error', 'Sin permiso para sincronizar.');
+        }
+
+        $personaId = $this->sessionPersonaId();
+        if ($personaId === '') {
+            return redirect()->to('/equity/ingresos/inversiones')
+                ->with('error', 'No hay persona activa en la sesión.');
+        }
+
+        $empresaId = (string) $memb['empresa_id'];
+        $ufVigente = EquityUf::vigente($empresaId);
+        $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+        $stats     = EquityArriendoSync::sincronizarDesdeBienes(
+            $empresaId,
+            $personaId,
+            (string) ($memb['usuario_id'] ?? ''),
+            $ufRate
+        );
+        $this->sincronizarFichaDesdeContratos($empresaId, $personaId, (string) ($memb['usuario_id'] ?? ''));
+
+        $msg = sprintf(
+            'Contratos actualizados desde bienes raíces: %d creados, %d actualizados, %d enlazados, %d omitidos.',
+            $stats['created'],
+            $stats['updated'],
+            $stats['linked'],
+            $stats['skipped']
+        );
+
+        return redirect()->to('/equity/ingresos/inversiones?persona_id=' . rawurlencode($personaId))
+            ->with('success', $msg);
     }
 
     private function claveActivo(string $seccion): string
@@ -883,7 +942,15 @@ class EquityPatrimonio extends BaseController
 
         $arriendos = [];
         $totalCanon = 0.0;
+        $bienesOpciones = [];
+        $contratosPorBien = [];
         if ($fuente === 'inversiones') {
+            foreach ($contratos as $c) {
+                $bid = (string) ($c['bien_raiz_id'] ?? '');
+                if ($bid !== '') {
+                    $contratosPorBien[$bid][] = $c;
+                }
+            }
             $bq = model(EquityBienRaizModel::class)
                 ->orderBy('direccion', 'ASC');
             $this->soloBienesActivos($bq);
@@ -893,36 +960,57 @@ class EquityPatrimonio extends BaseController
                 $bq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
             }
             foreach ($bq->findAll() as $br) {
-                $canon = $br['canon_mensual_clp'] ?? null;
-                if (($canon === null || $canon === '') && ! empty($br['canon_mensual_uf']) && $ufRate > 0) {
-                    $canon = round((float) $br['canon_mensual_uf'] * $ufRate, 2);
-                }
-                if ($canon === null || $canon === '' || (float) $canon <= 0) {
+                $bienesOpciones[] = $br;
+                $canon = EquityArriendoSync::canonClp($br, $ufRate);
+                if ($canon <= 0) {
                     continue;
                 }
-                $br['canon_show'] = (float) $canon;
+                $br['canon_show'] = $canon;
+                $bid = (string) ($br['id'] ?? '');
+                $vinc = $contratosPorBien[$bid] ?? [];
+                $br['contrato_vigente'] = null;
+                foreach ($vinc as $vc) {
+                    if (($vc['estado'] ?? '') === 'vigente') {
+                        $br['contrato_vigente'] = $vc;
+                        break;
+                    }
+                }
+                if ($br['contrato_vigente'] === null && $vinc !== []) {
+                    $br['contrato_vigente'] = $vinc[0];
+                }
                 $arriendos[] = $br;
-                $totalCanon += (float) $canon;
+                $totalCanon += $canon;
             }
+            // Enriquecer contratos con dirección del bien vinculado
+            $bienMap = [];
+            foreach ($bienesOpciones as $b) {
+                $bienMap[(string) $b['id']] = $b;
+            }
+            foreach ($contratos as &$c) {
+                $bid = (string) ($c['bien_raiz_id'] ?? '');
+                $c['bien'] = $bid !== '' ? ($bienMap[$bid] ?? null) : null;
+            }
+            unset($c);
         }
 
         return view('equity/ingresos_fuente', [
-            'title'       => $meta['label'],
-            'memb'        => $memb,
-            'equityNav'   => 'ingresos-' . $fuente,
-            'fuente'      => $fuente,
-            'meta'        => $meta,
-            'ficha'       => $ficha,
-            'contratos'   => $contratos,
-            'editRow'     => $editRow,
-            'personas'    => $personas,
-            'personaId'   => $personaId,
-            'arriendos'   => $arriendos,
-            'totalCanon'  => $totalCanon,
-            'ufVigente'   => $ufVigente,
-            'canManage'   => EquityAcl::canDeclare($memb),
-            'success'     => session()->getFlashdata('success'),
-            'error'       => session()->getFlashdata('error'),
+            'title'          => $meta['label'],
+            'memb'           => $memb,
+            'equityNav'      => 'ingresos-' . $fuente,
+            'fuente'         => $fuente,
+            'meta'           => $meta,
+            'ficha'          => $ficha,
+            'contratos'      => $contratos,
+            'editRow'        => $editRow,
+            'personas'       => $personas,
+            'personaId'      => $personaId,
+            'arriendos'      => $arriendos,
+            'bienesOpciones' => $bienesOpciones,
+            'totalCanon'     => $totalCanon,
+            'ufVigente'      => $ufVigente,
+            'canManage'      => EquityAcl::canDeclare($memb),
+            'success'        => session()->getFlashdata('success'),
+            'error'          => session()->getFlashdata('error'),
         ]);
     }
 
@@ -1092,9 +1180,24 @@ class EquityPatrimonio extends BaseController
         $rut      = trim((string) $this->request->getPost('contraparte_rut'));
         $notas    = trim((string) $this->request->getPost('notas'));
         $monto    = $money($this->request->getPost('monto_contrato_clp'));
+        $bienRaizId = trim((string) $this->request->getPost('bien_raiz_id'));
 
         if ($fechaVen !== '' && $fecha !== '' && $fechaVen < $fecha) {
             return redirect()->to($redirect)->with('error', 'La fecha de vencimiento no puede ser anterior al inicio del contrato.');
+        }
+
+        $db = db_connect();
+        $hasBienLink = $db->fieldExists('bien_raiz_id', 'equity_ingresos_contratos');
+        if ($hasBienLink && $bienRaizId !== '' && $subtipo === 'arriendos') {
+            $bienOk = model(EquityBienRaizModel::class)
+                ->where('id', $bienRaizId)
+                ->where('persona_id', $personaId)
+                ->first();
+            if (! is_array($bienOk)) {
+                return redirect()->to($redirect)->with('error', 'El bien raíz seleccionado no es válido para esta persona.');
+            }
+        } elseif ($subtipo !== 'arriendos') {
+            $bienRaizId = '';
         }
 
         helper('id');
@@ -1124,6 +1227,9 @@ class EquityPatrimonio extends BaseController
             'estado'                => $estado,
             'notas'                 => $notas !== '' ? $notas : null,
         ];
+        if ($hasBienLink) {
+            $data['bien_raiz_id'] = $bienRaizId !== '' ? $bienRaizId : null;
+        }
 
         $file = $this->request->getFile('contrato_archivo');
         if ($file !== null && $file->isValid() && $file->getError() === UPLOAD_ERR_OK) {
@@ -1601,6 +1707,7 @@ class EquityPatrimonio extends BaseController
 
         $model = null;
         $data  = [];
+        $syncBienDespues = false;
 
         if ($clave === 'bienes-raices') {
             $direccion = trim((string) $this->request->getPost('direccion'));
@@ -1638,6 +1745,8 @@ class EquityPatrimonio extends BaseController
                 return redirect()->to($redirectPath)
                     ->with('error', 'Este bien raíz está dado de baja y no se puede editar.');
             }
+            // Tras guardar el bien (onboarding), alinear el contrato de arriendo vinculado.
+            $syncBienDespues = true;
         } elseif ($clave === 'vehiculos') {
             $tipoVeh = $intOrNull($this->request->getPost('tipo_vehiculo'));
             if ($tipoVeh === null) {
@@ -1882,6 +1991,26 @@ class EquityPatrimonio extends BaseController
             $data,
             (string) ($memb['usuario_id'] ?? '')
         );
+
+        if ($syncBienDespues && $clave === 'bienes-raices') {
+            $ufVigente = EquityUf::vigente((string) $memb['empresa_id']);
+            $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+            $stats = EquityArriendoSync::sincronizarDesdeBienes(
+                (string) $memb['empresa_id'],
+                (string) $personaId,
+                (string) ($memb['usuario_id'] ?? ''),
+                $ufRate,
+                $activoId
+            );
+            if (($stats['created'] + $stats['updated'] + $stats['linked']) > 0) {
+                $this->sincronizarFichaDesdeContratos(
+                    (string) $memb['empresa_id'],
+                    (string) $personaId,
+                    (string) ($memb['usuario_id'] ?? '')
+                );
+                $msg .= ' Contrato de arriendo alineado desde el bien.';
+            }
+        }
 
         return redirect()->to($redirectPath . ($personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : ''))
             ->with('success', $msg);
