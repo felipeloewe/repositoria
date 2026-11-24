@@ -1827,6 +1827,7 @@ class EquityPatrimonio extends BaseController
                 'sucursal'                     => trim((string) $this->request->getPost('sucursal')) ?: null,
                 'moneda'                       => trim((string) $this->request->getPost('moneda')) ?: 'UF',
                 'dividendo_n'                  => $intOrNull($this->request->getPost('dividendo_n')),
+                'fecha_registro'               => trim((string) $this->request->getPost('fecha_registro')) ?: null,
                 'plazo_pactado'                => $plazo,
                 'saldo_clp'                    => $parSaldo['clp'],
                 'saldo_uf'                     => $parSaldo['uf'],
@@ -2230,6 +2231,7 @@ class EquityPatrimonio extends BaseController
                 (string) ($row['banco_descripcion'] ?? '')
                 . (! empty($row['numero_credito']) ? ' · Crédito ' . $row['numero_credito'] : '')
                 . (! empty($row['dividendo_n']) ? ' · Div. ' . $row['dividendo_n'] : '')
+                . (! empty($row['fecha_registro']) ? ' · Reg. ' . $row['fecha_registro'] : '')
                 . (! empty($row['dividendo_uf']) ? ' · ' . number_format((float) $row['dividendo_uf'], 4, ',', '.') . ' UF' : ''),
                 ' ·'
             ),

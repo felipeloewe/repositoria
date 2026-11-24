@@ -380,6 +380,11 @@ foreach ($personas as $p) {
                     <input id="dividendo_n" name="dividendo_n" type="number" min="1" value="<?= esc($val('dividendo_n')) ?>">
                 </div>
                 <div>
+                    <label for="fecha_registro">Fecha de registro (dividendo)</label>
+                    <input id="fecha_registro" name="fecha_registro" type="date" value="<?= esc($val('fecha_registro')) ?>">
+                    <p class="muted" style="margin:0.25rem 0 0;font-size:0.8rem">Periodo del recibo actual (p. ej. oct / nov / dic). No altera saldos; sirve para normalizar y proyectar egresos.</p>
+                </div>
+                <div>
                     <label for="fecha_otorgamiento_h">Fecha de otorgamiento</label>
                     <input id="fecha_otorgamiento_h" name="fecha_otorgamiento" type="date" value="<?= esc($val('fecha_otorgamiento')) ?>">
                 </div>
@@ -710,6 +715,7 @@ foreach ($personas as $p) {
                             (string) ($row['banco_descripcion'] ?? '')
                             . (! empty($row['numero_credito']) ? ' · Crédito ' . $row['numero_credito'] : '')
                             . (! empty($row['dividendo_n']) ? ' · Div. ' . $row['dividendo_n'] : '')
+                            . (! empty($row['fecha_registro']) ? ' · Reg. ' . $row['fecha_registro'] : '')
                             . (! empty($row['plazo_pactado']) ? ' · Plazo ' . $row['plazo_pactado'] : '')
                             . (! empty($row['cuotas_pagadas']) ? ' · Cancelados ' . $row['cuotas_pagadas'] : '')
                             . (! empty($row['dividendo_uf']) ? ' · Div. ' . number_format((float) $row['dividendo_uf'], 4, ',', '.') . ' UF' : '')
