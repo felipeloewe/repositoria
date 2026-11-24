@@ -142,6 +142,7 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('equity/grupo/persona/(:segment)/baja', 'EquityGrupo::bajaPersona/$1');
     $routes->post('equity/grupo/persona/(:segment)/scrub', 'EquityGrupo::scrubPersona/$1');
     $routes->get('equity/activos/(:segment)/(:segment)/editar', 'EquityPatrimonio::editActivo/$1/$2');
+    $routes->post('equity/activos/(:segment)/(:segment)/eliminar', 'EquityPatrimonio::eliminarActivo/$1/$2');
     $routes->post('equity/activos/(:segment)/(:segment)', 'EquityPatrimonio::updateActivo/$1/$2');
     $routes->get('equity/activos/(:segment)', 'EquityPatrimonio::activos/$1');
     $routes->post('equity/activos/(:segment)', 'EquityPatrimonio::storeActivo/$1');

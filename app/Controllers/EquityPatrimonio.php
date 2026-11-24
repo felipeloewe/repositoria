@@ -194,6 +194,7 @@ class EquityPatrimonio extends BaseController
 
         $bq = model(EquityBienRaizModel::class)
             ->orderBy('direccion', 'ASC');
+        $this->soloBienesActivos($bq);
         if ($personaId !== '') {
             $bq->where('persona_id', $personaId);
         } else {
@@ -369,6 +370,57 @@ class EquityPatrimonio extends BaseController
         return $this->storeSeccion($this->clavePasivo($seccion), $id);
     }
 
+    /**
+     * Baja lógica de un activo (hoy: bienes raíces). Conserva IDs / bitácora.
+     */
+    public function eliminarActivo(string $seccion, string $id)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        // Misma barra que editar / agregar (declarante o admin del grupo).
+        if (! EquityAcl::canDeclare($memb)) {
+            return redirect()->to('/equity/activos/' . $seccion)->with('error', 'Sin permiso para dar de baja.');
+        }
+
+        $clave = $this->claveActivo($seccion);
+        if ($clave !== 'bienes-raices') {
+            return redirect()->to('/equity/activos/' . $seccion)
+                ->with('error', 'La baja está habilitada por ahora solo en Bienes raíces.');
+        }
+
+        $meta = EquityCatalogo::seccion($clave);
+        if ($meta === null) {
+            return redirect()->to('/dashboard')->with('error', 'Sección no válida.');
+        }
+
+        $empresaId = (string) $memb['empresa_id'];
+        $row       = $this->findRegistro($meta, $empresaId, $id);
+        if ($row === null) {
+            return redirect()->to('/equity/activos/bienes-raices')->with('error', 'Bien raíz no encontrado.');
+        }
+
+        $db = db_connect();
+        if (! $db->fieldExists('activo', 'equity_bienes_raices')) {
+            return redirect()->to('/equity/activos/bienes-raices')
+                ->with('error', 'Falta la migración de baja lógica (activo) en bienes raíces.');
+        }
+
+        if (array_key_exists('activo', $row) && (int) ($row['activo'] ?? 1) === 0) {
+            return redirect()->to('/equity/activos/bienes-raices')
+                ->with('success', 'Este bien raíz ya estaba dado de baja.');
+        }
+
+        model(EquityBienRaizModel::class)->update($id, [
+            'activo'     => 0,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        return redirect()->to('/equity/activos/bienes-raices')
+            ->with('success', 'Bien raíz dado de baja. Queda fuera de listados y totales; el historial se conserva.');
+    }
+
     private function claveActivo(string $seccion): string
     {
         return match ($seccion) {
@@ -486,6 +538,7 @@ class EquityPatrimonio extends BaseController
         $bq = model(EquityBienRaizModel::class)
             ->where('empresa_id', $empresaId)
             ->orderBy('direccion', 'ASC');
+        $this->soloBienesActivos($bq);
         if ($personaId !== '') {
             $bq->where('persona_id', $personaId);
         }
@@ -833,6 +886,7 @@ class EquityPatrimonio extends BaseController
         if ($fuente === 'inversiones') {
             $bq = model(EquityBienRaizModel::class)
                 ->orderBy('direccion', 'ASC');
+            $this->soloBienesActivos($bq);
             if ($personaId !== '') {
                 $bq->where('persona_id', $personaId);
             } else {
@@ -1278,6 +1332,7 @@ class EquityPatrimonio extends BaseController
     private function sumCanonArriendos(string $empresaId, string $personaId, float $ufRate): float
     {
         $bq = model(EquityBienRaizModel::class);
+        $this->soloBienesActivos($bq);
         if ($personaId !== '') {
             $bq->where('persona_id', $personaId);
         } else {
@@ -1396,6 +1451,13 @@ class EquityPatrimonio extends BaseController
             $edit = $this->findRegistro($meta, $empresaId, $editId);
             if ($edit === null) {
                 return redirect()->to($this->pathSeccion($clave))->with('error', 'Registro no encontrado.');
+            }
+            if ($clave === 'bienes-raices'
+                && array_key_exists('activo', $edit)
+                && (int) ($edit['activo'] ?? 1) === 0
+            ) {
+                return redirect()->to($this->pathSeccion($clave))
+                    ->with('error', 'Este bien raíz está dado de baja y no se puede editar.');
             }
             $personaId = (string) ($edit['persona_id'] ?? $personaId);
             $tipoBit = EquityActivoBitacora::tipoDesdeClave($clave);
@@ -1570,6 +1632,12 @@ class EquityPatrimonio extends BaseController
                 'medio_pago'        => trim((string) $this->request->getPost('medio_pago')) ?: null,
                 'notas'             => trim((string) $this->request->getPost('notas')) ?: null,
             ];
+            if (! $isEdit) {
+                $data['activo'] = 1;
+            } elseif (array_key_exists('activo', $existing ?? []) && (int) (($existing['activo'] ?? 1)) === 0) {
+                return redirect()->to($redirectPath)
+                    ->with('error', 'Este bien raíz está dado de baja y no se puede editar.');
+            }
         } elseif ($clave === 'vehiculos') {
             $tipoVeh = $intOrNull($this->request->getPost('tipo_vehiculo'));
             if ($tipoVeh === null) {
@@ -2158,8 +2226,20 @@ class EquityPatrimonio extends BaseController
         if (($meta['table'] ?? '') === 'equity_pasivos' && isset($meta['categoria'])) {
             $q->where('categoria', $meta['categoria']);
         }
+        if (($meta['table'] ?? '') === 'equity_bienes_raices') {
+            $this->soloBienesActivos($q);
+        }
 
         return $q->findAll();
+    }
+
+    /** Filtra bienes raíces dados de baja (activo=0), si la columna existe. */
+    private function soloBienesActivos(object $builder): void
+    {
+        $db = db_connect();
+        if ($db->tableExists('equity_bienes_raices') && $db->fieldExists('activo', 'equity_bienes_raices')) {
+            $builder->where('activo', 1);
+        }
     }
 
     /** @return list<string> */
@@ -2216,6 +2296,9 @@ class EquityPatrimonio extends BaseController
             $builder->where('persona_id', $personaId);
         } else {
             $builder->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
+        }
+        if ($table === 'equity_bienes_raices' && $db->fieldExists('activo', $table)) {
+            $builder->where('activo', 1);
         }
         $rows = $builder->get()->getResultArray();
         $sum = 0.0;

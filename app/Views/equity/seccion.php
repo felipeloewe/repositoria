@@ -75,6 +75,10 @@ $action = $isEdit ? rtrim($listAction, '/') . '/' . $edit['id'] : $listAction;
 $editPath = static function (string $id) use ($listAction): string {
     return rtrim($listAction, '/') . '/' . $id . '/editar';
 };
+$eliminarPath = static function (string $id) use ($listAction): string {
+    return rtrim($listAction, '/') . '/' . $id . '/eliminar';
+};
+$puedeDarDeBaja = $clave === 'bienes-raices';
 $val = static function (string $key, ?int $dec = null) use ($edit): string {
     if (! is_array($edit) || ! array_key_exists($key, $edit) || $edit[$key] === null || $edit[$key] === '') {
         return '';
@@ -570,6 +574,12 @@ foreach ($personas as $p) {
             <?php endif; ?>
         </div>
     </form>
+    <?php if ($isEdit && $puedeDarDeBaja): ?>
+        <form method="post" action="<?= esc($eliminarPath((string) $edit['id'])) ?>" style="margin-top:.75rem" onsubmit="return confirm('¿Dar de baja este bien raíz? Saldrá de listados y totales; el historial se conserva.');">
+            <?= csrf_field() ?>
+            <button class="btn btn-ghost" type="submit">Dar de baja</button>
+        </form>
+    <?php endif; ?>
 </div>
 <?php if ($isEdit && $esActivo): ?>
     <?php $bitacoraRows = $bitacora ?? []; ?>
@@ -755,6 +765,12 @@ foreach ($personas as $p) {
                             <a class="btn btn-ghost btn-sm" href="<?= esc($editPath((string) $row['id'])) ?>">Editar</a>
                             <?php if ($esActivo): ?>
                                 <a class="btn btn-ghost btn-sm" href="<?= esc($bitacoraPath((string) $row['id'])) ?>">Bitácora</a>
+                            <?php endif; ?>
+                            <?php if ($puedeDarDeBaja): ?>
+                                <form method="post" action="<?= esc($eliminarPath((string) $row['id'])) ?>" style="display:inline" onsubmit="return confirm('¿Dar de baja este bien raíz? Saldrá de listados y totales; el historial se conserva.');">
+                                    <?= csrf_field() ?>
+                                    <button class="btn btn-ghost btn-sm" type="submit">Dar de baja</button>
+                                </form>
                             <?php endif; ?>
                         </td>
                     <?php endif; ?>

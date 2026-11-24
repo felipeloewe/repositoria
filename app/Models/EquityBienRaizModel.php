@@ -14,7 +14,7 @@ class EquityBienRaizModel extends Model
     protected $returnType       = 'array';
     protected $useTimestamps    = true;
     protected $allowedFields    = [
-        'id', 'empresa_id', 'persona_id', 'descripcion', 'direccion', 'tipo_inmueble',
+        'id', 'empresa_id', 'persona_id', 'activo', 'descripcion', 'direccion', 'tipo_inmueble',
         'garantia', 'asegurado', 'valor_clp', 'valor_uf',
         'fecha_tasacion', 'rol', 'avaluo_fiscal', 'contribuciones', 'notas', 'creado_por_id',
         'arrendatario', 'canon_mensual_clp', 'canon_mensual_uf', 'mes_canon', 'medio_pago',
