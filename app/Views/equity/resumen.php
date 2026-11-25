@@ -47,6 +47,7 @@ $ufRate = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
         <h3>Total pasivos</h3>
         <div class="value" style="font-size:1.35rem"><?= esc(EquityUf::fmtPesos((float) $totales['pasivos'], 0)) ?></div>
         <div class="muted"><?= esc(EquityUf::fmtUf((float) ($totalesUf['pasivos'] ?? 0), 2)) ?></div>
+        <div class="muted" style="font-size:.8rem;margin-top:.35rem">Solo deuda directa</div>
     </div>
     <div class="card">
         <h3>Patrimonio neto</h3>
@@ -56,14 +57,14 @@ $ufRate = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
 </div>
 
 <div class="card section-card">
-    <h3>Detalle</h3>
+    <h3>Detalle · Activos y pasivos directos</h3>
     <table class="table">
         <thead>
             <tr><th>Concepto</th><th>UF</th><th>$ (UF vigente)</th><th></th></tr>
         </thead>
         <tbody>
             <?php
-            $filas = [
+            $filasDirectas = [
                 ['Activos — Bienes raíces', 'bienes_raices', 'equity/activos/bienes-raices'],
                 ['Activos — Vehículos', 'vehiculos', 'equity/activos/vehiculos'],
                 ['Activos — Sociedades', 'sociedades', 'equity/activos/sociedades'],
@@ -71,10 +72,36 @@ $ufRate = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
                 ['Pasivos — Hipotecarios', 'pasivos_inm', 'equity/pasivos/inmuebles'],
                 ['Pasivos — Circulantes', 'pasivos_circ', 'equity/pasivos/circulantes'],
                 ['Pasivos — Otros', 'pasivos_otro', 'equity/pasivos/otros'],
-                ['Pasivos — Deuda indirecta', 'pasivos_indirecta', 'equity/pasivos/indirecta'],
+            ];
+            foreach ($filasDirectas as [$label, $key, $path]):
+            ?>
+            <tr>
+                <td><?= esc($label) ?></td>
+                <td><?= esc(EquityUf::fmtUf((float) ($totalesUf[$key] ?? 0), 2)) ?></td>
+                <td><?= esc(EquityUf::fmtPesos((float) ($totales[$key] ?? 0), 0)) ?></td>
+                <td><a class="btn btn-ghost btn-sm" href="<?= site_url($path) ?>">Abrir</a></td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+
+<div class="card section-card" style="margin-top:1rem">
+    <h3>Referencias (no deuda directa)</h3>
+    <p class="muted" style="margin-top:0">
+        Deuda indirecta y líneas disponibles no son deuda directa de la persona; se muestran como referencia y <strong>no restan</strong> del patrimonio neto.
+    </p>
+    <table class="table">
+        <thead>
+            <tr><th>Concepto</th><th>UF</th><th>$ (UF vigente)</th><th></th></tr>
+        </thead>
+        <tbody>
+            <?php
+            $filasRef = [
+                ['Deuda indirecta (codeudor / fiador / aval)', 'pasivos_indirecta', 'equity/pasivos/indirecta'],
                 ['Líneas disponibles (cupos)', 'pasivos_lineas', 'equity/pasivos/lineas'],
             ];
-            foreach ($filas as [$label, $key, $path]):
+            foreach ($filasRef as [$label, $key, $path]):
             ?>
             <tr>
                 <td><?= esc($label) ?></td>

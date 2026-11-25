@@ -114,18 +114,21 @@ $qs = '';
                     <td><?= esc($fmtP($totales['pasivos_otro'] ?? 0)) ?></td>
                     <td><?= esc($fmtU($totalesUf['pasivos_otro'] ?? 0)) ?></td>
                 </tr>
-                <tr>
-                    <td>Deuda indirecta</td>
-                    <td><?= esc($fmtP($totales['pasivos_indirecta'] ?? 0)) ?></td>
-                    <td><?= esc($fmtU($totalesUf['pasivos_indirecta'] ?? 0)) ?></td>
-                </tr>
                 <tr class="balance-total">
-                    <td>Total pasivos</td>
+                    <td>Total pasivos (deuda directa)</td>
                     <td><?= esc($fmtP($totales['pasivos'] ?? 0)) ?></td>
                     <td><?= esc($fmtU($totalesUf['pasivos'] ?? 0)) ?></td>
                 </tr>
                 <tr>
-                    <td class="balance-muted">Líneas disponibles (informativo)</td>
+                    <td class="balance-muted" colspan="3" style="padding-top:.85rem">Referencias (no restan del patrimonio)</td>
+                </tr>
+                <tr>
+                    <td class="balance-muted">Deuda indirecta</td>
+                    <td class="balance-muted"><?= esc($fmtP($totales['pasivos_indirecta'] ?? 0)) ?></td>
+                    <td class="balance-muted"><?= esc($fmtU($totalesUf['pasivos_indirecta'] ?? 0)) ?></td>
+                </tr>
+                <tr>
+                    <td class="balance-muted">Líneas disponibles (cupos)</td>
                     <td class="balance-muted"><?= esc($fmtP($totales['pasivos_lineas'] ?? 0)) ?></td>
                     <td class="balance-muted"><?= esc($fmtU($totalesUf['pasivos_lineas'] ?? 0)) ?></td>
                 </tr>

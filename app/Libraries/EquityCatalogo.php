@@ -92,14 +92,14 @@ final class EquityCatalogo
                 'label'       => 'Deuda indirecta',
                 'grupo'       => 'Pasivos',
                 'path'        => '/equity/pasivos/indirecta',
-                'descripcion' => 'Deudas como codeudor, fiador o avalista',
+                'descripcion' => 'Referencia: codeudor, fiador o avalista (no deuda directa)',
             ],
             [
                 'clave'       => 'pasivos-lineas',
                 'label'       => 'Líneas disponibles',
                 'grupo'       => 'Pasivos',
                 'path'        => '/equity/pasivos/lineas',
-                'descripcion' => 'Cupos: libre disposición, línea, tarjeta u otros',
+                'descripcion' => 'Referencia: cupos (libre disposición, línea, tarjeta u otros)',
             ],
             [
                 'clave'       => 'ingresos',

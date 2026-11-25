@@ -96,8 +96,8 @@ class EquityPatrimonio extends BaseController
             'pasivos_lineas'    => $this->sumLineasDisponibles($empresaId, $personaId, $ufRate),
         ];
         $totalesUf['activos'] = $totalesUf['bienes_raices'] + $totalesUf['vehiculos'] + $totalesUf['sociedades'] + $totalesUf['otros_activos'];
-        // Líneas disponibles = cupos no utilizados (informativo). Deuda indirecta sí cuenta como pasivo contingente.
-        $totalesUf['pasivos'] = $totalesUf['pasivos_inm'] + $totalesUf['pasivos_circ'] + $totalesUf['pasivos_otro'] + $totalesUf['pasivos_indirecta'];
+        // Solo deuda directa de la persona. Indirecta y Líneas son referencias (no suman al total ni al patrimonio neto).
+        $totalesUf['pasivos'] = $totalesUf['pasivos_inm'] + $totalesUf['pasivos_circ'] + $totalesUf['pasivos_otro'];
         $totalesUf['patrimonio'] = $totalesUf['activos'] - $totalesUf['pasivos'];
 
         $totales = [];
@@ -156,7 +156,8 @@ class EquityPatrimonio extends BaseController
             'pasivos_lineas'    => $this->sumLineasDisponibles($empresaId, $personaId, $ufRate),
         ];
         $totalesUf['activos']    = $totalesUf['bienes_raices'] + $totalesUf['vehiculos'] + $totalesUf['sociedades'] + $totalesUf['otros_activos'];
-        $totalesUf['pasivos']    = $totalesUf['pasivos_inm'] + $totalesUf['pasivos_circ'] + $totalesUf['pasivos_otro'] + $totalesUf['pasivos_indirecta'];
+        // Solo deuda directa. Indirecta y Líneas quedan como referencia (no restan del patrimonio).
+        $totalesUf['pasivos']    = $totalesUf['pasivos_inm'] + $totalesUf['pasivos_circ'] + $totalesUf['pasivos_otro'];
         $totalesUf['patrimonio'] = $totalesUf['activos'] - $totalesUf['pasivos'];
 
         $totales = [];

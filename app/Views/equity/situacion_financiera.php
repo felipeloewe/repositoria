@@ -256,7 +256,8 @@ foreach ($personas as $p) {
     <h3>Carga mensual / vencimientos (<?= count($rows) ?>)</h3>
     <p class="muted" style="margin-top:0">
         Créditos con <strong>valor cuota mensual</strong> para revisar vencimientos.
-        Los montos se toman de Hipotecarios, Circulantes, Otros pasivos y Deuda indirecta.
+        Los montos de carga se toman de Hipotecarios, Circulantes y Otros pasivos (deuda directa).
+        La Deuda indirecta aparece como referencia (no es deuda directa de la persona).
     </p>
 
     <?php if ($rows === []): ?>
