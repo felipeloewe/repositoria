@@ -1342,6 +1342,7 @@ class EquityPatrimonio extends BaseController
         $meta      = $fuentes[$fuente];
         $ficha     = $this->ultimaFicha($empresaId, $personaId);
         $editId    = trim((string) $this->request->getGet('edit'));
+        $desdeId   = trim((string) $this->request->getGet('desde'));
 
         $cq = model(EquityIngresoContratoModel::class)
             ->where('fuente', $fuente)
@@ -1355,6 +1356,7 @@ class EquityPatrimonio extends BaseController
         }
         $contratos = $cq->findAll();
         $editRow = null;
+        $desdeRow = null;
         foreach ($contratos as &$c) {
             $c['monto_mensual'] = EquityCatalogo::montoMensualEquivalente(
                 isset($c['monto_contrato_clp']) ? (float) $c['monto_contrato_clp'] : null,
@@ -1363,8 +1365,22 @@ class EquityPatrimonio extends BaseController
             if ($editId !== '' && ($c['id'] ?? '') === $editId) {
                 $editRow = $c;
             }
+            if ($desdeId !== '' && ($c['id'] ?? '') === $desdeId) {
+                $desdeRow = $c;
+            }
         }
         unset($c);
+
+        // Prefill de sucesor: nuevo contrato con hilo histórico al vencido/anterior.
+        if ($editRow === null && is_array($desdeRow)) {
+            $editRow = $desdeRow;
+            $editRow['_sucesor_de'] = (string) ($desdeRow['id'] ?? '');
+            $editRow['estado'] = 'vigente';
+            $editRow['fecha_inicio_contrato'] = date('Y-m-d');
+            $editRow['fecha_vencimiento'] = null;
+            unset($editRow['id'], $editRow['contrato_archivo_nombre'], $editRow['contrato_ruta_relativa'],
+                $editRow['contrato_mime'], $editRow['contrato_tamano_bytes']);
+        }
 
         $arriendos = [];
         $totalCanon = 0.0;
@@ -1677,6 +1693,28 @@ class EquityPatrimonio extends BaseController
         ];
         if ($hasBienLink) {
             $data['bien_raiz_id'] = $bienRaizId !== '' ? $bienRaizId : null;
+        }
+
+        // Hilo histórico: al crear un contrato nuevo que reemplaza uno vencido.
+        $hasReemplaza = $db->fieldExists('reemplaza_contrato_id', 'equity_ingresos_contratos');
+        if ($hasReemplaza && ! $isEdit) {
+            $reemplazaId = trim((string) $this->request->getPost('reemplaza_contrato_id'));
+            if ($reemplazaId !== '') {
+                $prev = model(EquityIngresoContratoModel::class)
+                    ->where('id', $reemplazaId)
+                    ->where('empresa_id', $empresaId)
+                    ->where('persona_id', $personaId)
+                    ->first();
+                if (is_array($prev)) {
+                    $data['reemplaza_contrato_id'] = $reemplazaId;
+                    // Si el anterior sigue vigente, marcarlo vencido al crear el sucesor.
+                    if (($prev['estado'] ?? '') === 'vigente') {
+                        model(EquityIngresoContratoModel::class)->update($reemplazaId, [
+                            'estado' => 'vencido',
+                        ]);
+                    }
+                }
+            }
         }
 
         $file = $this->request->getFile('contrato_archivo');

@@ -324,7 +324,8 @@ class Equity extends BaseController
     /** Segmentos de menú patrimonial que no son ids de persona. */
     private const RESERVED_SEGMENTS = [
         'activos', 'pasivos', 'ingresos', 'resumen', 'respaldos', 'grupo',
-        'configuracion', 'situacion-financiera', 'reporte', 'nueva', 'buscar-rut',
+        'configuracion', 'situacion-financiera', 'cierre', 'reporte', 'nueva', 'buscar-rut',
+        'egresos',
     ];
 
     public function show(string $id)
@@ -344,6 +345,8 @@ class Equity extends BaseController
                 'grupo' => '/equity/grupo',
                 'configuracion' => '/equity/configuracion',
                 'situacion-financiera' => '/equity/situacion-financiera',
+                'cierre' => '/equity/cierre',
+                'egresos' => '/equity/egresos',
                 'nueva' => '/equity/nueva',
                 default => '/equity',
             };

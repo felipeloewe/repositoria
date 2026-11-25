@@ -30,6 +30,13 @@ final class EquityCatalogo
                 'path'        => '/equity/situacion-financiera',
                 'descripcion' => 'Créditos, vencimientos y carga mensual (cuotas)',
             ],
+            [
+                'clave'       => 'cierre',
+                'label'       => 'Cierre mensual',
+                'grupo'       => 'Principal',
+                'path'        => '/equity/cierre',
+                'descripcion' => 'V.B. del mes/año, reportes en historial y desarrollo de créditos',
+            ],
 
             [
                 'clave'       => 'resumen',
@@ -181,6 +188,7 @@ final class EquityCatalogo
             'Principal' => [
                 ['clave' => 'inicio', 'label' => 'Inicio', 'path' => '/dashboard'],
                 ['clave' => 'situacion-financiera', 'label' => 'Situación financiera', 'path' => '/equity/situacion-financiera'],
+                ['clave' => 'cierre', 'label' => 'Cierre mensual', 'path' => '/equity/cierre'],
                 ['clave' => 'personas', 'label' => 'Grupo Familiar', 'path' => '/equity'],
                 ['clave' => 'socios', 'label' => 'Antecedentes Personales', 'path' => '/equity?tipo=socio'],
                 ['clave' => 'gerentes', 'label' => 'Antecedentes Laborales', 'path' => '/equity?tipo=gerente'],

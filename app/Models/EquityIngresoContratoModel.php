@@ -18,6 +18,7 @@ class EquityIngresoContratoModel extends Model
         'id', 'empresa_id', 'persona_id', 'bien_raiz_id', 'fuente', 'subtipo',
         'contraparte_rut', 'contraparte_nombre', 'fecha_inicio_contrato', 'fecha_vencimiento',
         'periodicidad', 'monto_contrato_clp', 'monto_contrato_uf', 'estado',
+        'reemplaza_contrato_id',
         'contrato_archivo_nombre', 'contrato_ruta_relativa', 'contrato_mime', 'contrato_tamano_bytes',
         'notas', 'creado_por_id',
     ];

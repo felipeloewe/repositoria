@@ -23,9 +23,10 @@ $fmtInput = static function ($v): string {
 
     return number_format((float) $v, 0, ',', '.');
 };
-$isEdit = is_array($editRow ?? null);
-$e = static function (string $key, $default = '') use ($editRow, $fmtInput, $isEdit) {
-    if (! $isEdit) {
+$isSucesor = is_array($editRow ?? null) && ! empty($editRow['_sucesor_de']);
+$isEdit = is_array($editRow ?? null) && ! $isSucesor;
+$e = static function (string $key, $default = '') use ($editRow, $fmtInput, $isEdit, $isSucesor) {
+    if (! $isEdit && ! $isSucesor) {
         return (string) $default;
     }
     $v = $editRow[$key] ?? null;
@@ -64,6 +65,7 @@ if ($reclasificable) {
 $formAction = $isEdit
     ? site_url('equity/ingresos/' . $fuente . '/contratos/' . $editRow['id'])
     : site_url('equity/ingresos/' . $fuente . '/contratos');
+$sucesorDe = $isSucesor ? (string) ($editRow['_sucesor_de'] ?? '') : '';
 $personaLabel = '';
 foreach ($personas as $p) {
     if (($p['id'] ?? '') === $personaId) {
@@ -113,16 +115,22 @@ foreach ($personas as $p) {
         <p class="muted">No hay persona activa en la sesión. La matriz debe inscribirte o, si representas a alguien, elige persona al ingresar.</p>
     </div>
 <?php elseif (! empty($canManage)): ?>
-    <div class="card section-card">
-        <h3><?= $isEdit ? 'Editar contraparte / contrato' : 'Nueva contraparte / contrato' ?></h3>
-        <?php if ($isEdit): ?>
+    <div class="card section-card" id="form-contrato">
+        <h3><?= $isEdit ? 'Editar contraparte / contrato' : ($isSucesor ? 'Nuevo contrato (sucesor)' : 'Nueva contraparte / contrato') ?></h3>
+        <?php if ($isEdit || $isSucesor): ?>
             <p class="muted" style="margin-top:0">
-                <a href="<?= site_url('equity/ingresos/' . $fuente . $qs) ?>">Cancelar edición</a>
+                <a href="<?= site_url('equity/ingresos/' . $fuente . $qs) ?>">Cancelar</a>
+                <?php if ($isSucesor): ?>
+                    · Reemplaza un contrato anterior; el vencido queda en el historial.
+                <?php endif; ?>
             </p>
         <?php endif; ?>
         <form method="post" action="<?= $formAction ?>" enctype="multipart/form-data">
             <?= csrf_field() ?>
             <input type="hidden" name="persona_id" value="<?= esc($personaId) ?>">
+            <?php if ($sucesorDe !== ''): ?>
+                <input type="hidden" name="reemplaza_contrato_id" value="<?= esc($sucesorDe) ?>">
+            <?php endif; ?>
 
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
                 <div>
@@ -297,6 +305,8 @@ foreach ($personas as $p) {
                         <td style="white-space:nowrap">
                             <?php if (! empty($canManage) && $personaId !== ''): ?>
                                 <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/ingresos/' . $fuente . '?persona_id=' . rawurlencode($personaId) . '&edit=' . rawurlencode($c['id'])) ?>">Editar</a>
+                                <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/ingresos/' . $fuente . '?persona_id=' . rawurlencode($personaId) . '&desde=' . rawurlencode($c['id'])) ?>#form-contrato"
+                                   title="Crear sucesor y dejar este en historial">Sucesor</a>
                                 <form method="post" action="<?= site_url('equity/ingresos/' . $fuente . '/contratos/' . $c['id'] . '/eliminar') ?>" style="display:inline" onsubmit="return confirm('¿Eliminar este contrato?');">
                                     <?= csrf_field() ?>
                                     <button class="btn btn-ghost btn-sm" type="submit">Eliminar</button>
