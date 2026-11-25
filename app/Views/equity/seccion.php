@@ -338,7 +338,10 @@ foreach ($personas as $p) {
                 </div>
             </div>
         <?php elseif ($clave === 'pasivos-inmuebles'): ?>
-            <p class="muted" style="margin-top:0">Datos del crédito hipotecario (recibo de dividendo).</p>
+            <p class="muted" style="margin-top:0">
+                Datos del crédito hipotecario (recibo de dividendo). La <strong>moneda</strong> define el valor canónico:
+                si es UF se calcula el $ (cuota se paga en pesos); si es CLP se calcula la UF. Ingresos/Egresos analizan siempre en $.
+            </p>
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
                 <div style="grid-column:1/-1">
                     <label for="banco_descripcion">Institución / Banco *</label>
@@ -353,10 +356,10 @@ foreach ($personas as $p) {
                     <input id="sucursal" name="sucursal" type="text" placeholder="143" value="<?= esc($val('sucursal')) ?>">
                 </div>
                 <div>
-                    <label for="moneda">Moneda</label>
+                    <label for="moneda">Moneda del crédito</label>
                     <select id="moneda" name="moneda">
-                        <option value="UF" <?= ($val('moneda') === '' || $val('moneda') === 'UF') ? 'selected' : '' ?>>UF</option>
-                        <option value="CLP" <?= $sel('moneda', 'CLP') ?>>CLP</option>
+                        <option value="UF" <?= ($val('moneda') === '' || $val('moneda') === 'UF') ? 'selected' : '' ?>>UF (calcula $)</option>
+                        <option value="CLP" <?= $sel('moneda', 'CLP') ?>>$ / CLP (calcula UF)</option>
                     </select>
                 </div>
                 <div>
@@ -554,14 +557,25 @@ foreach ($personas as $p) {
                 </div>
             </div>
         <?php else: ?>
+            <p class="muted" style="margin-top:0">
+                Moneda del crédito: si es UF se calcula el $; si es CLP se calcula la UF. La cuota de análisis (Egresos) queda en pesos.
+            </p>
             <label for="banco_descripcion">Banco / descripción *</label>
             <input id="banco_descripcion" name="banco_descripcion" type="text" required value="<?= esc($val('banco_descripcion')) ?>">
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
-                <div><label for="saldo_uf">Saldo UF *</label><input id="saldo_uf" name="saldo_uf" type="text" inputmode="decimal" value="<?= esc($val('saldo_uf', 4)) ?>"></div>
-                <div><label for="saldo_clp">Saldo $ <span class="muted">(opc.)</span></label><input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal" value="<?= esc($val('saldo_clp', 0)) ?>"></div>
+                <div>
+                    <label for="moneda_otro">Moneda</label>
+                    <select id="moneda_otro" name="moneda">
+                        <option value="CLP" <?= ($val('moneda') === '' || $val('moneda') === 'CLP') ? 'selected' : '' ?>>$ / CLP (calcula UF)</option>
+                        <option value="UF" <?= $sel('moneda', 'UF') ?>>UF (calcula $)</option>
+                    </select>
+                </div>
+                <div><label for="saldo_uf">Saldo UF</label><input id="saldo_uf" name="saldo_uf" type="text" inputmode="decimal" value="<?= esc($val('saldo_uf', 4)) ?>"></div>
+                <div><label for="saldo_clp">Saldo $</label><input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal" value="<?= esc($val('saldo_clp', 0)) ?>"></div>
                 <div><label for="cuotas_totales">Cuotas totales</label><input id="cuotas_totales" name="cuotas_totales" type="number" value="<?= esc($val('cuotas_totales')) ?>"></div>
                 <div><label for="cuotas_pagadas">Cuotas pagadas</label><input id="cuotas_pagadas" name="cuotas_pagadas" type="number" value="<?= esc($val('cuotas_pagadas')) ?>"></div>
-                <div><label for="cuota_mensual">Cuota mensual</label><input id="cuota_mensual" name="cuota_mensual" type="text" inputmode="decimal" value="<?= esc($val('cuota_mensual', 0)) ?>"></div>
+                <div><label for="cuota_uf">Cuota mensual UF</label><input id="cuota_uf" name="cuota_uf" type="text" inputmode="decimal" value="<?= esc($val('dividendo_uf', 4)) ?>"></div>
+                <div><label for="cuota_mensual">Cuota mensual $</label><input id="cuota_mensual" name="cuota_mensual" type="text" inputmode="decimal" value="<?= esc($val('cuota_mensual', 0)) ?>"></div>
                 <div><label for="asociacion">Asociación</label><input id="asociacion" name="asociacion" type="text" placeholder="CASA / INV" value="<?= esc($val('asociacion')) ?>"></div>
                 <div><label for="tipo">Tipo</label><input id="tipo" name="tipo" type="text" value="<?= esc($val('tipo')) ?>"></div>
             </div>

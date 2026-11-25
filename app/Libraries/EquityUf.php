@@ -79,18 +79,35 @@ final class EquityUf
     }
 
     /**
-     * Resuelve par UF/$: UF es canónico; $ se deriva si hay UF.
-     * Si solo viene $, se deriva UF con la tasa vigente.
+     * Resuelve par UF/$ con la tasa vigente.
+     * - preferencia `UF`: UF canónico → calcula $
+     * - preferencia `CLP`: $ canónico → calcula UF
+     * - `auto`: si hay UF se usa como canónico; si no, $
+     * Ingresos/Egresos analizan siempre en pesos (usar el `clp` resultante).
      *
+     * @param 'auto'|'UF'|'CLP'|string $preferencia
      * @return array{uf: ?string, clp: ?string}
      */
-    public static function resolverPar(?string $ufRaw, ?string $clpRaw, string $empresaId, ?string $hasta = null): array
-    {
-        $uf  = self::parseDecimal($ufRaw, 4);
-        $clp = self::parseDecimal($clpRaw, 2);
+    public static function resolverPar(
+        ?string $ufRaw,
+        ?string $clpRaw,
+        string $empresaId,
+        ?string $hasta = null,
+        string $preferencia = 'auto'
+    ): array {
+        $uf   = self::parseDecimal($ufRaw, 4);
+        $clp  = self::parseDecimal($clpRaw, 2);
         $rate = self::valorClp($empresaId, $hasta);
+        $pref = strtoupper(trim($preferencia));
+        if ($pref !== 'UF' && $pref !== 'CLP') {
+            $pref = 'auto';
+        }
 
-        if ($uf !== null) {
+        $useClp = ($pref === 'CLP' && $clp !== null)
+            || ($pref === 'auto' && $uf === null && $clp !== null);
+        $useUf = ! $useClp && $uf !== null;
+
+        if ($useUf) {
             $clpCalc = $rate > 0 ? round($uf * $rate, 2) : $clp;
 
             return [
@@ -108,7 +125,30 @@ final class EquityUf
             ];
         }
 
+        if ($uf !== null) {
+            $clpCalc = $rate > 0 ? round($uf * $rate, 2) : null;
+
+            return [
+                'uf'  => number_format($uf, 4, '.', ''),
+                'clp' => $clpCalc !== null ? number_format($clpCalc, 2, '.', '') : null,
+            ];
+        }
+
         return ['uf' => null, 'clp' => null];
+    }
+
+    /**
+     * Formato de análisis: pesos primero (canónico para Ingresos/Egresos) + equivalencia UF.
+     */
+    public static function fmtAnalisisPesos(?float $clp, float $ufRate, int $decPesos = 0, int $decUf = 2): string
+    {
+        if ($clp === null) {
+            return '—';
+        }
+        $uf = $ufRate > 0 ? round($clp / $ufRate, $decUf) : null;
+
+        return self::fmtPesos($clp, $decPesos)
+            . ($uf !== null ? ' · ' . self::fmtUf($uf, $decUf) : '');
     }
 
     /** Formato chileno para $ (con decimales opcionales). */

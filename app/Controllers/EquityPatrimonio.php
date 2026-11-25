@@ -255,13 +255,8 @@ class EquityPatrimonio extends BaseController
         $egresosDetalle = [];
         $totalEgresos   = 0.0;
         foreach ($pq->findAll() as $row) {
-            $cuota = $this->montoClpPreferido(
-                $row['cuota_mensual'] ?? null,
-                null,
-                $row['dividendo_clp'] ?? null,
-                $row['dividendo_uf'] ?? null,
-                $ufRate
-            );
+            // Análisis siempre en $: UF → pesos con tasa vigente.
+            $cuota = EquityEgresosProyeccion::cuotaClp($row, $ufRate);
             if ($cuota === null || (float) $cuota <= 0) {
                 continue;
             }
@@ -548,13 +543,7 @@ class EquityPatrimonio extends BaseController
                 $row['saldo_uf'] ?? null,
                 $ufRate
             );
-            $row['cuota_show'] = $this->montoClpPreferido(
-                $row['cuota_mensual'] ?? null,
-                null,
-                $row['dividendo_clp'] ?? null,
-                $row['dividendo_uf'] ?? null,
-                $ufRate
-            );
+            $row['cuota_show'] = EquityEgresosProyeccion::cuotaClp($row, $ufRate);
             $row['mora_30_show'] = $this->montoClpPreferido($row['mora_30_59_clp'] ?? null, $row['mora_30_59_uf'] ?? null, null, null, $ufRate);
             $row['mora_60_show'] = $this->montoClpPreferido($row['mora_60_89_clp'] ?? null, $row['mora_60_89_uf'] ?? null, null, null, $ufRate);
             $row['mora_90_show'] = $this->montoClpPreferido($row['mora_90_mas_clp'] ?? null, $row['mora_90_mas_uf'] ?? null, null, null, $ufRate);
@@ -999,6 +988,8 @@ class EquityPatrimonio extends BaseController
         foreach ($items as &$row) {
             $cuota = EquityEgresosProyeccion::cuotaClp($row, $ufRate);
             $row['_cuota_clp'] = $cuota;
+            $row['_cuota_uf']  = EquityEgresosProyeccion::cuotaUf($row, $ufRate);
+            $row['_moneda']    = EquityEgresosProyeccion::moneda($row);
             if ($fuente !== 'lineas' && $cuota !== null) {
                 $totalFuente += $cuota;
             }
@@ -1963,10 +1954,28 @@ class EquityPatrimonio extends BaseController
             if ($desc === '') {
                 return redirect()->to($redirectPath)->with('error', 'La institución / banco es obligatoria.');
             }
+            $monedaHip = strtoupper(trim((string) $this->request->getPost('moneda'))) === 'CLP' ? 'CLP' : 'UF';
+            // Moneda del crédito define el canónico; la otra pata se calcula con UF vigente.
+            $parSaldoHip = EquityUf::resolverPar(
+                (string) $this->request->getPost('saldo_uf'),
+                (string) $this->request->getPost('saldo_clp'),
+                $memb['empresa_id'],
+                null,
+                $monedaHip
+            );
             $parDividendo = EquityUf::resolverPar(
                 (string) $this->request->getPost('dividendo_uf'),
                 (string) $this->request->getPost('dividendo_clp'),
-                $memb['empresa_id']
+                $memb['empresa_id'],
+                null,
+                $monedaHip
+            );
+            $parTotalCred = EquityUf::resolverPar(
+                (string) $this->request->getPost('total_credito_uf'),
+                (string) $this->request->getPost('total_credito_clp'),
+                $memb['empresa_id'],
+                null,
+                $monedaHip
             );
             $plazo = $intOrNull($this->request->getPost('plazo_pactado'));
             $cuotasTot = $intOrNull($this->request->getPost('cuotas_totales'));
@@ -1980,12 +1989,12 @@ class EquityPatrimonio extends BaseController
                 'banco_descripcion'            => $desc,
                 'numero_credito'               => trim((string) $this->request->getPost('numero_credito')) ?: null,
                 'sucursal'                     => trim((string) $this->request->getPost('sucursal')) ?: null,
-                'moneda'                       => trim((string) $this->request->getPost('moneda')) ?: 'UF',
+                'moneda'                       => $monedaHip,
                 'dividendo_n'                  => $intOrNull($this->request->getPost('dividendo_n')),
                 'fecha_registro'               => trim((string) $this->request->getPost('fecha_registro')) ?: null,
                 'plazo_pactado'                => $plazo,
-                'saldo_clp'                    => $parSaldo['clp'],
-                'saldo_uf'                     => $parSaldo['uf'],
+                'saldo_clp'                    => $parSaldoHip['clp'],
+                'saldo_uf'                     => $parSaldoHip['uf'],
                 'cuotas_totales'               => $cuotasTot,
                 'cuotas_pagadas'               => $intOrNull($this->request->getPost('cuotas_pagadas')),
                 'cuota_mensual'                => $parDividendo['clp'],
@@ -2000,8 +2009,8 @@ class EquityPatrimonio extends BaseController
                 'seg_otros_complementarios_uf' => $ufDec($this->request->getPost('seg_otros_complementarios_uf')),
                 'fecha_otorgamiento'           => trim((string) $this->request->getPost('fecha_otorgamiento')) ?: null,
                 'fecha_vencimiento'            => trim((string) $this->request->getPost('fecha_vencimiento')) ?: null,
-                'total_credito_uf'             => $ufDec($this->request->getPost('total_credito_uf')),
-                'total_credito_clp'            => $money($this->request->getPost('total_credito_clp')),
+                'total_credito_uf'             => $parTotalCred['uf'],
+                'total_credito_clp'            => $parTotalCred['clp'],
                 'direccion_garantia'           => trim((string) $this->request->getPost('direccion_garantia')) ?: null,
                 'asociacion'                   => trim((string) $this->request->getPost('asociacion')) ?: null,
                 'tipo'                         => 'Hipotecario',
@@ -2106,16 +2115,37 @@ class EquityPatrimonio extends BaseController
             if ($desc === '') {
                 return redirect()->to($redirectPath)->with('error', 'La descripción / banco es obligatoria.');
             }
+            $monedaOtro = strtoupper(trim((string) $this->request->getPost('moneda')));
+            if ($monedaOtro !== 'UF' && $monedaOtro !== 'CLP') {
+                $monedaOtro = 'CLP';
+            }
+            $parSaldoOtro = EquityUf::resolverPar(
+                (string) $this->request->getPost('saldo_uf'),
+                (string) $this->request->getPost('saldo_clp'),
+                $memb['empresa_id'],
+                null,
+                $monedaOtro
+            );
+            $parCuotaOtro = EquityUf::resolverPar(
+                (string) $this->request->getPost('cuota_uf'),
+                (string) $this->request->getPost('cuota_mensual'),
+                $memb['empresa_id'],
+                null,
+                $monedaOtro
+            );
             $model = model(EquityPasivoModel::class);
             $data  = [
                 'persona_id'        => $personaId,
                 'categoria'         => $meta['categoria'] ?? 'otro',
                 'banco_descripcion' => $desc,
-                'saldo_clp'         => $parSaldo['clp'],
-                'saldo_uf'          => $parSaldo['uf'],
+                'moneda'            => $monedaOtro,
+                'saldo_clp'         => $parSaldoOtro['clp'],
+                'saldo_uf'          => $parSaldoOtro['uf'],
                 'cuotas_totales'    => $intOrNull($this->request->getPost('cuotas_totales')),
                 'cuotas_pagadas'    => $intOrNull($this->request->getPost('cuotas_pagadas')),
-                'cuota_mensual'     => $money($this->request->getPost('cuota_mensual')),
+                'cuota_mensual'     => $parCuotaOtro['clp'],
+                'dividendo_uf'      => $parCuotaOtro['uf'],
+                'dividendo_clp'     => $parCuotaOtro['clp'],
                 'asociacion'        => trim((string) $this->request->getPost('asociacion')) ?: null,
                 'tipo'              => trim((string) $this->request->getPost('tipo')) ?: null,
                 'notas'             => trim((string) $this->request->getPost('notas')) ?: null,

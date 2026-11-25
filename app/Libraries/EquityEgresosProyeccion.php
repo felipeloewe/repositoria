@@ -6,9 +6,8 @@ namespace App\Libraries;
 
 /**
  * Proyecta vencimientos / cuotas mensuales de pasivos para el menú Egresos.
- * Hipotecarios: parte desde fecha_registro (dividendo actual) y avanza con
- * la misma amortización/dividendo conocidos. Otras categorías: cuota_mensual
- * con day-of-month si hay dia_cargo_pac o fecha_vencimiento.
+ * Análisis siempre en pesos: si el crédito es UF se convierte con la UF vigente;
+ * si es CLP se usa el $ y se muestra la equivalencia UF.
  */
 final class EquityEgresosProyeccion
 {
@@ -20,6 +19,7 @@ final class EquityEgresosProyeccion
      *   cuota_uf: float|null,
      *   cuota_clp: float|null,
      *   saldo_uf: float|null,
+     *   saldo_clp: float|null,
      *   amortizacion_uf: float|null
      * }>
      */
@@ -39,17 +39,73 @@ final class EquityEgresosProyeccion
     }
 
     /**
-     * Cuota mensual en CLP preferida (dividendo / cuota).
+     * Moneda del pasivo: UF (default hipotecarios) o CLP.
+     */
+    public static function moneda(array $row): string
+    {
+        $m = strtoupper(trim((string) ($row['moneda'] ?? '')));
+        if ($m === 'CLP' || $m === '$' || $m === 'PESOS') {
+            return 'CLP';
+        }
+
+        return 'UF';
+    }
+
+    /**
+     * Cuota mensual en pesos para análisis (Ingresos/Egresos).
+     * UF canónico → UF × tasa vigente; CLP canónico → $ guardado (o deriva desde UF).
      */
     public static function cuotaClp(array $row, float $ufRate): ?float
     {
-        foreach (['dividendo_clp', 'cuota_mensual'] as $k) {
-            if (isset($row[$k]) && $row[$k] !== null && $row[$k] !== '' && (float) $row[$k] > 0) {
-                return round((float) $row[$k], 2);
+        $moneda = self::moneda($row);
+        $divUf  = self::num($row, 'dividendo_uf');
+        $divClp = self::num($row, 'dividendo_clp');
+        $cuota  = self::num($row, 'cuota_mensual');
+
+        if ($moneda === 'UF') {
+            if ($divUf !== null && $divUf > 0 && $ufRate > 0) {
+                return round($divUf * $ufRate, 2);
             }
+            if ($divClp !== null && $divClp > 0) {
+                return round($divClp, 2);
+            }
+            if ($cuota !== null && $cuota > 0) {
+                return round($cuota, 2);
+            }
+
+            return null;
         }
-        if (! empty($row['dividendo_uf']) && $ufRate > 0) {
-            return round((float) $row['dividendo_uf'] * $ufRate, 2);
+
+        // CLP canónico
+        if ($divClp !== null && $divClp > 0) {
+            return round($divClp, 2);
+        }
+        if ($cuota !== null && $cuota > 0) {
+            return round($cuota, 2);
+        }
+        if ($divUf !== null && $divUf > 0 && $ufRate > 0) {
+            return round($divUf * $ufRate, 2);
+        }
+
+        return null;
+    }
+
+    /**
+     * Equivalencia UF de la cuota (para mostrar junto al $ de análisis).
+     */
+    public static function cuotaUf(array $row, float $ufRate): ?float
+    {
+        $moneda = self::moneda($row);
+        $divUf  = self::num($row, 'dividendo_uf');
+        if ($moneda === 'UF' && $divUf !== null && $divUf > 0) {
+            return round($divUf, 4);
+        }
+        $clp = self::cuotaClp($row, $ufRate);
+        if ($clp !== null && $ufRate > 0) {
+            return round($clp / $ufRate, 4);
+        }
+        if ($divUf !== null && $divUf > 0) {
+            return round($divUf, 4);
         }
 
         return null;
@@ -66,15 +122,15 @@ final class EquityEgresosProyeccion
             return [];
         }
 
-        $saldo = isset($row['saldo_uf']) && $row['saldo_uf'] !== null && $row['saldo_uf'] !== ''
-            ? (float) $row['saldo_uf']
-            : null;
-        $amort = isset($row['amortizacion_uf']) && $row['amortizacion_uf'] !== null && $row['amortizacion_uf'] !== ''
-            ? (float) $row['amortizacion_uf']
-            : 0.0;
-        $divUf = isset($row['dividendo_uf']) && $row['dividendo_uf'] !== null && $row['dividendo_uf'] !== ''
-            ? (float) $row['dividendo_uf']
-            : null;
+        $saldoUf = self::num($row, 'saldo_uf');
+        if ($saldoUf === null) {
+            $saldoClpOnly = self::num($row, 'saldo_clp');
+            if ($saldoClpOnly !== null && $ufRate > 0) {
+                $saldoUf = round($saldoClpOnly / $ufRate, 4);
+            }
+        }
+        $amort = self::num($row, 'amortizacion_uf') ?? 0.0;
+        $divUf = self::cuotaUf($row, $ufRate);
         $divClp = self::cuotaClp($row, $ufRate);
         $divN = isset($row['dividendo_n']) && $row['dividendo_n'] !== null && $row['dividendo_n'] !== ''
             ? (int) $row['dividendo_n']
@@ -90,22 +146,28 @@ final class EquityEgresosProyeccion
             if ($divN !== null && $plazo !== null && $divN > $plazo) {
                 break;
             }
-            if ($saldo !== null && $saldo <= 0) {
+            if ($saldoUf !== null && $saldoUf <= 0) {
                 break;
             }
 
             $fecha = $base->modify('+' . $i . ' month');
+            // Recalcular $ de análisis con UF vigente (cuota en UF × tasa).
+            $cuotaClpMes = $divClp;
+            if ($divUf !== null && $ufRate > 0 && self::moneda($row) === 'UF') {
+                $cuotaClpMes = round($divUf * $ufRate, 2);
+            }
             $out[] = [
                 'fecha'           => $fecha->format('Y-m-d'),
                 'dividendo_n'     => $divN,
                 'cuota_uf'        => $divUf,
-                'cuota_clp'       => $divClp,
-                'saldo_uf'        => $saldo !== null ? round($saldo, 4) : null,
+                'cuota_clp'       => $cuotaClpMes,
+                'saldo_uf'        => $saldoUf !== null ? round($saldoUf, 4) : null,
+                'saldo_clp'       => ($saldoUf !== null && $ufRate > 0) ? round($saldoUf * $ufRate, 2) : null,
                 'amortizacion_uf' => $amort > 0 ? $amort : null,
             ];
 
-            if ($saldo !== null && $amort > 0) {
-                $saldo = max(0, round($saldo - $amort, 4));
+            if ($saldoUf !== null && $amort > 0) {
+                $saldoUf = max(0, round($saldoUf - $amort, 4));
             }
             if ($divN !== null) {
                 $divN++;
@@ -121,14 +183,14 @@ final class EquityEgresosProyeccion
      */
     private static function proyectarCuotaFija(array $row, float $ufRate, int $meses): array
     {
-        $cuota = self::cuotaClp($row, $ufRate);
-        if ($cuota === null || $cuota <= 0) {
+        $cuotaClp = self::cuotaClp($row, $ufRate);
+        if ($cuotaClp === null || $cuotaClp <= 0) {
             return [];
         }
+        $cuotaUf = self::cuotaUf($row, $ufRate);
 
         $base = self::fechaBase($row);
         if ($base === null) {
-            // Sin fecha: proyectar desde el día 1 del mes siguiente.
             $base = (new \DateTimeImmutable('first day of next month'))->setTime(0, 0);
             if (! empty($row['dia_cargo_pac'])) {
                 $d = max(1, min(28, (int) $row['dia_cargo_pac']));
@@ -151,9 +213,10 @@ final class EquityEgresosProyeccion
             $out[] = [
                 'fecha'           => $fecha->format('Y-m-d'),
                 'dividendo_n'     => null,
-                'cuota_uf'        => $ufRate > 0 ? round($cuota / $ufRate, 4) : null,
-                'cuota_clp'       => $cuota,
+                'cuota_uf'        => $cuotaUf,
+                'cuota_clp'       => $cuotaClp,
                 'saldo_uf'        => null,
+                'saldo_clp'       => null,
                 'amortizacion_uf' => null,
             ];
         }
@@ -171,7 +234,6 @@ final class EquityEgresosProyeccion
             if ($raw === '') {
                 continue;
             }
-            // Si fecha_vencimiento es lejana (fin de crédito), no sirve como base mensual.
             if ($k === 'fecha_vencimiento') {
                 try {
                     $dt = new \DateTimeImmutable($raw);
@@ -204,5 +266,17 @@ final class EquityEgresosProyeccion
         }
 
         return null;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private static function num(array $row, string $key): ?float
+    {
+        if (! isset($row[$key]) || $row[$key] === null || $row[$key] === '') {
+            return null;
+        }
+
+        return (float) $row[$key];
     }
 }

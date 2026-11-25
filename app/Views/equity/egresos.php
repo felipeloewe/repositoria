@@ -10,10 +10,8 @@ $fmt = static function ($v) use ($ufRate): string {
     if ($v === null || $v === '') {
         return '—';
     }
-    $clp = (float) $v;
-    $uf  = $ufRate > 0 ? round($clp / $ufRate, 2) : null;
 
-    return '$' . number_format($clp, 0, ',', '.') . ($uf !== null ? ' · ' . number_format($uf, 2, ',', '.') . ' UF' : '');
+    return EquityUf::fmtAnalisisPesos((float) $v, $ufRate, 0, 2);
 };
 $personaLabel = '';
 foreach ($personas as $p) {
@@ -27,7 +25,8 @@ foreach ($personas as $p) {
 <section class="banner">
     <h2>Egresos</h2>
     <p>
-        Carga mensual por tipo de pasivo y proyección de próximos vencimientos.
+        Carga mensual en <strong>pesos</strong> (análisis). Si el crédito es UF, la cuota se convierte con la UF vigente;
+        si es $, se muestra la equivalencia UF.
         UF vigente <?= esc(EquityUf::fmtPesos($ufRate, 2)) ?>
         <?= $personaLabel !== '' ? ' · ' . esc($personaLabel) : '' ?>.
     </p>
@@ -68,7 +67,7 @@ foreach ($personas as $p) {
     <div class="card">
         <h3>Total egresos mes</h3>
         <div class="value" style="font-size:1.25rem"><strong><?= esc($fmt($totalGeneral ?? 0)) ?></strong></div>
-        <div class="hint">Suma de cuotas (sin líneas)</div>
+        <div class="hint">Suma de cuotas en $ (sin líneas)</div>
     </div>
 </div>
 

@@ -28,7 +28,7 @@ foreach ($personas as $p) {
 <section class="banner">
     <h2>Ingresos</h2>
     <p>
-        Fuentes de ingreso mensual. Abre cada fuente para cargar o editar montos.
+        Fuentes de ingreso mensual en <strong>pesos</strong> (análisis); se muestra la equivalencia UF.
         UF vigente <?= esc(EquityUf::fmtPesos($ufRate, 2)) ?>
         <?= $personaLabel !== '' ? ' · ' . esc($personaLabel) : '' ?>.
     </p>

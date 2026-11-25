@@ -11,10 +11,8 @@ $fmt = static function ($v) use ($ufRate): string {
     if ($v === null || $v === '') {
         return '—';
     }
-    $clp = (float) $v;
-    $uf  = $ufRate > 0 ? round($clp / $ufRate, 2) : null;
 
-    return '$' . number_format($clp, 0, ',', '.') . ($uf !== null ? ' · ' . number_format($uf, 2, ',', '.') . ' UF' : '');
+    return EquityUf::fmtAnalisisPesos((float) $v, $ufRate, 0, 2);
 };
 $fmtUf = static function ($v): string {
     if ($v === null || $v === '') {
@@ -107,10 +105,11 @@ $esLineas = ($fuente === 'lineas');
                     <tr>
                         <th>Institución</th>
                         <th>Nº</th>
+                        <th>Moneda</th>
                         <th>Reg. / venc.</th>
                         <th>Div.</th>
                         <th>Saldo</th>
-                        <th>Cuota mes</th>
+                        <th>Cuota mes ($)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -118,6 +117,7 @@ $esLineas = ($fuente === 'lineas');
                     <tr>
                         <td><?= esc($row['banco_descripcion'] ?? '—') ?></td>
                         <td><?= esc($row['numero_credito'] ?? '—') ?></td>
+                        <td><?= esc($row['_moneda'] ?? 'UF') ?></td>
                         <td>
                             <?= esc($row['fecha_registro'] ?? '—') ?>
                             <?php if (! empty($row['fecha_vencimiento']) && ($row['fecha_vencimiento'] ?? '') !== ($row['fecha_registro'] ?? '')): ?>
@@ -125,14 +125,19 @@ $esLineas = ($fuente === 'lineas');
                             <?php endif; ?>
                         </td>
                         <td><?= esc($row['dividendo_n'] ?? '—') ?></td>
-                        <td><?= esc($fmtUf($row['saldo_uf'] ?? null)) ?></td>
+                        <td>
+                            <?= esc($fmtUf($row['saldo_uf'] ?? null)) ?>
+                            <?php if (! empty($row['saldo_clp'])): ?>
+                                <div class="muted" style="font-size:.85em"><?= esc(EquityUf::fmtPesos((float) $row['saldo_clp'], 0)) ?></div>
+                            <?php endif; ?>
+                        </td>
                         <td><?= esc($fmt($row['_cuota_clp'] ?? null)) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="5" style="text-align:right"><strong>Total cuota mes</strong></td>
+                        <td colspan="6" style="text-align:right"><strong>Total cuota mes ($)</strong></td>
                         <td><strong><?= esc($fmt($totalFuente ?? 0)) ?></strong></td>
                     </tr>
                 </tfoot>
@@ -142,7 +147,8 @@ $esLineas = ($fuente === 'lineas');
         <div class="card section-card">
             <h3>Próximos vencimientos (<?= (int) ($mesesProyeccion ?? 12) ?> meses)</h3>
             <p class="muted" style="margin-top:0">
-                Proyección con la misma cuota/amortización registrada. Hipotecarios parten de la fecha de registro del dividendo.
+                Totales en <strong>$</strong> (análisis). Créditos en UF: cuota = UF × tasa vigente. Créditos en $: se muestra equivalencia UF.
+                Hipotecarios parten de la fecha de registro del dividendo.
             </p>
             <?php if (($proyeccionMeses ?? []) === []): ?>
                 <p class="muted">Sin fechas o cuotas suficientes para proyectar.</p>
