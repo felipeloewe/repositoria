@@ -28,7 +28,6 @@ foreach ($personas as $p) {
         break;
     }
 }
-$esLineas = ($fuente === 'lineas');
 ?>
 
 <section class="banner">
@@ -72,32 +71,6 @@ $esLineas = ($fuente === 'lineas');
     </div>
 <?php else: ?>
 
-    <?php if ($esLineas): ?>
-        <div class="card section-card">
-            <h3>Líneas disponibles</h3>
-            <p class="muted">No generan egreso mensual hasta usarse. Se listan para contexto patrimonial.</p>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Institución</th>
-                        <th>Tipo</th>
-                        <th>Directos</th>
-                        <th>Indirectos</th>
-                    </tr>
-                </thead>
-                <tbody>
-                <?php foreach ($items as $row): ?>
-                    <tr>
-                        <td><?= esc($row['banco_descripcion'] ?? '—') ?></td>
-                        <td><?= esc($row['tipo'] ?? '—') ?></td>
-                        <td><?= esc($fmt($row['monto_directo_clp'] ?? null)) ?></td>
-                        <td><?= esc($fmt($row['monto_indirecto_clp'] ?? null)) ?></td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    <?php else: ?>
         <div class="card section-card">
             <h3>Créditos · cuota actual</h3>
             <table class="table">
@@ -185,7 +158,7 @@ $esLineas = ($fuente === 'lineas');
             <?php endif; ?>
         </div>
 
-        <?php if (in_array($fuente, ['hipotecarios', 'circulantes', 'otros'], true) && ($desarrollos ?? []) !== []): ?>
+        <?php if (($desarrollos ?? []) !== []): ?>
             <?php foreach ($desarrollos as $dev): ?>
                 <?php $devMoneda = strtoupper((string) ($dev['moneda'] ?? 'UF')) === 'CLP' ? 'CLP' : 'UF'; ?>
                 <div class="card section-card">
@@ -249,7 +222,6 @@ $esLineas = ($fuente === 'lineas');
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
-    <?php endif; ?>
 
 <?php endif; ?>
 

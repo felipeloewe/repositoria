@@ -245,7 +245,8 @@ class EquityPatrimonio extends BaseController
 
         // Egresos: cuotas mensuales de créditos (excluye líneas)
         $pq = model(EquityPasivoModel::class)
-            ->whereIn('categoria', ['inmueble', 'circulante', 'otro', 'indirecta'])
+            // Egresos mensuales: solo pasivos con cuota (no deuda indirecta ni líneas).
+            ->whereIn('categoria', ['inmueble', 'circulante', 'otro'])
             ->orderBy('banco_descripcion', 'ASC');
         if ($personaId !== '') {
             $pq->where('persona_id', $personaId);
@@ -322,8 +323,67 @@ class EquityPatrimonio extends BaseController
     public function reporteGrupoPasivos()
     {
         return $this->reporteGrupo('pasivos', [
-            'pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos', 'pasivos-indirecta', 'pasivos-lineas',
+            'pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos', 'pasivos-indirecta',
         ]);
+    }
+
+    /** Líneas disponibles: sección propia (fuera de Pasivos y Egresos). */
+    public function lineas()
+    {
+        return $this->seccionLista('pasivos-lineas');
+    }
+
+    public function editLinea(string $id)
+    {
+        return $this->seccionLista('pasivos-lineas', $id);
+    }
+
+    public function storeLinea()
+    {
+        return $this->storeSeccion('pasivos-lineas');
+    }
+
+    public function updateLinea(string $id)
+    {
+        return $this->storeSeccion('pasivos-lineas', $id);
+    }
+
+    public function reporteLineas()
+    {
+        return $this->reporteSeccion('pasivos-lineas');
+    }
+
+    /**
+     * Elimina una línea disponible (hard delete del registro de cupo).
+     */
+    public function eliminarLinea(string $id)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        if (! EquityAcl::canDeclare($memb)) {
+            return redirect()->to('/equity/lineas')->with('error', 'Sin permiso para eliminar.');
+        }
+
+        [$personaId] = $this->personaContexto($memb);
+        $q = model(EquityPasivoModel::class)
+            ->where('id', $id)
+            ->where('categoria', 'linea');
+        if ($personaId !== '') {
+            $q->where('persona_id', $personaId);
+        } else {
+            $q->whereIn('empresa_id', $this->empresaScopeIds($memb['empresa_id']));
+        }
+        $row = $q->first();
+        if ($row === null) {
+            return redirect()->to('/equity/lineas')->with('error', 'Línea no encontrada.');
+        }
+
+        model(EquityPasivoModel::class)->delete($id);
+
+        return redirect()->to('/equity/lineas' . ($personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : ''))
+            ->with('success', 'Línea eliminada.');
     }
 
     public function reporteIngresos()
@@ -919,12 +979,10 @@ class EquityPatrimonio extends BaseController
             $rows = $q->findAll();
             $conteosFuente[$clave] = count($rows);
             $sum = 0.0;
-            if ($clave !== 'lineas') {
-                foreach ($rows as $row) {
-                    $cuota = EquityEgresosProyeccion::cuotaClp($row, $ufRate);
-                    if ($cuota !== null) {
-                        $sum += $cuota;
-                    }
+            foreach ($rows as $row) {
+                $cuota = EquityEgresosProyeccion::cuotaClp($row, $ufRate);
+                if ($cuota !== null) {
+                    $sum += $cuota;
                 }
             }
             $totalesFuente[$clave] = $sum;
@@ -990,12 +1048,12 @@ class EquityPatrimonio extends BaseController
             $row['_cuota_clp'] = $cuota;
             $row['_cuota_uf']  = EquityEgresosProyeccion::cuotaUf($row, $ufRate);
             $row['_moneda']    = EquityEgresosProyeccion::moneda($row);
-            if ($fuente !== 'lineas' && $cuota !== null) {
+            if ($cuota !== null) {
                 $totalFuente += $cuota;
             }
 
             $cuotas = EquityEgresosProyeccion::proyectar($row, $ufRate, $meses);
-            if (in_array($fuente, ['hipotecarios', 'circulantes', 'otros'], true) && $cuotas !== []) {
+            if ($cuotas !== []) {
                 $desarrollos[] = [
                     'label'  => (string) ($row['banco_descripcion'] ?? 'Crédito'),
                     'numero' => $row['numero_credito'] ?? null,
@@ -2259,7 +2317,7 @@ class EquityPatrimonio extends BaseController
             'pasivos-circulantes' => '/equity/pasivos/circulantes',
             'otros-pasivos'       => '/equity/pasivos/otros',
             'pasivos-indirecta'   => '/equity/pasivos/indirecta',
-            'pasivos-lineas'      => '/equity/pasivos/lineas',
+            'pasivos-lineas'      => '/equity/lineas',
             default               => '/dashboard',
         };
     }
@@ -2275,7 +2333,7 @@ class EquityPatrimonio extends BaseController
             'pasivos-circulantes' => '/equity/pasivos/circulantes/reporte',
             'otros-pasivos'       => '/equity/pasivos/otros/reporte',
             'pasivos-indirecta'   => '/equity/pasivos/indirecta/reporte',
-            'pasivos-lineas'      => '/equity/pasivos/lineas/reporte',
+            'pasivos-lineas'      => '/equity/lineas/reporte',
             default               => '/equity/reporte/balance',
         };
     }

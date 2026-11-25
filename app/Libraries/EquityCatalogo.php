@@ -97,9 +97,9 @@ final class EquityCatalogo
             [
                 'clave'       => 'pasivos-lineas',
                 'label'       => 'Líneas disponibles',
-                'grupo'       => 'Pasivos',
-                'path'        => '/equity/pasivos/lineas',
-                'descripcion' => 'Líneas de crédito y cupos disponibles',
+                'grupo'       => 'Líneas',
+                'path'        => '/equity/lineas',
+                'descripcion' => 'Cupos disponibles (fuera de Pasivos y Egresos)',
             ],
             [
                 'clave'       => 'ingresos',
@@ -141,7 +141,7 @@ final class EquityCatalogo
                 'label'       => 'Egresos',
                 'grupo'       => 'Egresos',
                 'path'        => '/equity/egresos',
-                'descripcion' => 'Hipotecarios · Circulantes · Otros · Indirecta · Líneas',
+                'descripcion' => 'Hipotecarios · Circulantes · Otros',
             ],
             [
                 'clave'       => 'egresos-hipotecarios',
@@ -163,20 +163,6 @@ final class EquityCatalogo
                 'grupo'       => 'Egresos',
                 'path'        => '/equity/egresos/otros',
                 'descripcion' => 'Consumo y otros pasivos',
-            ],
-            [
-                'clave'       => 'egresos-indirecta',
-                'label'       => 'Deuda indirecta',
-                'grupo'       => 'Egresos',
-                'path'        => '/equity/egresos/indirecta',
-                'descripcion' => 'Codeudor / fiador / avalista',
-            ],
-            [
-                'clave'       => 'egresos-lineas',
-                'label'       => 'Líneas',
-                'grupo'       => 'Egresos',
-                'path'        => '/equity/egresos/lineas',
-                'descripcion' => 'Cupos disponibles (sin cuota fija)',
             ],
             [
                 'clave'       => 'respaldos',
@@ -217,8 +203,6 @@ final class EquityCatalogo
                 ['clave' => 'egresos-hipotecarios', 'label' => 'Hipotecarios', 'path' => '/equity/egresos/hipotecarios'],
                 ['clave' => 'egresos-circulantes', 'label' => 'Circulantes', 'path' => '/equity/egresos/circulantes'],
                 ['clave' => 'egresos-otros', 'label' => 'Otros', 'path' => '/equity/egresos/otros'],
-                ['clave' => 'egresos-indirecta', 'label' => 'Deuda indirecta', 'path' => '/equity/egresos/indirecta'],
-                ['clave' => 'egresos-lineas', 'label' => 'Líneas', 'path' => '/equity/egresos/lineas'],
             ],
             'Activos' => [
                 ['clave' => 'bienes-raices', 'label' => 'Bienes raíces', 'path' => '/equity/activos/bienes-raices'],
@@ -231,7 +215,9 @@ final class EquityCatalogo
                 ['clave' => 'pasivos-circulantes', 'label' => 'Circulantes', 'path' => '/equity/pasivos/circulantes'],
                 ['clave' => 'otros-pasivos', 'label' => 'Otros pasivos', 'path' => '/equity/pasivos/otros'],
                 ['clave' => 'pasivos-indirecta', 'label' => 'Deuda indirecta', 'path' => '/equity/pasivos/indirecta'],
-                ['clave' => 'pasivos-lineas', 'label' => 'Líneas disponibles', 'path' => '/equity/pasivos/lineas'],
+            ],
+            'Líneas' => [
+                ['clave' => 'pasivos-lineas', 'label' => 'Líneas disponibles', 'path' => '/equity/lineas'],
             ],
             'Documentos' => [
                 ['clave' => 'respaldos', 'label' => 'Respaldos', 'path' => '/equity/respaldos'],
@@ -317,20 +303,6 @@ final class EquityCatalogo
                 'descripcion' => 'Consumo, descuentos y otros pasivos',
                 'categoria'   => 'otro',
                 'pasivo_path' => '/equity/pasivos/otros',
-            ],
-            'indirecta' => [
-                'clave'       => 'indirecta',
-                'label'       => 'Deuda indirecta',
-                'descripcion' => 'Codeudor, fiador o avalista',
-                'categoria'   => 'indirecta',
-                'pasivo_path' => '/equity/pasivos/indirecta',
-            ],
-            'lineas' => [
-                'clave'       => 'lineas',
-                'label'       => 'Líneas',
-                'descripcion' => 'Cupos disponibles (no generan cuota hasta usarse)',
-                'categoria'   => 'linea',
-                'pasivo_path' => '/equity/pasivos/lineas',
             ],
         ];
     }
@@ -429,7 +401,7 @@ final class EquityCatalogo
             'pasivos-lineas' => [
                 'clave'     => 'pasivos-lineas',
                 'label'     => 'Líneas disponibles',
-                'grupo'     => 'Pasivos',
+                'grupo'     => 'Líneas',
                 'table'     => 'equity_pasivos',
                 'categoria' => 'linea',
             ],

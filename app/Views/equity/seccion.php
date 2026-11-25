@@ -36,7 +36,7 @@ $listAction = match ($clave) {
     'pasivos-circulantes' => site_url('equity/pasivos/circulantes'),
     'otros-pasivos'       => site_url('equity/pasivos/otros'),
     'pasivos-indirecta'   => site_url('equity/pasivos/indirecta'),
-    'pasivos-lineas'      => site_url('equity/pasivos/lineas'),
+    'pasivos-lineas'      => site_url('equity/lineas'),
     default               => site_url('dashboard'),
 };
 $reportAction = match ($clave) {
@@ -48,12 +48,14 @@ $reportAction = match ($clave) {
     'pasivos-circulantes' => site_url('equity/pasivos/circulantes/reporte'),
     'otros-pasivos'       => site_url('equity/pasivos/otros/reporte'),
     'pasivos-indirecta'   => site_url('equity/pasivos/indirecta/reporte'),
-    'pasivos-lineas'      => site_url('equity/pasivos/lineas/reporte'),
+    'pasivos-lineas'      => site_url('equity/lineas/reporte'),
     default               => site_url('equity/reporte/balance'),
 };
-$grupoReportAction = str_starts_with($clave, 'pasivos') || $clave === 'otros-pasivos'
-    ? site_url('equity/reporte/pasivos')
-    : site_url('equity/reporte/activos');
+$grupoReportAction = $clave === 'pasivos-lineas'
+    ? site_url('equity/lineas/reporte')
+    : (str_starts_with($clave, 'pasivos') || $clave === 'otros-pasivos'
+        ? site_url('equity/reporte/pasivos')
+        : site_url('equity/reporte/activos'));
 $esActivo = in_array($clave, ['bienes-raices', 'vehiculos', 'sociedades', 'otros-activos'], true);
 $bitacoraPath = static function (string $id) use ($clave, $esActivo): string {
     if (! $esActivo) {
@@ -79,6 +81,7 @@ $eliminarPath = static function (string $id) use ($listAction): string {
     return rtrim($listAction, '/') . '/' . $id . '/eliminar';
 };
 $puedeDarDeBaja = $clave === 'bienes-raices';
+$puedeEliminarLinea = $clave === 'pasivos-lineas';
 $val = static function (string $key, ?int $dec = null) use ($edit): string {
     if (! is_array($edit) || ! array_key_exists($key, $edit) || $edit[$key] === null || $edit[$key] === '') {
         return '';
@@ -477,8 +480,9 @@ foreach ($personas as $p) {
                     Deudas adquiridas por un tercero donde eres codeudor, fiador o avalista.
                     Indica el <strong>tomador</strong> (nombre o razón social y RUT).
                 <?php else: ?>
-                    Créditos disponibles / cupos no utilizados. Misma grilla que deuda indirecta:
-                    institución, tipo de línea, fechas, total, vigente y tramos de mora.
+                    Cupos disponibles (sección propia, fuera de Pasivos y Egresos).
+                    Institución, tipo de línea, fechas, total, vigente y tramos de mora.
+                    Puedes <strong>editar</strong> y <strong>eliminar</strong> cada línea.
                 <?php endif; ?>
                 La <strong>moneda</strong> define el valor canónico (UF o $) con par paralelo.
             </p>
@@ -639,6 +643,12 @@ foreach ($personas as $p) {
         <form method="post" action="<?= esc($eliminarPath((string) $edit['id'])) ?>" style="margin-top:.75rem" onsubmit="return confirm('¿Dar de baja este bien raíz? Saldrá de listados y totales; el historial se conserva.');">
             <?= csrf_field() ?>
             <button class="btn btn-ghost" type="submit">Dar de baja</button>
+        </form>
+    <?php endif; ?>
+    <?php if ($isEdit && $puedeEliminarLinea && ! empty($canManage)): ?>
+        <form method="post" action="<?= esc($eliminarPath((string) $edit['id'])) ?>" style="margin-top:.75rem" onsubmit="return confirm('¿Eliminar esta línea disponible?');">
+            <?= csrf_field() ?>
+            <button class="btn btn-ghost" type="submit">Eliminar línea</button>
         </form>
     <?php endif; ?>
 </div>
@@ -874,6 +884,12 @@ foreach ($personas as $p) {
                                 <form method="post" action="<?= esc($eliminarPath((string) $row['id'])) ?>" style="display:inline" onsubmit="return confirm('¿Dar de baja este bien raíz? Saldrá de listados y totales; el historial se conserva.');">
                                     <?= csrf_field() ?>
                                     <button class="btn btn-ghost btn-sm" type="submit">Dar de baja</button>
+                                </form>
+                            <?php endif; ?>
+                            <?php if ($puedeEliminarLinea): ?>
+                                <form method="post" action="<?= esc($eliminarPath((string) $row['id'])) ?>" style="display:inline" onsubmit="return confirm('¿Eliminar esta línea disponible?');">
+                                    <?= csrf_field() ?>
+                                    <button class="btn btn-ghost btn-sm" type="submit">Eliminar</button>
                                 </form>
                             <?php endif; ?>
                         </td>

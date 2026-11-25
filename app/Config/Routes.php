@@ -134,6 +134,22 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->post('equity/ingresos/(:segment)', 'EquityPatrimonio::guardarIngresosFuente/$1');
     $routes->get('equity/egresos', 'EquityPatrimonio::egresos');
     $routes->get('equity/egresos/(:segment)', 'EquityPatrimonio::egresosFuente/$1');
+    // Líneas: sección propia (no Pasivos ni Egresos), con edición y eliminación.
+    $routes->get('equity/lineas/reporte', 'EquityPatrimonio::reporteLineas');
+    $routes->get('equity/lineas/(:segment)/editar', 'EquityPatrimonio::editLinea/$1');
+    $routes->post('equity/lineas/(:segment)/eliminar', 'EquityPatrimonio::eliminarLinea/$1');
+    $routes->post('equity/lineas/(:segment)', 'EquityPatrimonio::updateLinea/$1');
+    $routes->get('equity/lineas', 'EquityPatrimonio::lineas');
+    $routes->post('equity/lineas', 'EquityPatrimonio::storeLinea');
+    $routes->get('equity/pasivos/lineas', static function () {
+        return redirect()->to('/equity/lineas');
+    });
+    $routes->get('equity/pasivos/lineas/(:segment)/editar', static function ($id) {
+        return redirect()->to('/equity/lineas/' . $id . '/editar');
+    });
+    $routes->get('equity/pasivos/lineas/reporte', static function () {
+        return redirect()->to('/equity/lineas/reporte');
+    });
     $routes->get('equity/respaldos', 'EquityPatrimonio::respaldos');
     $routes->get('equity/configuracion', 'EquityConfiguracion::index');
     $routes->post('equity/configuracion/uf', 'EquityConfiguracion::storeUf');

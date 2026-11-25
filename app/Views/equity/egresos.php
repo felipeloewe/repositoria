@@ -56,8 +56,7 @@ foreach ($personas as $p) {
             <h3><?= esc($meta['label']) ?></h3>
             <div class="value" style="font-size:1.25rem"><?= esc($fmt($totalesFuente[$clave] ?? 0)) ?></div>
             <div class="hint">
-                <?= (int) ($conteosFuente[$clave] ?? 0) ?> registro(s)
-                <?php if ($clave === 'lineas'): ?> · cupo (sin cuota)<?php else: ?> · cuota mes<?php endif; ?>
+                <?= (int) ($conteosFuente[$clave] ?? 0) ?> registro(s) · cuota mes
             </div>
             <div style="margin-top:.75rem">
                 <span class="btn btn-ghost btn-sm">Abrir →</span>
@@ -67,7 +66,7 @@ foreach ($personas as $p) {
     <div class="card">
         <h3>Total egresos mes</h3>
         <div class="value" style="font-size:1.25rem"><strong><?= esc($fmt($totalGeneral ?? 0)) ?></strong></div>
-        <div class="hint">Suma de cuotas en $ (sin líneas)</div>
+        <div class="hint">Suma de cuotas en $ (hipotecarios, circulantes y otros)</div>
     </div>
 </div>
 
