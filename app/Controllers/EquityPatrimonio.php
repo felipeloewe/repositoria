@@ -582,19 +582,75 @@ class EquityPatrimonio extends BaseController
             ];
         }
 
+        // Stock de pasivos (misma base que Resumen / Balance), no cuotas mensuales.
+        $pasivosDirectosUf = $this->sumPasivoCategoria($empresaId, 'inmueble', $personaId, $ufRate)
+            + $this->sumPasivoCategoria($empresaId, 'circulante', $personaId, $ufRate)
+            + $this->sumPasivoCategoria($empresaId, 'otro', $personaId, $ufRate);
+        $pasivosIndirectaUf = $this->sumDeudaIndirecta($empresaId, $personaId, $ufRate);
+        $totalPasivosDirectos = round($pasivosDirectosUf * $ufRate, 2);
+        $totalPasivosIndirecta = round($pasivosIndirectaUf * $ufRate, 2);
+        $totalPasivosConIndirectos = round(($pasivosDirectosUf + $pasivosIndirectaUf) * $ufRate, 2);
+
+        // Detalle de referencia: deuda indirecta (no entra a egresos mensuales).
+        $qInd = model(EquityPasivoModel::class)
+            ->where('categoria', 'indirecta')
+            ->orderBy('banco_descripcion', 'ASC');
+        if ($personaId !== '') {
+            $qInd->where('persona_id', $personaId);
+        } else {
+            $qInd->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
+        }
+        $indirectaDetalle = [];
+        foreach ($qInd->findAll() as $row) {
+            $vigenteClp = $this->montoClpPreferido(
+                $row['vigente_clp'] ?? null,
+                $row['vigente_uf'] ?? null,
+                $row['total_credito_clp'] ?? null,
+                $row['total_credito_uf'] ?? null,
+                $ufRate
+            );
+            if ($vigenteClp === null) {
+                $vigenteClp = $this->montoClpPreferido(
+                    $row['saldo_clp'] ?? null,
+                    $row['saldo_uf'] ?? null,
+                    null,
+                    null,
+                    $ufRate
+                );
+            }
+            $personaLab = '';
+            $pid = (string) ($row['persona_id'] ?? '');
+            if ($personaId === '' && $pid !== '' && isset($personaMap[$pid])) {
+                $pp = $personaMap[$pid];
+                $personaLab = trim(($pp['nombre'] ?? '') . ' ' . ($pp['apellido'] ?? ''));
+            }
+            $indirectaDetalle[] = [
+                'institucion' => $row['banco_descripcion'] ?? null,
+                'tipo'        => $row['tipo'] ?? null,
+                'tomador'     => $row['tomador_nombre'] ?? null,
+                'tomador_rut' => $row['tomador_rut'] ?? null,
+                'vigente_clp' => $vigenteClp,
+                'persona'     => $personaLab !== '' ? $personaLab : null,
+            ];
+        }
+
         return view('equity/reporte_egresos', [
-            'title'         => 'Reporte Egresos',
-            'memb'          => $memb,
-            'equityNav'     => 'egresos',
-            'personas'      => $personas,
-            'personaId'     => $personaId,
-            'personaNombre' => $personaNombre,
-            'ufVigente'     => $ufVigente,
-            'fuentes'       => $fuentes,
-            'totalesFuente' => $totalesFuente,
-            'totalGeneral'  => $totalGeneral,
-            'secciones'     => $secciones,
-            'canManage'     => EquityAcl::canDeclare($memb),
+            'title'                      => 'Reporte Egresos',
+            'memb'                       => $memb,
+            'equityNav'                  => 'egresos',
+            'personas'                   => $personas,
+            'personaId'                  => $personaId,
+            'personaNombre'              => $personaNombre,
+            'ufVigente'                  => $ufVigente,
+            'fuentes'                    => $fuentes,
+            'totalesFuente'              => $totalesFuente,
+            'totalGeneral'               => $totalGeneral,
+            'secciones'                  => $secciones,
+            'indirectaDetalle'           => $indirectaDetalle,
+            'totalPasivosDirectos'       => $totalPasivosDirectos,
+            'totalPasivosIndirecta'      => $totalPasivosIndirecta,
+            'totalPasivosConIndirectos'  => $totalPasivosConIndirectos,
+            'canManage'                  => EquityAcl::canDeclare($memb),
         ]);
     }
 

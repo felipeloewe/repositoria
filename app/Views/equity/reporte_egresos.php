@@ -177,12 +177,79 @@ $fmtUf = static function ($v): string {
     </section>
 <?php endforeach; ?>
 
-<div class="report-summary-final">
-    <div>
-        <div class="label">Total egresos mensuales</div>
-        <div class="muted" style="margin-top:.2rem">Suma de Hipotecarios · Circulantes · Otros</div>
+<?php if (($indirectaDetalle ?? []) !== []): ?>
+<section class="report-section card section-card">
+    <h3>
+        Referencia · Deuda indirecta
+        <span class="muted" style="font-weight:500;font-size:.9rem">
+            · <?= esc($fmtDual($totalPasivosIndirecta ?? 0)) ?>
+            · <?= count($indirectaDetalle) ?> registro(s)
+        </span>
+    </h3>
+    <p class="muted">No forma parte de la carga mensual de egresos; se incluye solo en el totalizado de pasivos con indirectos.</p>
+    <div style="overflow-x:auto">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Institución</th>
+                    <th>Tipo</th>
+                    <?php if ($personaId === ''): ?><th>Persona</th><?php endif; ?>
+                    <th>Tomador</th>
+                    <th>Vigente</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($indirectaDetalle as $row): ?>
+                <tr>
+                    <td><?= esc($row['institucion'] ?? '—') ?></td>
+                    <td><?= esc($row['tipo'] ?? '—') ?></td>
+                    <?php if ($personaId === ''): ?>
+                        <td><?= esc($row['persona'] ?? '—') ?></td>
+                    <?php endif; ?>
+                    <td>
+                        <?= esc($row['tomador'] ?? '—') ?>
+                        <?= ! empty($row['tomador_rut']) ? ' · ' . esc($row['tomador_rut']) : '' ?>
+                    </td>
+                    <td><strong><?= esc($fmtDual($row['vigente_clp'] ?? null)) ?></strong></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="<?= $personaId === '' ? 4 : 3 ?>" style="text-align:right"><strong>Subtotal deuda indirecta</strong></td>
+                    <td><strong><?= esc($fmtDual($totalPasivosIndirecta ?? 0)) ?></strong></td>
+                </tr>
+            </tfoot>
+        </table>
     </div>
-    <div class="value"><?= esc($fmtDual($totalGeneral ?? 0)) ?></div>
+</section>
+<?php endif; ?>
+
+<div class="report-summary-final" style="flex-direction:column;align-items:stretch;gap:.85rem">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap">
+        <div>
+            <div class="label">Total egresos mensuales</div>
+            <div class="muted" style="margin-top:.2rem">Cuotas Hipotecarios · Circulantes · Otros</div>
+        </div>
+        <div class="value"><?= esc($fmtDual($totalGeneral ?? 0)) ?></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap;padding-top:.65rem;border-top:1px solid rgba(0,0,0,.12)">
+        <div>
+            <div class="label">Total pasivos directos</div>
+            <div class="muted" style="margin-top:.2rem">Stock Hipotecarios · Circulantes · Otros (misma base que Balance)</div>
+        </div>
+        <div class="value"><?= esc($fmtDual($totalPasivosDirectos ?? 0)) ?></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap;padding-top:.65rem;border-top:1px solid rgba(0,0,0,.12)">
+        <div>
+            <div class="label">Total pasivos incluyendo indirectos</div>
+            <div class="muted" style="margin-top:.2rem">
+                Directos<?= esc($fmtP($totalPasivosDirectos ?? 0)) ?>
+                + Indirecta <?= esc($fmtP($totalPasivosIndirecta ?? 0)) ?>
+            </div>
+        </div>
+        <div class="value"><?= esc($fmtDual($totalPasivosConIndirectos ?? 0)) ?></div>
+    </div>
 </div>
 
 <?= $this->endSection() ?>
