@@ -165,132 +165,121 @@ class EquityPatrimonio extends BaseController
             $totales[$k] = round($uf * $ufRate, 2);
         }
 
-        // Ingresos mensuales: fichas (última por persona) + cánones de arriendo
-        $fq = model(EquityFichaModel::class)
-            ->orderBy('fecha_corte', 'DESC')
-            ->orderBy('created_at', 'DESC');
+        // Ingresos / Egresos del Balance: totales por pestaña (misma lógica que los hubs).
+        $fuentesIngreso = EquityCatalogo::fuentesIngreso();
+        $fichasBase     = [];
         if ($personaId !== '') {
-            $fq->where('persona_id', $personaId);
-        } else {
-            $fq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
-        }
-        $ingresosDetalle = [];
-        $seenPersona     = [];
-        $totalIngresosFichas = 0.0;
-        foreach ($fq->findAll() as $ing) {
-            $pid = (string) ($ing['persona_id'] ?? '');
-            if ($pid !== '' && isset($seenPersona[$pid])) {
-                continue; // solo última ficha por persona
+            $f = $this->ultimaFicha($empresaId, $personaId);
+            if (is_array($f)) {
+                $fichasBase[] = $f;
             }
-            $seenPersona[$pid] = true;
-            $v = $ing['ingreso_mensual_total'] ?? $ing['renta_liquida'] ?? null;
-            if ($v === null || $v === '') {
+        } else {
+            $seenFicha = [];
+            foreach (model(EquityFichaModel::class)
+                ->whereIn('empresa_id', $this->empresaScopeIds($empresaId))
+                ->orderBy('fecha_corte', 'DESC')
+                ->orderBy('created_at', 'DESC')
+                ->findAll() as $f) {
+                $pid = (string) ($f['persona_id'] ?? '');
+                if ($pid === '' || isset($seenFicha[$pid])) {
+                    continue;
+                }
+                $seenFicha[$pid] = true;
+                $fichasBase[]    = $f;
+            }
+        }
+
+        $cq = model(EquityIngresoContratoModel::class)->where('estado', 'vigente');
+        if ($personaId !== '') {
+            $cq->where('persona_id', $personaId);
+        } else {
+            $cq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
+        }
+        $sumasContrato = [];
+        $subtipoFuente = [];
+        foreach ($fuentesIngreso as $clave => $meta) {
+            $sumasContrato[$clave] = 0.0;
+            foreach ($meta['campos'] as $c) {
+                $subtipoFuente[$c['subtipo']] = $clave;
+            }
+        }
+        foreach ($cq->findAll() as $ct) {
+            $fClave = $subtipoFuente[$ct['subtipo'] ?? ''] ?? ($ct['fuente'] ?? null);
+            if ($fClave === null || ! isset($sumasContrato[$fClave])) {
                 continue;
+            }
+            $sumasContrato[$fClave] += EquityCatalogo::montoMensualEquivalente(
+                isset($ct['monto_contrato_clp']) ? (float) $ct['monto_contrato_clp'] : null,
+                $ct['periodicidad'] ?? 'mensual'
+            );
+        }
+
+        $ingresosDetalle = [];
+        $totalIngresos   = 0.0;
+        foreach ($fuentesIngreso as $clave => $meta) {
+            $sum = (float) ($sumasContrato[$clave] ?? 0);
+            if ($sum <= 0) {
+                foreach ($fichasBase as $fRow) {
+                    foreach ($meta['campos'] as $campo) {
+                        $v = $fRow[$campo['key']] ?? null;
+                        if ($v !== null && $v !== '') {
+                            $sum += (float) $v;
+                        }
+                    }
+                }
+            }
+            if ($clave === 'inversiones' && $sum <= 0) {
+                $sum += $this->sumCanonArriendos($empresaId, $personaId, $ufRate);
             }
             $ingresosDetalle[] = [
-                'concepto' => 'Ficha de ingreso' . (! empty($ing['fecha_corte']) ? ' · corte ' . $ing['fecha_corte'] : ''),
-                'persona'  => $personaMap[$pid] ?? null,
-                'monto'    => (float) $v,
+                'concepto' => $meta['label'],
+                'monto'    => $sum,
             ];
-            $totalIngresosFichas += (float) $v;
+            $totalIngresos += $sum;
         }
 
-        $bq = model(EquityBienRaizModel::class)
-            ->orderBy('direccion', 'ASC');
-        $this->soloBienesActivos($bq);
-        if ($personaId !== '') {
-            $bq->where('persona_id', $personaId);
-        } else {
-            $bq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
-        }
-        $totalArriendos = 0.0;
-        $arriendosDetalle = [];
-        foreach ($bq->findAll() as $br) {
-            $canon = $br['canon_mensual_clp'] ?? null;
-            if (($canon === null || $canon === '') && ! empty($br['canon_mensual_uf']) && $ufRate > 0) {
-                $canon = round((float) $br['canon_mensual_uf'] * $ufRate, 2);
+        $fuentesEgreso   = EquityCatalogo::fuentesEgreso();
+        $egresosDetalle  = [];
+        $totalEgresos    = 0.0;
+        foreach ($fuentesEgreso as $clave => $meta) {
+            $q = model(EquityPasivoModel::class)->where('categoria', $meta['categoria']);
+            if ($personaId !== '') {
+                $q->where('persona_id', $personaId);
+            } else {
+                $q->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
             }
-            if ($canon === null || $canon === '' || (float) $canon <= 0) {
-                continue;
-            }
-            $arriendosDetalle[] = [
-                'concepto' => trim((string) ($br['direccion'] ?? $br['descripcion'] ?? 'Arriendo'))
-                    . (! empty($br['arrendatario']) ? ' · ' . $br['arrendatario'] : ''),
-                'monto'    => (float) $canon,
-            ];
-            $totalArriendos += (float) $canon;
-        }
-
-        // Si no hay fichas, sumar rentas laborales de la ficha personal
-        $totalLaboral = 0.0;
-        if ($totalIngresosFichas <= 0) {
-            foreach ($personas as $p) {
-                if ($personaId !== '' && $p['id'] !== $personaId) {
-                    continue;
+            $sum = 0.0;
+            foreach ($q->findAll() as $row) {
+                $cuota = EquityEgresosProyeccion::cuotaClp($row, $ufRate);
+                if ($cuota !== null) {
+                    $sum += $cuota;
                 }
-                $s = (float) ($p['renta_liquida_persona'] ?? 0) + (float) ($p['renta_liquida_2'] ?? 0);
-                if ($s <= 0) {
-                    continue;
-                }
-                $ingresosDetalle[] = [
-                    'concepto' => 'Antecedentes laborales'
-                        . (! empty($p['nombre_empleador']) ? ' · ' . $p['nombre_empleador'] : ''),
-                    'persona'  => $p,
-                    'monto'    => $s,
-                ];
-                $totalLaboral += $s;
-            }
-        }
-
-        $totalIngresos = $totalIngresosFichas + $totalLaboral + $totalArriendos;
-
-        // Egresos: cuotas mensuales de créditos (excluye líneas)
-        $pq = model(EquityPasivoModel::class)
-            // Egresos mensuales: solo pasivos con cuota (no deuda indirecta ni líneas).
-            ->whereIn('categoria', ['inmueble', 'circulante', 'otro'])
-            ->orderBy('banco_descripcion', 'ASC');
-        if ($personaId !== '') {
-            $pq->where('persona_id', $personaId);
-        } else {
-            $pq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
-        }
-        $egresosDetalle = [];
-        $totalEgresos   = 0.0;
-        foreach ($pq->findAll() as $row) {
-            // Análisis siempre en $: UF → pesos con tasa vigente.
-            $cuota = EquityEgresosProyeccion::cuotaClp($row, $ufRate);
-            if ($cuota === null || (float) $cuota <= 0) {
-                continue;
             }
             $egresosDetalle[] = [
-                'concepto' => trim(
-                    (string) ($row['banco_descripcion'] ?? 'Crédito')
-                    . (! empty($row['numero_credito']) ? ' · Nº ' . $row['numero_credito'] : '')
-                    . ' · ' . $this->tipoCreditoSituacion($row)
-                ),
-                'monto'    => (float) $cuota,
+                'concepto' => $meta['label'],
+                'monto'    => $sum,
             ];
-            $totalEgresos += (float) $cuota;
+            $totalEgresos += $sum;
         }
 
         return view('equity/reporte_balance', [
-            'title'             => 'Reporte Balance',
-            'memb'              => $memb,
-            'equityNav'         => 'resumen',
-            'personas'          => $personas,
-            'personaId'         => $personaId,
-            'personaNombre'     => $personaNombre,
-            'totales'           => $totales,
-            'totalesUf'         => $totalesUf,
-            'ufVigente'         => $ufVigente,
-            'ingresosDetalle'   => $ingresosDetalle,
-            'arriendosDetalle'  => $arriendosDetalle,
-            'egresosDetalle'    => $egresosDetalle,
-            'totalIngresos'     => $totalIngresos,
-            'totalArriendos'    => $totalArriendos,
-            'totalEgresos'      => $totalEgresos,
-            'resultadoMensual'  => $totalIngresos - $totalEgresos,
-            'canManage'         => EquityAcl::canDeclare($memb),
+            'title'            => 'Reporte Balance',
+            'memb'             => $memb,
+            'equityNav'        => 'resumen',
+            'personas'         => $personas,
+            'personaId'        => $personaId,
+            'personaNombre'    => $personaNombre,
+            'totales'          => $totales,
+            'totalesUf'        => $totalesUf,
+            'ufVigente'        => $ufVigente,
+            'ingresosDetalle'  => $ingresosDetalle,
+            'arriendosDetalle' => [],
+            'egresosDetalle'   => $egresosDetalle,
+            'totalIngresos'    => $totalIngresos,
+            'totalArriendos'   => 0.0,
+            'totalEgresos'     => $totalEgresos,
+            'resultadoMensual' => $totalIngresos - $totalEgresos,
+            'canManage'        => EquityAcl::canDeclare($memb),
         ]);
     }
 

@@ -22,16 +22,10 @@ $pasivosLines = [
 ];
 $padAp = max(count($activosLines), count($pasivosLines));
 
+// Ya vienen agrupados por pestaña (Renta/Honorarios/Inversiones/Otros · Hipotecarios/Circulantes/Otros).
 $ingresosLines = [];
-foreach ($arriendosDetalle ?? [] as $row) {
-    $ingresosLines[] = ['Arriendo · ' . ($row['concepto'] ?? ''), $fmtP($row['monto'] ?? 0)];
-}
 foreach ($ingresosDetalle ?? [] as $row) {
-    $lab = (string) ($row['concepto'] ?? '');
-    if (! empty($row['persona'])) {
-        $lab .= ' · ' . trim(($row['persona']['nombre'] ?? '') . ' ' . ($row['persona']['apellido'] ?? ''));
-    }
-    $ingresosLines[] = [$lab, $fmtP($row['monto'] ?? 0)];
+    $ingresosLines[] = [(string) ($row['concepto'] ?? ''), $fmtP($row['monto'] ?? 0)];
 }
 $egresosLines = [];
 foreach ($egresosDetalle ?? [] as $row) {
@@ -41,7 +35,7 @@ if ($ingresosLines === []) {
     $ingresosLines[] = ['Sin ingresos informados', '—'];
 }
 if ($egresosLines === []) {
-    $egresosLines[] = ['Sin cuotas mensuales informadas', '—'];
+    $egresosLines[] = ['Sin egresos informados', '—'];
 }
 $padIe = max(count($ingresosLines), count($egresosLines));
 ?>
@@ -186,7 +180,7 @@ tr.balance-pad td {
 
 <div class="card section-card balance-flow">
     <h3>Ingresos vs egresos (mensual)</h3>
-    <p class="muted" style="margin-top:0">Flujo estimado del período: cánones de arriendo, fichas de ingreso y cuotas de créditos.</p>
+    <p class="muted" style="margin-top:0">Totales por pestaña (misma lógica que Ingresos / Egresos). El detalle uno a uno queda en cada fuente.</p>
 
     <div class="balance-sheet">
         <div class="balance-col">
