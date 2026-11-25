@@ -138,6 +138,36 @@ final class EquityUf
     }
 
     /**
+     * Resuelve varios pares UF/$ de componentes de cuota con la misma preferencia de moneda.
+     *
+     * @param list<string> $bases p.ej. amortizacion, interes, comision
+     * @param callable(string): ?string $get Post getter: fn('amortizacion_uf') => raw
+     * @return array<string, ?string> keys base_uf / base_clp
+     */
+    public static function resolverParesComponentes(
+        array $bases,
+        callable $get,
+        string $empresaId,
+        string $preferencia = 'auto',
+        ?string $hasta = null
+    ): array {
+        $out = [];
+        foreach ($bases as $base) {
+            $par = self::resolverPar(
+                (string) ($get($base . '_uf') ?? ''),
+                (string) ($get($base . '_clp') ?? ''),
+                $empresaId,
+                $hasta,
+                $preferencia
+            );
+            $out[$base . '_uf']  = $par['uf'];
+            $out[$base . '_clp'] = $par['clp'];
+        }
+
+        return $out;
+    }
+
+    /**
      * Formato de análisis: pesos primero (canónico para Ingresos/Egresos) + equivalencia UF.
      */
     public static function fmtAnalisisPesos(?float $clp, float $ufRate, int $decPesos = 0, int $decUf = 2): string

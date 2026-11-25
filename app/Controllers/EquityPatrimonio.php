@@ -999,6 +999,7 @@ class EquityPatrimonio extends BaseController
                 $desarrollos[] = [
                     'label'  => (string) ($row['banco_descripcion'] ?? 'Crédito'),
                     'numero' => $row['numero_credito'] ?? null,
+                    'moneda' => EquityEgresosProyeccion::moneda($row),
                     'cuotas' => $cuotas,
                 ];
             }
@@ -1977,6 +1978,15 @@ class EquityPatrimonio extends BaseController
                 null,
                 $monedaHip
             );
+            $compHip = EquityUf::resolverParesComponentes(
+                [
+                    'amortizacion', 'interes', 'comision',
+                    'seg_incendio', 'seg_desgravamen', 'seg_adicionales', 'seg_otros_complementarios',
+                ],
+                fn (string $k) => $this->request->getPost($k),
+                $memb['empresa_id'],
+                $monedaHip
+            );
             $plazo = $intOrNull($this->request->getPost('plazo_pactado'));
             $cuotasTot = $intOrNull($this->request->getPost('cuotas_totales'));
             if ($cuotasTot === null) {
@@ -2000,13 +2010,20 @@ class EquityPatrimonio extends BaseController
                 'cuota_mensual'                => $parDividendo['clp'],
                 'dividendo_uf'                 => $parDividendo['uf'],
                 'dividendo_clp'                => $parDividendo['clp'],
-                'amortizacion_uf'              => $ufDec($this->request->getPost('amortizacion_uf')),
-                'interes_uf'                   => $ufDec($this->request->getPost('interes_uf')),
-                'comision_uf'                  => $ufDec($this->request->getPost('comision_uf')),
-                'seg_incendio_uf'              => $ufDec($this->request->getPost('seg_incendio_uf')),
-                'seg_desgravamen_uf'           => $ufDec($this->request->getPost('seg_desgravamen_uf')),
-                'seg_adicionales_uf'           => $ufDec($this->request->getPost('seg_adicionales_uf')),
-                'seg_otros_complementarios_uf' => $ufDec($this->request->getPost('seg_otros_complementarios_uf')),
+                'amortizacion_uf'              => $compHip['amortizacion_uf'],
+                'amortizacion_clp'             => $compHip['amortizacion_clp'],
+                'interes_uf'                   => $compHip['interes_uf'],
+                'interes_clp'                  => $compHip['interes_clp'],
+                'comision_uf'                  => $compHip['comision_uf'],
+                'comision_clp'                 => $compHip['comision_clp'],
+                'seg_incendio_uf'              => $compHip['seg_incendio_uf'],
+                'seg_incendio_clp'             => $compHip['seg_incendio_clp'],
+                'seg_desgravamen_uf'           => $compHip['seg_desgravamen_uf'],
+                'seg_desgravamen_clp'          => $compHip['seg_desgravamen_clp'],
+                'seg_adicionales_uf'           => $compHip['seg_adicionales_uf'],
+                'seg_adicionales_clp'          => $compHip['seg_adicionales_clp'],
+                'seg_otros_complementarios_uf' => $compHip['seg_otros_complementarios_uf'],
+                'seg_otros_complementarios_clp'=> $compHip['seg_otros_complementarios_clp'],
                 'fecha_otorgamiento'           => trim((string) $this->request->getPost('fecha_otorgamiento')) ?: null,
                 'fecha_vencimiento'            => trim((string) $this->request->getPost('fecha_vencimiento')) ?: null,
                 'total_credito_uf'             => $parTotalCred['uf'],
@@ -2148,6 +2165,12 @@ class EquityPatrimonio extends BaseController
                 null,
                 $monedaOtro
             );
+            $compOtro = EquityUf::resolverParesComponentes(
+                ['amortizacion', 'interes', 'comision', 'seg_desgravamen'],
+                fn (string $k) => $this->request->getPost($k),
+                $memb['empresa_id'],
+                $monedaOtro
+            );
             $plazoOtro = $intOrNull($this->request->getPost('plazo_pactado'));
             $cuotasTotOtro = $intOrNull($this->request->getPost('cuotas_totales'));
             if ($cuotasTotOtro === null) {
@@ -2171,10 +2194,14 @@ class EquityPatrimonio extends BaseController
                 'cuota_mensual'       => $parCuotaOtro['clp'],
                 'dividendo_uf'        => $parCuotaOtro['uf'],
                 'dividendo_clp'       => $parCuotaOtro['clp'],
-                'amortizacion_uf'     => $ufDec($this->request->getPost('amortizacion_uf')),
-                'interes_uf'          => $ufDec($this->request->getPost('interes_uf')),
-                'comision_uf'         => $ufDec($this->request->getPost('comision_uf')),
-                'seg_desgravamen_uf'  => $ufDec($this->request->getPost('seg_desgravamen_uf')),
+                'amortizacion_uf'     => $compOtro['amortizacion_uf'],
+                'amortizacion_clp'    => $compOtro['amortizacion_clp'],
+                'interes_uf'          => $compOtro['interes_uf'],
+                'interes_clp'         => $compOtro['interes_clp'],
+                'comision_uf'         => $compOtro['comision_uf'],
+                'comision_clp'        => $compOtro['comision_clp'],
+                'seg_desgravamen_uf'  => $compOtro['seg_desgravamen_uf'],
+                'seg_desgravamen_clp' => $compOtro['seg_desgravamen_clp'],
                 'fecha_otorgamiento'  => trim((string) $this->request->getPost('fecha_otorgamiento')) ?: null,
                 'fecha_vencimiento'   => trim((string) $this->request->getPost('fecha_vencimiento')) ?: null,
                 'total_credito_uf'    => $parTotalOtro['uf'],

@@ -187,22 +187,39 @@ $esLineas = ($fuente === 'lineas');
 
         <?php if (in_array($fuente, ['hipotecarios', 'circulantes', 'otros'], true) && ($desarrollos ?? []) !== []): ?>
             <?php foreach ($desarrollos as $dev): ?>
+                <?php $devMoneda = strtoupper((string) ($dev['moneda'] ?? 'UF')) === 'CLP' ? 'CLP' : 'UF'; ?>
                 <div class="card section-card">
                     <h3>
                         Desarrollo · <?= esc($dev['label']) ?>
                         <?php if (! empty($dev['numero'])): ?>
                             · <?= esc($dev['numero']) ?>
                         <?php endif; ?>
+                        · moneda <?= esc($devMoneda === 'CLP' ? '$' : 'UF') ?>
                     </h3>
+                    <p class="muted" style="margin-top:0">
+                        Desarrollo en <?= $devMoneda === 'CLP' ? '<strong>$</strong> (equivalencia UF)' : '<strong>UF</strong> (equivalencia $)' ?>.
+                        El análisis consolidado de egresos sigue en pesos.
+                    </p>
                     <table class="table">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
                                 <th>Div.</th>
-                                <th>Cuota UF</th>
-                                <th>Cuota $</th>
-                                <th>Amort. UF</th>
-                                <th>Saldo UF</th>
+                                <?php if ($devMoneda === 'UF'): ?>
+                                    <th>Cuota UF</th>
+                                    <th>Cuota $</th>
+                                    <th>Amort. UF</th>
+                                    <th>Amort. $</th>
+                                    <th>Saldo UF</th>
+                                    <th>Saldo $</th>
+                                <?php else: ?>
+                                    <th>Cuota $</th>
+                                    <th>Cuota UF</th>
+                                    <th>Amort. $</th>
+                                    <th>Amort. UF</th>
+                                    <th>Saldo $</th>
+                                    <th>Saldo UF</th>
+                                <?php endif; ?>
                             </tr>
                         </thead>
                         <tbody>
@@ -210,10 +227,21 @@ $esLineas = ($fuente === 'lineas');
                             <tr>
                                 <td><?= esc($c['fecha']) ?></td>
                                 <td><?= esc($c['dividendo_n'] ?? '—') ?></td>
-                                <td><?= esc($fmtUf($c['cuota_uf'] ?? null)) ?></td>
-                                <td><?= esc($fmt($c['cuota_clp'] ?? null)) ?></td>
-                                <td><?= esc($fmtUf($c['amortizacion_uf'] ?? null)) ?></td>
-                                <td><?= esc($fmtUf($c['saldo_uf'] ?? null)) ?></td>
+                                <?php if ($devMoneda === 'UF'): ?>
+                                    <td><strong><?= esc($fmtUf($c['cuota_uf'] ?? null)) ?></strong></td>
+                                    <td><?= esc($fmt($c['cuota_clp'] ?? null)) ?></td>
+                                    <td><strong><?= esc($fmtUf($c['amortizacion_uf'] ?? null)) ?></strong></td>
+                                    <td><?= esc($fmt($c['amortizacion_clp'] ?? null)) ?></td>
+                                    <td><strong><?= esc($fmtUf($c['saldo_uf'] ?? null)) ?></strong></td>
+                                    <td><?= esc($fmt($c['saldo_clp'] ?? null)) ?></td>
+                                <?php else: ?>
+                                    <td><strong><?= esc($fmt($c['cuota_clp'] ?? null)) ?></strong></td>
+                                    <td><?= esc($fmtUf($c['cuota_uf'] ?? null)) ?></td>
+                                    <td><strong><?= esc($fmt($c['amortizacion_clp'] ?? null)) ?></strong></td>
+                                    <td><?= esc($fmtUf($c['amortizacion_uf'] ?? null)) ?></td>
+                                    <td><strong><?= esc($fmt($c['saldo_clp'] ?? null)) ?></strong></td>
+                                    <td><?= esc($fmtUf($c['saldo_uf'] ?? null)) ?></td>
+                                <?php endif; ?>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>

@@ -338,11 +338,33 @@ foreach ($personas as $p) {
                 </div>
             </div>
         <?php elseif ($clave === 'pasivos-inmuebles'): ?>
+            <?php
+            $moneyPair = static function (
+                string $base,
+                string $label,
+                string $idSuffix = '',
+                bool $opcAlways = false
+            ) use ($val): void {
+                $idUf  = $base . '_uf' . $idSuffix;
+                $idClp = $base . '_clp' . $idSuffix;
+                ?>
+                <div data-money-side="uf">
+                    <label for="<?= esc($idUf) ?>" data-money-label data-base="<?= esc($label) ?>" data-unit="UF"><?= esc($label) ?> UF</label>
+                    <input id="<?= esc($idUf) ?>" name="<?= esc($base) ?>_uf" type="text" inputmode="decimal" value="<?= esc($val($base . '_uf', 4)) ?>">
+                </div>
+                <div data-money-side="clp">
+                    <label for="<?= esc($idClp) ?>" data-money-label data-base="<?= esc($label) ?>" data-unit="CLP"><?= esc($label) ?> $<?= $opcAlways ? ' <span class="muted">(opc.)</span>' : '' ?></label>
+                    <input id="<?= esc($idClp) ?>" name="<?= esc($base) ?>_clp" type="text" inputmode="decimal" value="<?= esc($val($base . '_clp', 0)) ?>">
+                </div>
+                <?php
+            };
+            ?>
             <p class="muted" style="margin-top:0">
-                Datos del crédito hipotecario (recibo de dividendo). La <strong>moneda</strong> define el valor canónico:
-                si es UF se calcula el $ (cuota se paga en pesos); si es CLP se calcula la UF. Ingresos/Egresos analizan siempre en $.
+                Datos del crédito hipotecario (recibo de dividendo). La <strong>moneda</strong> define el desarrollo canónico:
+                si es UF, saldo/dividendo/amortización van en UF (se calcula $); si es $, van en $ (se calcula UF).
+                Pares paralelos UF/$; Ingresos/Egresos analizan siempre en $.
             </p>
-            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+            <div class="form-row js-pasivo-moneda" data-moneda-select="moneda" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
                 <div style="grid-column:1/-1">
                     <label for="banco_descripcion">Institución / Banco *</label>
                     <input id="banco_descripcion" name="banco_descripcion" type="text" required placeholder="Scotiabank, Santander, BCI, Itaú…" value="<?= esc($val('banco_descripcion')) ?>">
@@ -358,18 +380,11 @@ foreach ($personas as $p) {
                 <div>
                     <label for="moneda">Moneda del crédito</label>
                     <select id="moneda" name="moneda">
-                        <option value="UF" <?= ($val('moneda') === '' || $val('moneda') === 'UF') ? 'selected' : '' ?>>UF (calcula $)</option>
-                        <option value="CLP" <?= $sel('moneda', 'CLP') ?>>$ / CLP (calcula UF)</option>
+                        <option value="UF" <?= ($val('moneda') === '' || $val('moneda') === 'UF') ? 'selected' : '' ?>>UF (desarrollo en UF)</option>
+                        <option value="CLP" <?= $sel('moneda', 'CLP') ?>>$ / CLP (desarrollo en $)</option>
                     </select>
                 </div>
-                <div>
-                    <label for="saldo_uf">Saldo deuda UF (Capital) *</label>
-                    <input id="saldo_uf" name="saldo_uf" type="text" inputmode="decimal" placeholder="923,4434" value="<?= esc($val('saldo_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="saldo_clp_h">Saldo deuda $ <span class="muted">(opc.)</span></label>
-                    <input id="saldo_clp_h" name="saldo_clp" type="text" inputmode="decimal" value="<?= esc($val('saldo_clp', 0)) ?>">
-                </div>
+                <?php $moneyPair('saldo', 'Saldo deuda (Capital)', '_h'); ?>
                 <div>
                     <label for="plazo_pactado">Plazo pactado (cuotas)</label>
                     <input id="plazo_pactado" name="plazo_pactado" type="number" min="1" placeholder="240" value="<?= esc($val('plazo_pactado')) ?>">
@@ -395,46 +410,15 @@ foreach ($personas as $p) {
                     <label for="fecha_vencimiento">Fecha de vencimiento</label>
                     <input id="fecha_vencimiento" name="fecha_vencimiento" type="date" value="<?= esc($val('fecha_vencimiento')) ?>">
                 </div>
-                <div>
-                    <label for="total_credito_uf_h">Monto otorgado UF</label>
-                    <input id="total_credito_uf_h" name="total_credito_uf" type="text" inputmode="decimal" placeholder="1.457" value="<?= esc($val('total_credito_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="dividendo_uf">Total dividendo UF</label>
-                    <input id="dividendo_uf" name="dividendo_uf" type="text" inputmode="decimal" placeholder="8,5686" value="<?= esc($val('dividendo_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="dividendo_clp">Total dividendo $ <span class="muted">(opc.)</span></label>
-                    <input id="dividendo_clp" name="dividendo_clp" type="text" inputmode="decimal" value="<?= esc($val('dividendo_clp', 0)) ?>">
-                </div>
-                <div>
-                    <label for="amortizacion_uf">Amortización UF</label>
-                    <input id="amortizacion_uf" name="amortizacion_uf" type="text" inputmode="decimal" value="<?= esc($val('amortizacion_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="interes_uf">Interés UF</label>
-                    <input id="interes_uf" name="interes_uf" type="text" inputmode="decimal" value="<?= esc($val('interes_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="comision_uf">Comisión UF</label>
-                    <input id="comision_uf" name="comision_uf" type="text" inputmode="decimal" value="<?= esc($val('comision_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="seg_incendio_uf">Seg. incendio / propiedad UF</label>
-                    <input id="seg_incendio_uf" name="seg_incendio_uf" type="text" inputmode="decimal" value="<?= esc($val('seg_incendio_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="seg_desgravamen_uf">Seg. desgravamen UF</label>
-                    <input id="seg_desgravamen_uf" name="seg_desgravamen_uf" type="text" inputmode="decimal" value="<?= esc($val('seg_desgravamen_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="seg_otros_complementarios_uf">Otros seg. complementarios UF <span class="muted">(opc.)</span></label>
-                    <input id="seg_otros_complementarios_uf" name="seg_otros_complementarios_uf" type="text" inputmode="decimal" value="<?= esc($val('seg_otros_complementarios_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="seg_adicionales_uf">Seg. adicionales UF</label>
-                    <input id="seg_adicionales_uf" name="seg_adicionales_uf" type="text" inputmode="decimal" value="<?= esc($val('seg_adicionales_uf', 4)) ?>">
-                </div>
+                <?php $moneyPair('total_credito', 'Monto otorgado', '_h'); ?>
+                <?php $moneyPair('dividendo', 'Total dividendo'); ?>
+                <?php $moneyPair('amortizacion', 'Amortización'); ?>
+                <?php $moneyPair('interes', 'Interés'); ?>
+                <?php $moneyPair('comision', 'Comisión'); ?>
+                <?php $moneyPair('seg_incendio', 'Seg. incendio / propiedad'); ?>
+                <?php $moneyPair('seg_desgravamen', 'Seg. desgravamen'); ?>
+                <?php $moneyPair('seg_otros_complementarios', 'Otros seg. complementarios', '', true); ?>
+                <?php $moneyPair('seg_adicionales', 'Seg. adicionales'); ?>
                 <div>
                     <label for="cuenta_pac">Cuenta PAC <span class="muted">(opc.)</span></label>
                     <input id="cuenta_pac" name="cuenta_pac" type="text" placeholder="CUENTA PAC ITAÚ" value="<?= esc($val('cuenta_pac')) ?>">
@@ -560,13 +544,35 @@ foreach ($personas as $p) {
             <?php
             $esCirculante = ($clave === 'pasivos-circulantes');
             $monedaDefaultOtro = ($val('moneda') === '') ? 'CLP' : $val('moneda');
+            $moneyPairOtro = static function (
+                string $base,
+                string $label,
+                string $idSuffix = '_otro'
+            ) use ($val): void {
+                $idUf  = $base . '_uf' . $idSuffix;
+                $idClp = $base . '_clp' . $idSuffix;
+                $clpVal = $val($base . '_clp', 0);
+                if ($base === 'dividendo' && $clpVal === '' && $val('cuota_mensual') !== '') {
+                    $clpVal = $val('cuota_mensual', 0);
+                }
+                ?>
+                <div data-money-side="uf">
+                    <label for="<?= esc($idUf) ?>" data-money-label data-base="<?= esc($label) ?>" data-unit="UF"><?= esc($label) ?> UF</label>
+                    <input id="<?= esc($idUf) ?>" name="<?= esc($base) ?>_uf" type="text" inputmode="decimal" value="<?= esc($val($base . '_uf', 4)) ?>">
+                </div>
+                <div data-money-side="clp">
+                    <label for="<?= esc($idClp) ?>" data-money-label data-base="<?= esc($label) ?>" data-unit="CLP"><?= esc($label) ?> $</label>
+                    <input id="<?= esc($idClp) ?>" name="<?= esc($base) ?>_clp" type="text" inputmode="decimal" value="<?= esc($clpVal) ?>">
+                </div>
+                <?php
+            };
             ?>
             <p class="muted" style="margin-top:0">
-                Misma estructura que hipotecarios. La <strong>moneda</strong> define el valor canónico:
-                si es UF se calcula el $ (cuota se paga en pesos); si es CLP se calcula la UF. Ingresos/Egresos analizan siempre en $.
-                El seguro de esta sección es <strong>desgravamen</strong>.
+                Misma estructura que hipotecarios. La <strong>moneda</strong> define el desarrollo canónico (UF o $);
+                el otro valor se calcula en paralelo. Seguro de esta sección: <strong>desgravamen</strong>.
+                Ingresos/Egresos analizan siempre en $.
             </p>
-            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+            <div class="form-row js-pasivo-moneda" data-moneda-select="moneda_otro" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
                 <div style="grid-column:1/-1">
                     <label for="banco_descripcion">Institución / Banco *</label>
                     <input id="banco_descripcion" name="banco_descripcion" type="text" required placeholder="Banco, casa comercial, financiera…" value="<?= esc($val('banco_descripcion')) ?>">
@@ -582,18 +588,11 @@ foreach ($personas as $p) {
                 <div>
                     <label for="moneda_otro">Moneda del crédito</label>
                     <select id="moneda_otro" name="moneda">
-                        <option value="UF" <?= $monedaDefaultOtro === 'UF' ? 'selected' : '' ?>>UF (calcula $)</option>
-                        <option value="CLP" <?= $monedaDefaultOtro === 'CLP' ? 'selected' : '' ?>>$ / CLP (calcula UF)</option>
+                        <option value="UF" <?= $monedaDefaultOtro === 'UF' ? 'selected' : '' ?>>UF (desarrollo en UF)</option>
+                        <option value="CLP" <?= $monedaDefaultOtro === 'CLP' ? 'selected' : '' ?>>$ / CLP (desarrollo en $)</option>
                     </select>
                 </div>
-                <div>
-                    <label for="saldo_uf">Saldo deuda UF (Capital) *</label>
-                    <input id="saldo_uf" name="saldo_uf" type="text" inputmode="decimal" placeholder="923,4434" value="<?= esc($val('saldo_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="saldo_clp_otro">Saldo deuda $ <span class="muted">(opc.)</span></label>
-                    <input id="saldo_clp_otro" name="saldo_clp" type="text" inputmode="decimal" value="<?= esc($val('saldo_clp', 0)) ?>">
-                </div>
+                <?php $moneyPairOtro('saldo', 'Saldo deuda (Capital)'); ?>
                 <div>
                     <label for="plazo_pactado">Plazo pactado (cuotas)</label>
                     <input id="plazo_pactado" name="plazo_pactado" type="number" min="1" placeholder="240" value="<?= esc($val('plazo_pactado') !== '' ? $val('plazo_pactado') : $val('cuotas_totales')) ?>">
@@ -619,34 +618,12 @@ foreach ($personas as $p) {
                     <label for="fecha_vencimiento_otro">Fecha de vencimiento</label>
                     <input id="fecha_vencimiento_otro" name="fecha_vencimiento" type="date" value="<?= esc($val('fecha_vencimiento')) ?>">
                 </div>
-                <div>
-                    <label for="total_credito_uf_otro">Monto otorgado UF</label>
-                    <input id="total_credito_uf_otro" name="total_credito_uf" type="text" inputmode="decimal" placeholder="1.457" value="<?= esc($val('total_credito_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="dividendo_uf_otro">Total dividendo UF</label>
-                    <input id="dividendo_uf_otro" name="dividendo_uf" type="text" inputmode="decimal" placeholder="8,5686" value="<?= esc($val('dividendo_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="dividendo_clp_otro">Total dividendo $ <span class="muted">(opc.)</span></label>
-                    <input id="dividendo_clp_otro" name="dividendo_clp" type="text" inputmode="decimal" value="<?= esc($val('dividendo_clp') !== '' ? $val('dividendo_clp', 0) : $val('cuota_mensual', 0)) ?>">
-                </div>
-                <div>
-                    <label for="amortizacion_uf_otro">Amortización UF</label>
-                    <input id="amortizacion_uf_otro" name="amortizacion_uf" type="text" inputmode="decimal" value="<?= esc($val('amortizacion_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="interes_uf_otro">Interés UF</label>
-                    <input id="interes_uf_otro" name="interes_uf" type="text" inputmode="decimal" value="<?= esc($val('interes_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="comision_uf_otro">Comisión UF</label>
-                    <input id="comision_uf_otro" name="comision_uf" type="text" inputmode="decimal" value="<?= esc($val('comision_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="seg_desgravamen_uf_otro">Seguro desgravamen UF</label>
-                    <input id="seg_desgravamen_uf_otro" name="seg_desgravamen_uf" type="text" inputmode="decimal" value="<?= esc($val('seg_desgravamen_uf', 4)) ?>">
-                </div>
+                <?php $moneyPairOtro('total_credito', 'Monto otorgado'); ?>
+                <?php $moneyPairOtro('dividendo', 'Total dividendo'); ?>
+                <?php $moneyPairOtro('amortizacion', 'Amortización'); ?>
+                <?php $moneyPairOtro('interes', 'Interés'); ?>
+                <?php $moneyPairOtro('comision', 'Comisión'); ?>
+                <?php $moneyPairOtro('seg_desgravamen', 'Seguro desgravamen'); ?>
                 <div>
                     <label for="tipo_otro">Tipo</label>
                     <input id="tipo_otro" name="tipo" type="text" placeholder="<?= esc($esCirculante ? 'Consumo / comercial…' : 'Otro pasivo…') ?>" value="<?= esc($val('tipo')) ?>">
@@ -677,6 +654,33 @@ foreach ($personas as $p) {
         </form>
     <?php endif; ?>
 </div>
+<?php if (in_array($clave, ['pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos'], true)): ?>
+<script>
+(function () {
+  function syncPasivoMoneda(root) {
+    var selId = root.getAttribute('data-moneda-select') || 'moneda';
+    var sel = document.getElementById(selId);
+    if (!sel) return;
+    var moneda = (sel.value || 'UF').toUpperCase();
+    var canon = moneda === 'CLP' ? 'clp' : 'uf';
+    root.querySelectorAll('[data-money-label]').forEach(function (lab) {
+      var base = lab.getAttribute('data-base') || '';
+      var unit = lab.getAttribute('data-unit') || '';
+      var isCanon = (unit === 'UF' && canon === 'uf') || (unit === 'CLP' && canon === 'clp');
+      var unitTxt = unit === 'CLP' ? '$' : 'UF';
+      lab.innerHTML = base + ' ' + unitTxt + (isCanon ? '' : ' <span class="muted">(opc.)</span>');
+    });
+  }
+  document.querySelectorAll('.js-pasivo-moneda').forEach(function (root) {
+    var selId = root.getAttribute('data-moneda-select') || 'moneda';
+    var sel = document.getElementById(selId);
+    if (!sel) return;
+    sel.addEventListener('change', function () { syncPasivoMoneda(root); });
+    syncPasivoMoneda(root);
+  });
+})();
+</script>
+<?php endif; ?>
 <?php if ($isEdit && $esActivo): ?>
     <?php $bitacoraRows = $bitacora ?? []; ?>
     <div class="card section-card">
