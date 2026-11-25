@@ -9,6 +9,8 @@ use App\Libraries\EquityAcl;
 use App\Libraries\EquityActivoBitacora;
 use App\Libraries\EquityArriendoSync;
 use App\Libraries\EquityCatalogo;
+use App\Libraries\EquityDesarrolloCuotas;
+use App\Libraries\EquityDesarrolloImport;
 use App\Libraries\EquityEgresosProyeccion;
 use App\Libraries\EquityUf;
 use App\Libraries\MembershipAuth;
@@ -740,6 +742,313 @@ class EquityPatrimonio extends BaseController
     }
 
     /**
+     * Desarrollo editable de un crédito (cuotas mes a mes).
+     */
+    public function desarrolloPasivo(string $seccion, string $id)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $clave = $this->clavePasivo($seccion);
+        $meta  = EquityCatalogo::seccion($clave);
+        if ($meta === null || ($meta['table'] ?? '') !== 'equity_pasivos') {
+            return redirect()->to('/equity/pasivos/' . $seccion)->with('error', 'Sección no válida.');
+        }
+        if (! in_array((string) ($meta['categoria'] ?? ''), ['inmueble', 'circulante', 'otro'], true)) {
+            return redirect()->to('/equity/pasivos/' . $seccion)
+                ->with('error', 'El desarrollo aplica a Hipotecarios, Circulantes y Otros.');
+        }
+
+        $empresaId = $memb['empresa_id'];
+        $row = $this->findRegistro($meta, $empresaId, $id);
+        if ($row === null) {
+            return redirect()->to('/equity/pasivos/' . $seccion)->with('error', 'Pasivo no encontrado.');
+        }
+
+        $ufVigente = EquityUf::vigente($empresaId);
+        $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+        $moneda    = EquityEgresosProyeccion::moneda($row);
+        $saved     = EquityDesarrolloCuotas::listar($id);
+        $origen    = 'guardado';
+        if ($saved === []) {
+            $origen = 'proyeccion';
+            $saved  = EquityEgresosProyeccion::proyectar($row, $ufRate, 24);
+        }
+        $cuotas = [];
+        foreach ($saved as $c) {
+            $cuotas[] = EquityDesarrolloCuotas::normalizarFila($c, $moneda, $ufRate);
+        }
+
+        return view('equity/pasivo_desarrollo', [
+            'title'     => 'Desarrollo · ' . ($row['banco_descripcion'] ?? 'Crédito'),
+            'memb'      => $memb,
+            'equityNav' => $clave,
+            'seccion'   => $seccion,
+            'meta'      => $meta,
+            'pasivo'    => $row,
+            'cuotas'    => $cuotas,
+            'origen'    => $origen,
+            'moneda'    => $moneda,
+            'ufVigente' => $ufVigente,
+            'tablasOk'  => EquityDesarrolloCuotas::tablasListas(),
+            'canManage' => EquityAcl::canDeclare($memb),
+            'success'   => session()->getFlashdata('success'),
+            'error'     => session()->getFlashdata('error'),
+        ]);
+    }
+
+    public function guardarDesarrolloPasivo(string $seccion, string $id)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        if (! EquityAcl::canDeclare($memb)) {
+            return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')
+                ->with('error', 'Sin permiso para editar el desarrollo.');
+        }
+        if (! EquityDesarrolloCuotas::tablasListas()) {
+            return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')
+                ->with('error', 'Falta la migración de cuotas (000039).');
+        }
+
+        $clave = $this->clavePasivo($seccion);
+        $meta  = EquityCatalogo::seccion($clave);
+        if ($meta === null) {
+            return redirect()->to('/equity/pasivos/' . $seccion)->with('error', 'Sección no válida.');
+        }
+        $row = $this->findRegistro($meta, $memb['empresa_id'], $id);
+        if ($row === null) {
+            return redirect()->to('/equity/pasivos/' . $seccion)->with('error', 'Pasivo no encontrado.');
+        }
+
+        $fechas   = (array) $this->request->getPost('fecha');
+        $divs     = (array) $this->request->getPost('dividendo_n');
+        $cuotaUf  = (array) $this->request->getPost('cuota_uf');
+        $cuotaClp = (array) $this->request->getPost('cuota_clp');
+        $amortUf  = (array) $this->request->getPost('amortizacion_uf');
+        $amortClp = (array) $this->request->getPost('amortizacion_clp');
+        $intUf    = (array) $this->request->getPost('interes_uf');
+        $intClp   = (array) $this->request->getPost('interes_clp');
+        $saldoUf  = (array) $this->request->getPost('saldo_uf');
+        $saldoClp = (array) $this->request->getPost('saldo_clp');
+        $n = max(count($fechas), count($divs), count($cuotaUf), count($cuotaClp));
+
+        $filas = [];
+        for ($i = 0; $i < $n; $i++) {
+            $filas[] = [
+                'fecha'            => $fechas[$i] ?? null,
+                'dividendo_n'      => $divs[$i] ?? null,
+                'cuota_uf'         => $cuotaUf[$i] ?? null,
+                'cuota_clp'        => $cuotaClp[$i] ?? null,
+                'amortizacion_uf'  => $amortUf[$i] ?? null,
+                'amortizacion_clp' => $amortClp[$i] ?? null,
+                'interes_uf'       => $intUf[$i] ?? null,
+                'interes_clp'      => $intClp[$i] ?? null,
+                'saldo_uf'         => $saldoUf[$i] ?? null,
+                'saldo_clp'        => $saldoClp[$i] ?? null,
+            ];
+        }
+
+        $saved = EquityDesarrolloCuotas::reemplazar(
+            $id,
+            (string) $memb['empresa_id'],
+            isset($row['persona_id']) ? (string) $row['persona_id'] : null,
+            $filas,
+            'manual',
+            EquityEgresosProyeccion::moneda($row)
+        );
+
+        return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')
+            ->with('success', 'Desarrollo guardado (' . $saved . ' cuota(s)).');
+    }
+
+    public function importarDesarrolloPasivo(string $seccion, string $id)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        if (! EquityAcl::canDeclare($memb)) {
+            return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')
+                ->with('error', 'Sin permiso para importar.');
+        }
+        if (! EquityDesarrolloCuotas::tablasListas()) {
+            return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')
+                ->with('error', 'Falta la migración de cuotas (000039).');
+        }
+
+        $clave = $this->clavePasivo($seccion);
+        $meta  = EquityCatalogo::seccion($clave);
+        if ($meta === null) {
+            return redirect()->to('/equity/pasivos/' . $seccion)->with('error', 'Sección no válida.');
+        }
+        $empresaId = $memb['empresa_id'];
+        $row = $this->findRegistro($meta, $empresaId, $id);
+        if ($row === null) {
+            return redirect()->to('/equity/pasivos/' . $seccion)->with('error', 'Pasivo no encontrado.');
+        }
+
+        $file = $this->request->getFile('desarrollo_archivo');
+        if ($file === null || ! $file->isValid() || $file->getError() === UPLOAD_ERR_NO_FILE) {
+            return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')
+                ->with('error', 'Selecciona un archivo Excel (.xlsx), CSV o PDF.');
+        }
+        if ($file->getSize() > 20 * 1024 * 1024) {
+            return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')
+                ->with('error', 'El archivo supera 20 MB.');
+        }
+
+        $binary = file_get_contents($file->getTempName());
+        if ($binary === false) {
+            return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')
+                ->with('error', 'No se pudo leer el archivo.');
+        }
+
+        $parsed = EquityDesarrolloImport::parse(
+            $file->getClientName(),
+            $binary,
+            (string) ($file->getMimeType() ?: '')
+        );
+
+        // Guardar siempre el archivo como respaldo del desarrollo (aunque el parse falle).
+        helper('id');
+        $docId = new_id();
+        $archivoOk = false;
+        try {
+            $savedFile = DocumentStorage::save(
+                $empresaId,
+                $docId,
+                $file->getClientName(),
+                $binary,
+                'equity'
+            );
+            $patch = [
+                'desarrollo_archivo_nombre' => $file->getClientName(),
+                'desarrollo_archivo_ruta'   => $savedFile['ruta_relativa'],
+                'desarrollo_archivo_mime'   => $file->getMimeType() ?: 'application/octet-stream',
+                'desarrollo_archivo_bytes'  => $savedFile['tamano_bytes'],
+            ];
+            if (db_connect()->fieldExists('desarrollo_archivo_nombre', 'equity_pasivos')) {
+                // Borrar archivo anterior si existía.
+                if (! empty($row['desarrollo_archivo_ruta'])) {
+                    try {
+                        DocumentStorage::delete((string) $row['desarrollo_archivo_ruta']);
+                    } catch (\Throwable) {
+                    }
+                }
+                model(EquityPasivoModel::class)->update($id, $patch);
+                $archivoOk = true;
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Equity desarrollo upload failed: {msg}', ['msg' => $e->getMessage()]);
+        }
+
+        $redir = '/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo';
+        if (! ($parsed['ok'] ?? false)) {
+            $msg = $parsed['error'] ?? 'No se pudo importar el desarrollo.';
+            if ($archivoOk) {
+                $msg .= ' El archivo quedó guardado como respaldo.';
+            }
+
+            return redirect()->to($redir)->with('error', $msg);
+        }
+
+        $stats = EquityDesarrolloCuotas::fusionarImport(
+            $id,
+            $empresaId,
+            isset($row['persona_id']) ? (string) $row['persona_id'] : null,
+            $parsed['filas'] ?? [],
+            EquityEgresosProyeccion::moneda($row)
+        );
+
+        $cols = implode(', ', $parsed['columnas'] ?? []);
+        $msg = 'Importadas ' . (int) ($stats['inserted'] ?? 0) . ' fila(s) nuevas, '
+            . (int) ($stats['updated'] ?? 0) . ' actualizada(s)';
+        if ($cols !== '') {
+            $msg .= ' · columnas: ' . $cols;
+        }
+        if (! empty($parsed['detalle'])) {
+            $msg .= '. ' . $parsed['detalle'];
+        }
+        if ($archivoOk) {
+            $msg .= ' Archivo adjunto guardado.';
+        }
+
+        return redirect()->to($redir)->with('success', $msg);
+    }
+
+    public function regenerarDesarrolloPasivo(string $seccion, string $id)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        if (! EquityAcl::canDeclare($memb)) {
+            return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')
+                ->with('error', 'Sin permiso.');
+        }
+
+        $clave = $this->clavePasivo($seccion);
+        $meta  = EquityCatalogo::seccion($clave);
+        if ($meta === null) {
+            return redirect()->to('/equity/pasivos/' . $seccion)->with('error', 'Sección no válida.');
+        }
+        $row = $this->findRegistro($meta, $memb['empresa_id'], $id);
+        if ($row === null) {
+            return redirect()->to('/equity/pasivos/' . $seccion)->with('error', 'Pasivo no encontrado.');
+        }
+
+        $ufRate = EquityUf::valorClp($memb['empresa_id']);
+        $proy = EquityEgresosProyeccion::proyectar($row, $ufRate, 24);
+        $n = EquityDesarrolloCuotas::reemplazar(
+            $id,
+            (string) $memb['empresa_id'],
+            isset($row['persona_id']) ? (string) $row['persona_id'] : null,
+            $proy,
+            'proyeccion',
+            EquityEgresosProyeccion::moneda($row)
+        );
+
+        return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')
+            ->with('success', 'Desarrollo regenerado desde proyección (' . $n . ' cuota(s)). Puedes editarlo.');
+    }
+
+    public function descargarDesarrolloArchivo(string $seccion, string $id)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        $clave = $this->clavePasivo($seccion);
+        $meta  = EquityCatalogo::seccion($clave);
+        if ($meta === null) {
+            return redirect()->to('/equity/pasivos/' . $seccion)->with('error', 'Sección no válida.');
+        }
+        $row = $this->findRegistro($meta, $memb['empresa_id'], $id);
+        if ($row === null || empty($row['desarrollo_archivo_ruta'])) {
+            return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')
+                ->with('error', 'Sin archivo de desarrollo.');
+        }
+
+        try {
+            $data = DocumentStorage::read((string) $row['desarrollo_archivo_ruta']);
+        } catch (\Throwable) {
+            return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')
+                ->with('error', 'Archivo no encontrado en storage.');
+        }
+        $nombre = (string) ($row['desarrollo_archivo_nombre'] ?? 'desarrollo.bin');
+        $mime   = (string) ($row['desarrollo_archivo_mime'] ?? 'application/octet-stream');
+
+        return $this->response
+            ->setHeader('Content-Type', $mime)
+            ->setHeader('Content-Disposition', 'attachment; filename="' . str_replace('"', '', $nombre) . '"')
+            ->setBody($data);
+    }
+
+    /**
      * Baja lógica de un activo (hoy: bienes raíces). Conserva IDs / bitácora.
      */
     public function eliminarActivo(string $seccion, string $id)
@@ -1273,13 +1582,22 @@ class EquityPatrimonio extends BaseController
                 $totalFuente += $cuota;
             }
 
-            $cuotas = EquityEgresosProyeccion::proyectar($row, $ufRate, $meses);
+            $cuotas = EquityDesarrolloCuotas::paraProyeccion($row, $ufRate, $meses);
             if ($cuotas !== []) {
+                $seccionUrl = match ((string) ($row['categoria'] ?? '')) {
+                    'inmueble'   => 'inmuebles',
+                    'circulante' => 'circulantes',
+                    'otro'       => 'otros',
+                    default      => null,
+                };
                 $desarrollos[] = [
-                    'label'  => (string) ($row['banco_descripcion'] ?? 'Crédito'),
-                    'numero' => $row['numero_credito'] ?? null,
-                    'moneda' => EquityEgresosProyeccion::moneda($row),
-                    'cuotas' => $cuotas,
+                    'pasivo_id' => (string) ($row['id'] ?? ''),
+                    'seccion'   => $seccionUrl,
+                    'label'     => (string) ($row['banco_descripcion'] ?? 'Crédito'),
+                    'numero'    => $row['numero_credito'] ?? null,
+                    'moneda'    => EquityEgresosProyeccion::moneda($row),
+                    'editable'  => EquityDesarrolloCuotas::listar((string) ($row['id'] ?? '')) !== [],
+                    'cuotas'    => $cuotas,
                 ];
             }
             foreach ($cuotas as $c) {

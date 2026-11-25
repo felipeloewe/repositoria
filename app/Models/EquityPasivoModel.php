@@ -30,5 +30,7 @@ class EquityPasivoModel extends Model
         'vigente_uf', 'vigente_clp', 'mora_30_59_uf', 'mora_30_59_clp',
         'mora_60_89_uf', 'mora_60_89_clp', 'mora_90_mas_uf', 'mora_90_mas_clp',
         'tomador_nombre', 'tomador_rut',
+        'desarrollo_archivo_nombre', 'desarrollo_archivo_ruta',
+        'desarrollo_archivo_mime', 'desarrollo_archivo_bytes',
     ];
 }

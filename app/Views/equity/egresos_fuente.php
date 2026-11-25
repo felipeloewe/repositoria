@@ -173,7 +173,17 @@ foreach ($personas as $p) {
                     <p class="muted" style="margin-top:0">
                         Desarrollo en <?= $devMoneda === 'CLP' ? '<strong>$</strong> (equivalencia UF)' : '<strong>UF</strong> (equivalencia $)' ?>.
                         El análisis consolidado de egresos sigue en pesos.
+                        <?php if (! empty($dev['editable'])): ?>
+                            · <em>cuotas guardadas</em>
+                        <?php else: ?>
+                            · proyección automática
+                        <?php endif; ?>
                     </p>
+                    <?php if (! empty($canManage) && ! empty($dev['seccion']) && ! empty($dev['pasivo_id'])): ?>
+                        <p style="margin:.5rem 0 1rem">
+                            <a class="btn btn-primary btn-sm" href="<?= site_url('equity/pasivos/' . $dev['seccion'] . '/' . $dev['pasivo_id'] . '/desarrollo') ?>">Editar desarrollo</a>
+                        </p>
+                    <?php endif; ?>
                     <table class="table">
                         <thead>
                             <tr>

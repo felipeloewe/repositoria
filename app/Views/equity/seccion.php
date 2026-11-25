@@ -880,6 +880,9 @@ foreach ($personas as $p) {
                     <?php if (! empty($canManage)): ?>
                         <td style="white-space:nowrap">
                             <a class="btn btn-ghost btn-sm" href="<?= esc($editPath((string) $row['id'])) ?>">Editar</a>
+                            <?php if (in_array($clave, ['pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos'], true)): ?>
+                                <a class="btn btn-ghost btn-sm" href="<?= esc(rtrim($listAction, '/') . '/' . $row['id'] . '/desarrollo') ?>">Desarrollo</a>
+                            <?php endif; ?>
                             <?php if ($esActivo): ?>
                                 <a class="btn btn-ghost btn-sm" href="<?= esc($bitacoraPath((string) $row['id'])) ?>">Bitácora</a>
                             <?php endif; ?>

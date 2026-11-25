@@ -506,10 +506,12 @@ final class EquityCierre
             }
         }
 
-        // Preferir la cuota del desarrollo proyectado que cae en el mes cerrado.
+        // Preferir cuotas guardadas (editadas/importadas); si no, proyección.
         $fechaCuota = null;
         $divN = isset($row['dividendo_n']) && $row['dividendo_n'] !== '' ? (int) $row['dividendo_n'] : null;
-        $proy = EquityEgresosProyeccion::proyectar($row, $ufRate, 3);
+        $saldoUf = self::num($row, 'saldo_uf');
+        $saldoClp = self::num($row, 'saldo_clp');
+        $proy = EquityDesarrolloCuotas::paraProyeccion($row, $ufRate, 24);
         $pref = sprintf('%04d-%02d', $anio, $mes);
         foreach ($proy as $p) {
             $f = (string) ($p['fecha'] ?? '');
@@ -519,6 +521,18 @@ final class EquityCierre
                 $cuotaUf  = $p['cuota_uf'] ?? $cuotaUf;
                 $amort['uf']  = $p['amortizacion_uf'] ?? $amort['uf'];
                 $amort['clp'] = $p['amortizacion_clp'] ?? $amort['clp'];
+                if (isset($p['interes_uf'])) {
+                    $interesUf = $p['interes_uf'];
+                }
+                if (isset($p['interes_clp'])) {
+                    $interesClp = $p['interes_clp'];
+                }
+                if (isset($p['saldo_uf'])) {
+                    $saldoUf = $p['saldo_uf'];
+                }
+                if (isset($p['saldo_clp'])) {
+                    $saldoClp = $p['saldo_clp'];
+                }
                 $divN = $p['dividendo_n'] ?? $divN;
                 break;
             }
@@ -538,8 +552,8 @@ final class EquityCierre
             'amortizacion_clp'  => $amort['clp'],
             'interes_uf'        => $interesUf,
             'interes_clp'       => $interesClp,
-            'saldo_uf'          => self::num($row, 'saldo_uf'),
-            'saldo_clp'         => self::num($row, 'saldo_clp'),
+            'saldo_uf'          => $saldoUf,
+            'saldo_clp'         => $saldoClp,
         ];
     }
 

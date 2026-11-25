@@ -174,6 +174,11 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('equity/activos/(:segment)', 'EquityPatrimonio::activos/$1');
     $routes->post('equity/activos/(:segment)', 'EquityPatrimonio::storeActivo/$1');
     $routes->get('equity/pasivos/(:segment)/(:segment)/editar', 'EquityPatrimonio::editPasivo/$1/$2');
+    $routes->get('equity/pasivos/(:segment)/(:segment)/desarrollo', 'EquityPatrimonio::desarrolloPasivo/$1/$2');
+    $routes->post('equity/pasivos/(:segment)/(:segment)/desarrollo', 'EquityPatrimonio::guardarDesarrolloPasivo/$1/$2');
+    $routes->post('equity/pasivos/(:segment)/(:segment)/desarrollo/importar', 'EquityPatrimonio::importarDesarrolloPasivo/$1/$2');
+    $routes->post('equity/pasivos/(:segment)/(:segment)/desarrollo/regenerar', 'EquityPatrimonio::regenerarDesarrolloPasivo/$1/$2');
+    $routes->get('equity/pasivos/(:segment)/(:segment)/desarrollo/archivo', 'EquityPatrimonio::descargarDesarrolloArchivo/$1/$2');
     $routes->post('equity/pasivos/(:segment)/(:segment)', 'EquityPatrimonio::updatePasivo/$1/$2');
     $routes->get('equity/pasivos/(:segment)', 'EquityPatrimonio::pasivos/$1');
     $routes->post('equity/pasivos/(:segment)', 'EquityPatrimonio::storePasivo/$1');
