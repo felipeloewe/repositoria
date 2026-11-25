@@ -293,6 +293,12 @@ foreach ($personas as $p) {
                         <tr>
                             <td>
                                 <?= esc($row['banco_descripcion'] ?? '—') ?>
+                                <?php if (! empty($row['tomador_nombre'])): ?>
+                                    <div class="muted" style="font-size:.85em">
+                                        Tomador: <?= esc($row['tomador_nombre']) ?>
+                                        <?= ! empty($row['tomador_rut']) ? ' · ' . esc($row['tomador_rut']) : '' ?>
+                                    </div>
+                                <?php endif; ?>
                                 <?php if ($nombreP !== '' && $personaId === ''): ?>
                                     <div class="muted" style="font-size:.85em"><?= esc($nombreP) ?></div>
                                 <?php endif; ?>

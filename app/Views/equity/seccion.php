@@ -440,105 +440,93 @@ foreach ($personas as $p) {
                     <textarea id="seguros_info" name="seguros_info" rows="2" placeholder="Compañía y póliza colectiva"><?= esc($val('seguros_info')) ?></textarea>
                 </div>
             </div>
-        <?php elseif ($clave === 'pasivos-indirecta'): ?>
-            <p class="muted" style="margin-top:0">Deudas adquiridas por un tercero donde eres codeudor, fiador o avalista.</p>
-            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+        <?php elseif ($clave === 'pasivos-indirecta' || $clave === 'pasivos-lineas'): ?>
+            <?php
+            $esIndirecta = ($clave === 'pasivos-indirecta');
+            $monedaDefaultCupo = ($val('moneda') === '') ? 'CLP' : $val('moneda');
+            $moneyPairCupo = static function (
+                string $base,
+                string $label,
+                string $idSuffix = '_cupo'
+            ) use ($val): void {
+                $idUf  = $base . '_uf' . $idSuffix;
+                $idClp = $base . '_clp' . $idSuffix;
+                ?>
+                <div data-money-side="uf">
+                    <label for="<?= esc($idUf) ?>" data-money-label data-base="<?= esc($label) ?>" data-unit="UF"><?= esc($label) ?> UF</label>
+                    <input id="<?= esc($idUf) ?>" name="<?= esc($base) ?>_uf" type="text" inputmode="decimal" value="<?= esc($val($base . '_uf', 4)) ?>">
+                </div>
+                <div data-money-side="clp">
+                    <label for="<?= esc($idClp) ?>" data-money-label data-base="<?= esc($label) ?>" data-unit="CLP"><?= esc($label) ?> $</label>
+                    <input id="<?= esc($idClp) ?>" name="<?= esc($base) ?>_clp" type="text" inputmode="decimal" value="<?= esc($val($base . '_clp', 0)) ?>">
+                </div>
+                <?php
+            };
+            $tipoLineaSel = '';
+            if (! $esIndirecta && $val('tipo') !== '') {
+                foreach (EquityCatalogo::opcionesTipoLineaDisponible() as $k => $lab) {
+                    if ($lab === $val('tipo') || (string) $k === $val('tipo')) {
+                        $tipoLineaSel = (string) $k;
+                        break;
+                    }
+                }
+            }
+            ?>
+            <p class="muted" style="margin-top:0">
+                <?php if ($esIndirecta): ?>
+                    Deudas adquiridas por un tercero donde eres codeudor, fiador o avalista.
+                    Indica el <strong>tomador</strong> (nombre o razón social y RUT).
+                <?php else: ?>
+                    Créditos disponibles / cupos no utilizados. Misma grilla que deuda indirecta:
+                    institución, tipo de línea, fechas, total, vigente y tramos de mora.
+                <?php endif; ?>
+                La <strong>moneda</strong> define el valor canónico (UF o $) con par paralelo.
+            </p>
+            <div class="form-row js-pasivo-moneda" data-moneda-select="moneda_cupo" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
                 <div style="grid-column:1/-1">
                     <label for="banco_descripcion">Institución financiera *</label>
-                    <input id="banco_descripcion" name="banco_descripcion" type="text" required placeholder="Banco Consorcio, Banco Bice…" value="<?= esc($val('banco_descripcion')) ?>">
+                    <input id="banco_descripcion" name="banco_descripcion" type="text" required placeholder="Banco Consorcio, Banco Bice, BCI…" value="<?= esc($val('banco_descripcion')) ?>">
                 </div>
+                <?php if ($esIndirecta): ?>
+                    <div style="grid-column:1/-1">
+                        <label for="tomador_nombre">Nombre o razón social del tomador *</label>
+                        <input id="tomador_nombre" name="tomador_nombre" type="text" required placeholder="Persona o empresa titular del crédito" value="<?= esc($val('tomador_nombre')) ?>">
+                    </div>
+                    <div>
+                        <label for="tomador_rut">RUT del tomador *</label>
+                        <input id="tomador_rut" name="tomador_rut" type="text" required placeholder="12.345.678-9" value="<?= esc($val('tomador_rut')) ?>">
+                    </div>
+                    <div>
+                        <label for="tipo_credito">Tipo de crédito *</label>
+                        <input id="tipo_credito" name="tipo_credito" type="text" required placeholder="Comercial" value="<?= esc($val('tipo')) ?>">
+                    </div>
+                <?php else: ?>
+                    <div>
+                        <label for="tipo_linea">Tipo de línea *</label>
+                        <select id="tipo_linea" name="tipo_linea" required>
+                            <option value="">—</option>
+                            <?php foreach (EquityCatalogo::opcionesTipoLineaDisponible() as $k => $lab): ?>
+                                <option value="<?= (int) $k ?>" <?= ((string) $k === $tipoLineaSel) ? 'selected' : '' ?>><?= esc($lab) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                <?php endif; ?>
                 <div>
-                    <label for="tipo_credito">Tipo de crédito *</label>
-                    <input id="tipo_credito" name="tipo_credito" type="text" required placeholder="Comercial" value="<?= esc($val('tipo')) ?>">
-                </div>
-                <div>
-                    <label for="fecha_otorgamiento">Fecha de otorgamiento</label>
-                    <input id="fecha_otorgamiento" name="fecha_otorgamiento" type="date" value="<?= esc($val('fecha_otorgamiento')) ?>">
-                </div>
-                <div>
-                    <label for="total_credito_uf">Total del crédito UF</label>
-                    <input id="total_credito_uf" name="total_credito_uf" type="text" inputmode="decimal" value="<?= esc($val('total_credito_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="total_credito_clp">Total del crédito $</label>
-                    <input id="total_credito_clp" name="total_credito_clp" type="text" inputmode="decimal" value="<?= esc($val('total_credito_clp', 0)) ?>">
-                </div>
-                <div>
-                    <label for="vigente_uf">Vigente UF</label>
-                    <input id="vigente_uf" name="vigente_uf" type="text" inputmode="decimal" value="<?= esc($val('vigente_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="vigente_clp">Vigente $</label>
-                    <input id="vigente_clp" name="vigente_clp" type="text" inputmode="decimal" value="<?= esc($val('vigente_clp', 0)) ?>">
-                </div>
-                <div>
-                    <label for="mora_30_59_uf">30 a 59 días UF</label>
-                    <input id="mora_30_59_uf" name="mora_30_59_uf" type="text" inputmode="decimal" value="<?= esc($val('mora_30_59_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="mora_30_59_clp">30 a 59 días $</label>
-                    <input id="mora_30_59_clp" name="mora_30_59_clp" type="text" inputmode="decimal" value="<?= esc($val('mora_30_59_clp', 0)) ?>">
-                </div>
-                <div>
-                    <label for="mora_60_89_uf">60 a 89 días UF</label>
-                    <input id="mora_60_89_uf" name="mora_60_89_uf" type="text" inputmode="decimal" value="<?= esc($val('mora_60_89_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="mora_60_89_clp">60 a 89 días $</label>
-                    <input id="mora_60_89_clp" name="mora_60_89_clp" type="text" inputmode="decimal" value="<?= esc($val('mora_60_89_clp', 0)) ?>">
-                </div>
-                <div>
-                    <label for="mora_90_mas_uf">90 o más días UF</label>
-                    <input id="mora_90_mas_uf" name="mora_90_mas_uf" type="text" inputmode="decimal" value="<?= esc($val('mora_90_mas_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="mora_90_mas_clp">90 o más días $</label>
-                    <input id="mora_90_mas_clp" name="mora_90_mas_clp" type="text" inputmode="decimal" value="<?= esc($val('mora_90_mas_clp', 0)) ?>">
-                </div>
-            </div>
-        <?php elseif ($clave === 'pasivos-lineas'): ?>
-            <p class="muted" style="margin-top:0">Créditos disponibles (montos no utilizados): líneas de crédito y otros créditos. Directos e indirectos.</p>
-            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
-                <div>
-                    <label for="tipo_linea">Tipo *</label>
-                    <select id="tipo_linea" name="tipo_linea" required>
-                        <option value="">—</option>
-                        <?php
-                        $tipoLineaSel = '';
-                        if ($val('tipo') !== '') {
-                            foreach (EquityCatalogo::opcionesTipoLineaDisponible() as $k => $lab) {
-                                if ($lab === $val('tipo') || (string) $k === $val('tipo')) {
-                                    $tipoLineaSel = (string) $k;
-                                    break;
-                                }
-                            }
-                        }
-                        foreach (EquityCatalogo::opcionesTipoLineaDisponible() as $k => $lab):
-                        ?>
-                            <option value="<?= (int) $k ?>" <?= ((string) $k === $tipoLineaSel || $sel('tipo', $k) !== '') ? 'selected' : '' ?>><?= (int) $k ?>. <?= esc($lab) ?></option>
-                        <?php endforeach; ?>
+                    <label for="moneda_cupo">Moneda</label>
+                    <select id="moneda_cupo" name="moneda">
+                        <option value="CLP" <?= $monedaDefaultCupo === 'CLP' ? 'selected' : '' ?>>$ / CLP (desarrollo en $)</option>
+                        <option value="UF" <?= $monedaDefaultCupo === 'UF' ? 'selected' : '' ?>>UF (desarrollo en UF)</option>
                     </select>
                 </div>
-                <div style="grid-column:1/-1">
-                    <label for="banco_descripcion">Institución financiera *</label>
-                    <input id="banco_descripcion" name="banco_descripcion" type="text" required placeholder="Banco Itaú Chile, Scotiabank…" value="<?= esc($val('banco_descripcion')) ?>">
-                </div>
                 <div>
-                    <label for="monto_directo_uf">Directos UF</label>
-                    <input id="monto_directo_uf" name="monto_directo_uf" type="text" inputmode="decimal" value="<?= esc($val('monto_directo_uf', 4)) ?>">
+                    <label for="fecha_otorgamiento_cupo">Fecha de otorgamiento</label>
+                    <input id="fecha_otorgamiento_cupo" name="fecha_otorgamiento" type="date" value="<?= esc($val('fecha_otorgamiento')) ?>">
                 </div>
-                <div>
-                    <label for="monto_directo_clp">Directos $</label>
-                    <input id="monto_directo_clp" name="monto_directo_clp" type="text" inputmode="decimal" placeholder="ej. 4.777.712" value="<?= esc($val('monto_directo_clp', 0)) ?>">
-                </div>
-                <div>
-                    <label for="monto_indirecto_uf">Indirectos UF</label>
-                    <input id="monto_indirecto_uf" name="monto_indirecto_uf" type="text" inputmode="decimal" value="<?= esc($val('monto_indirecto_uf', 4)) ?>">
-                </div>
-                <div>
-                    <label for="monto_indirecto_clp">Indirectos $</label>
-                    <input id="monto_indirecto_clp" name="monto_indirecto_clp" type="text" inputmode="decimal" placeholder="ej. 3.000.000" value="<?= esc($val('monto_indirecto_clp', 0)) ?>">
-                </div>
+                <?php $moneyPairCupo('total_credito', 'Total del crédito'); ?>
+                <?php $moneyPairCupo('vigente', 'Vigente'); ?>
+                <?php $moneyPairCupo('mora_30_59', '30 a 59 días'); ?>
+                <?php $moneyPairCupo('mora_60_89', '60 a 89 días'); ?>
+                <?php $moneyPairCupo('mora_90_mas', '90 o más días'); ?>
             </div>
         <?php else: ?>
             <?php
@@ -654,7 +642,7 @@ foreach ($personas as $p) {
         </form>
     <?php endif; ?>
 </div>
-<?php if (in_array($clave, ['pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos'], true)): ?>
+<?php if (in_array($clave, ['pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos', 'pasivos-indirecta', 'pasivos-lineas'], true)): ?>
 <script>
 (function () {
   function syncPasivoMoneda(root) {
@@ -820,6 +808,8 @@ foreach ($personas as $p) {
                         ),
                         'pasivos-indirecta' => trim(
                             (string) ($row['banco_descripcion'] ?? '')
+                            . (! empty($row['tomador_nombre']) ? ' · Tomador ' . $row['tomador_nombre'] : '')
+                            . (! empty($row['tomador_rut']) ? ' · RUT ' . $row['tomador_rut'] : '')
                             . (! empty($row['tipo']) ? ' · ' . $row['tipo'] : '')
                             . (! empty($row['fecha_otorgamiento']) ? ' · ' . $row['fecha_otorgamiento'] : '')
                             . (! empty($row['total_credito_clp']) ? ' · Total $' . number_format((float) $row['total_credito_clp'], 0, ',', '.') : '')
@@ -827,11 +817,11 @@ foreach ($personas as $p) {
                             ' ·'
                         ),
                         'pasivos-lineas' => trim(
-                            (string) ($row['tipo'] ?? 'Línea')
-                            . ' · '
-                            . (string) ($row['banco_descripcion'] ?? '')
-                            . (! empty($row['monto_directo_clp']) ? ' · Dir. $' . number_format((float) $row['monto_directo_clp'], 0, ',', '.') : '')
-                            . (! empty($row['monto_indirecto_clp']) ? ' · Ind. $' . number_format((float) $row['monto_indirecto_clp'], 0, ',', '.') : ''),
+                            (string) ($row['banco_descripcion'] ?? '')
+                            . (! empty($row['tipo']) ? ' · ' . $row['tipo'] : '')
+                            . (! empty($row['fecha_otorgamiento']) ? ' · ' . $row['fecha_otorgamiento'] : '')
+                            . (! empty($row['total_credito_clp']) ? ' · Total $' . number_format((float) $row['total_credito_clp'], 0, ',', '.') : '')
+                            . (! empty($row['vigente_clp']) ? ' · Vigente $' . number_format((float) $row['vigente_clp'], 0, ',', '.') : ''),
                             ' ·'
                         ),
                         'pasivos-circulantes', 'otros-pasivos' => trim(

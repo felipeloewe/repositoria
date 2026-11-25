@@ -29,5 +29,6 @@ class EquityPasivoModel extends Model
         'fecha_otorgamiento', 'total_credito_uf', 'total_credito_clp',
         'vigente_uf', 'vigente_clp', 'mora_30_59_uf', 'mora_30_59_clp',
         'mora_60_89_uf', 'mora_60_89_clp', 'mora_90_mas_uf', 'mora_90_mas_clp',
+        'tomador_nombre', 'tomador_rut',
     ];
 }

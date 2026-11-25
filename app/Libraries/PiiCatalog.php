@@ -74,8 +74,8 @@ final class PiiCatalog
             ],
             [
                 'table'  => 'equity_pasivos',
-                'fields' => ['direccion_garantia'],
-                'note'   => 'Dirección de garantía hipotecaria',
+                'fields' => ['direccion_garantia', 'tomador_nombre', 'tomador_rut'],
+                'note'   => 'Dirección de garantía y tomador de deuda indirecta (nombre/RUT de tercero)',
             ],
             [
                 'table'  => 'documentos / equity_respaldos',

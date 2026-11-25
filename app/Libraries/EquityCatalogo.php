@@ -607,8 +607,10 @@ final class EquityCatalogo
     public static function opcionesTipoLineaDisponible(): array
     {
         return [
-            1 => 'Líneas de crédito',
-            2 => 'Otros créditos',
+            1 => 'Crédito libre disposición',
+            2 => 'Línea de crédito',
+            3 => 'Tarjeta de crédito',
+            4 => 'Otros',
         ];
     }
 

@@ -2036,96 +2036,82 @@ class EquityPatrimonio extends BaseController
                 'dia_cargo_pac'                => $intOrNull($this->request->getPost('dia_cargo_pac')),
                 'notas'                        => trim((string) $this->request->getPost('notas')) ?: null,
             ];
-        } elseif ($clave === 'pasivos-indirecta') {
+        } elseif ($clave === 'pasivos-indirecta' || $clave === 'pasivos-lineas') {
+            $esIndirecta = ($clave === 'pasivos-indirecta');
             $desc = trim((string) $this->request->getPost('banco_descripcion'));
             if ($desc === '') {
                 return redirect()->to($redirectPath)->with('error', 'La institución financiera es obligatoria.');
             }
-            $tipoCredito = trim((string) $this->request->getPost('tipo_credito'));
-            if ($tipoCredito === '') {
-                return redirect()->to($redirectPath)->with('error', 'El tipo de crédito es obligatorio.');
+            $monedaCupo = strtoupper(trim((string) $this->request->getPost('moneda')));
+            if ($monedaCupo !== 'UF' && $monedaCupo !== 'CLP') {
+                $monedaCupo = 'CLP';
             }
+
+            if ($esIndirecta) {
+                $tipoCredito = trim((string) $this->request->getPost('tipo_credito'));
+                if ($tipoCredito === '') {
+                    return redirect()->to($redirectPath)->with('error', 'El tipo de crédito es obligatorio.');
+                }
+                $tomadorNombre = trim((string) $this->request->getPost('tomador_nombre'));
+                $tomadorRut    = trim((string) $this->request->getPost('tomador_rut'));
+                if ($tomadorNombre === '' || $tomadorRut === '') {
+                    return redirect()->to($redirectPath)->with('error', 'Nombre/razón social y RUT del tomador son obligatorios.');
+                }
+                $tipoLabel = $tipoCredito;
+            } else {
+                $tipoLinea = $intOrNull($this->request->getPost('tipo_linea'));
+                if ($tipoLinea === null || ! isset(EquityCatalogo::opcionesTipoLineaDisponible()[$tipoLinea])) {
+                    return redirect()->to($redirectPath)->with('error', 'Selecciona el tipo de línea.');
+                }
+                $tipoLabel     = EquityCatalogo::opcionesTipoLineaDisponible()[$tipoLinea];
+                $tomadorNombre = null;
+                $tomadorRut    = null;
+            }
+
             $parTotal = EquityUf::resolverPar(
                 (string) $this->request->getPost('total_credito_uf'),
                 (string) $this->request->getPost('total_credito_clp'),
-                $memb['empresa_id']
+                $memb['empresa_id'],
+                null,
+                $monedaCupo
             );
             $parVig = EquityUf::resolverPar(
                 (string) $this->request->getPost('vigente_uf'),
                 (string) $this->request->getPost('vigente_clp'),
-                $memb['empresa_id']
+                $memb['empresa_id'],
+                null,
+                $monedaCupo
             );
-            $par3059 = EquityUf::resolverPar(
-                (string) $this->request->getPost('mora_30_59_uf'),
-                (string) $this->request->getPost('mora_30_59_clp'),
-                $memb['empresa_id']
+            $compMora = EquityUf::resolverParesComponentes(
+                ['mora_30_59', 'mora_60_89', 'mora_90_mas'],
+                fn (string $k) => $this->request->getPost($k),
+                $memb['empresa_id'],
+                $monedaCupo
             );
-            $par6089 = EquityUf::resolverPar(
-                (string) $this->request->getPost('mora_60_89_uf'),
-                (string) $this->request->getPost('mora_60_89_clp'),
-                $memb['empresa_id']
-            );
-            $par90 = EquityUf::resolverPar(
-                (string) $this->request->getPost('mora_90_mas_uf'),
-                (string) $this->request->getPost('mora_90_mas_clp'),
-                $memb['empresa_id']
-            );
+
             $model = model(EquityPasivoModel::class);
             $data  = [
-                'persona_id'          => $personaId,
-                'categoria'           => 'indirecta',
-                'banco_descripcion'   => $desc,
-                'tipo'                => $tipoCredito,
-                'fecha_otorgamiento'  => trim((string) $this->request->getPost('fecha_otorgamiento')) ?: null,
-                'total_credito_uf'    => $parTotal['uf'],
-                'total_credito_clp'   => $parTotal['clp'],
-                'vigente_uf'          => $parVig['uf'],
-                'vigente_clp'         => $parVig['clp'],
-                'mora_30_59_uf'       => $par3059['uf'],
-                'mora_30_59_clp'      => $par3059['clp'],
-                'mora_60_89_uf'       => $par6089['uf'],
-                'mora_60_89_clp'      => $par6089['clp'],
-                'mora_90_mas_uf'      => $par90['uf'],
-                'mora_90_mas_clp'     => $par90['clp'],
-                'saldo_uf'            => $parVig['uf'] ?? $parTotal['uf'],
-                'saldo_clp'           => $parVig['clp'] ?? $parTotal['clp'],
-                'notas'               => trim((string) $this->request->getPost('notas')) ?: null,
-            ];
-        } elseif ($clave === 'pasivos-lineas') {
-            $desc = trim((string) $this->request->getPost('banco_descripcion'));
-            if ($desc === '') {
-                return redirect()->to($redirectPath)->with('error', 'La institución financiera es obligatoria.');
-            }
-            $tipoLinea = $intOrNull($this->request->getPost('tipo_linea'));
-            if ($tipoLinea === null) {
-                return redirect()->to($redirectPath)->with('error', 'Selecciona el tipo (líneas de crédito / otros créditos).');
-            }
-            $tipoLabel = EquityCatalogo::opcionesTipoLineaDisponible()[$tipoLinea] ?? (string) $tipoLinea;
-            $parDir = EquityUf::resolverPar(
-                (string) $this->request->getPost('monto_directo_uf'),
-                (string) $this->request->getPost('monto_directo_clp'),
-                $memb['empresa_id']
-            );
-            $parInd = EquityUf::resolverPar(
-                (string) $this->request->getPost('monto_indirecto_uf'),
-                (string) $this->request->getPost('monto_indirecto_clp'),
-                $memb['empresa_id']
-            );
-            $totalUf  = (float) ($parDir['uf'] ?? 0) + (float) ($parInd['uf'] ?? 0);
-            $totalClp = (float) ($parDir['clp'] ?? 0) + (float) ($parInd['clp'] ?? 0);
-            $model = model(EquityPasivoModel::class);
-            $data  = [
-                'persona_id'          => $personaId,
-                'categoria'           => 'linea',
-                'banco_descripcion'   => $desc,
-                'tipo'                => $tipoLabel,
-                'monto_directo_uf'    => $parDir['uf'],
-                'monto_directo_clp'   => $parDir['clp'],
-                'monto_indirecto_uf'  => $parInd['uf'],
-                'monto_indirecto_clp' => $parInd['clp'],
-                'saldo_uf'            => $totalUf > 0 ? number_format($totalUf, 4, '.', '') : null,
-                'saldo_clp'           => $totalClp > 0 ? number_format($totalClp, 2, '.', '') : null,
-                'notas'               => trim((string) $this->request->getPost('notas')) ?: null,
+                'persona_id'         => $personaId,
+                'categoria'          => $esIndirecta ? 'indirecta' : 'linea',
+                'banco_descripcion'  => $desc,
+                'tipo'               => $tipoLabel,
+                'moneda'             => $monedaCupo,
+                'tomador_nombre'     => $tomadorNombre,
+                'tomador_rut'        => $tomadorRut,
+                'fecha_otorgamiento' => trim((string) $this->request->getPost('fecha_otorgamiento')) ?: null,
+                'total_credito_uf'   => $parTotal['uf'],
+                'total_credito_clp'  => $parTotal['clp'],
+                'vigente_uf'         => $parVig['uf'],
+                'vigente_clp'        => $parVig['clp'],
+                'mora_30_59_uf'      => $compMora['mora_30_59_uf'],
+                'mora_30_59_clp'     => $compMora['mora_30_59_clp'],
+                'mora_60_89_uf'      => $compMora['mora_60_89_uf'],
+                'mora_60_89_clp'     => $compMora['mora_60_89_clp'],
+                'mora_90_mas_uf'     => $compMora['mora_90_mas_uf'],
+                'mora_90_mas_clp'    => $compMora['mora_90_mas_clp'],
+                'saldo_uf'           => $parVig['uf'] ?? $parTotal['uf'],
+                'saldo_clp'          => $parVig['clp'] ?? $parTotal['clp'],
+                'notas'              => trim((string) $this->request->getPost('notas')) ?: null,
             ];
         } else {
             // Circulantes / Otros: misma estructura que hipotecarios; seguro = desgravamen.
@@ -2482,14 +2468,17 @@ class EquityPatrimonio extends BaseController
             ),
             'pasivos-indirecta' => trim(
                 (string) ($row['banco_descripcion'] ?? '')
+                . (! empty($row['tomador_nombre']) ? ' · Tomador ' . $row['tomador_nombre'] : '')
+                . (! empty($row['tomador_rut']) ? ' · RUT ' . $row['tomador_rut'] : '')
                 . (! empty($row['tipo']) ? ' · ' . $row['tipo'] : '')
                 . (! empty($row['vigente_clp']) ? ' · Vigente $' . number_format((float) $row['vigente_clp'], 0, ',', '.') : ''),
                 ' ·'
             ),
             'pasivos-lineas' => trim(
-                (string) ($row['tipo'] ?? 'Línea')
-                . ' · '
-                . (string) ($row['banco_descripcion'] ?? ''),
+                (string) ($row['banco_descripcion'] ?? '')
+                . (! empty($row['tipo']) ? ' · ' . $row['tipo'] : '')
+                . (! empty($row['total_credito_clp']) ? ' · Total $' . number_format((float) $row['total_credito_clp'], 0, ',', '.') : '')
+                . (! empty($row['vigente_clp']) ? ' · Vigente $' . number_format((float) $row['vigente_clp'], 0, ',', '.') : ''),
                 ' ·'
             ),
             default => (string) ($row['banco_descripcion'] ?? $row['descripcion'] ?? ''),
@@ -2766,8 +2755,27 @@ class EquityPatrimonio extends BaseController
         }
         $rows = $builder->get()->getResultArray();
         $hasDirUf = $db->fieldExists('monto_directo_uf', 'equity_pasivos');
+        $hasTotal = $db->fieldExists('total_credito_uf', 'equity_pasivos');
         $sum = 0.0;
         foreach ($rows as $r) {
+            // Nueva grilla: total del crédito / vigente / saldo.
+            if ($hasTotal && $r['total_credito_uf'] !== null && $r['total_credito_uf'] !== '') {
+                $sum += (float) $r['total_credito_uf'];
+                continue;
+            }
+            if ($hasTotal && ! empty($r['total_credito_clp']) && $ufRate > 0) {
+                $sum += (float) $r['total_credito_clp'] / $ufRate;
+                continue;
+            }
+            if ($r['saldo_uf'] !== null && $r['saldo_uf'] !== '') {
+                $sum += (float) $r['saldo_uf'];
+                continue;
+            }
+            if (! empty($r['saldo_clp']) && $ufRate > 0) {
+                $sum += (float) $r['saldo_clp'] / $ufRate;
+                continue;
+            }
+            // Legado: directos + indirectos.
             $dir = null;
             $ind = null;
             if ($hasDirUf) {
@@ -2784,10 +2792,6 @@ class EquityPatrimonio extends BaseController
             }
             if ($dir !== null || $ind !== null) {
                 $sum += (float) ($dir ?? 0) + (float) ($ind ?? 0);
-            } elseif ($r['saldo_uf'] !== null && $r['saldo_uf'] !== '') {
-                $sum += (float) $r['saldo_uf'];
-            } elseif (! empty($r['saldo_clp']) && $ufRate > 0) {
-                $sum += (float) $r['saldo_clp'] / $ufRate;
             }
         }
 
