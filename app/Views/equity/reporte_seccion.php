@@ -13,25 +13,41 @@ $clave = $meta['clave'] ?? '';
 
 <style>
 .report-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:1rem; }
+.report-title { margin:0 0 .35rem; }
+.report-title h2 { margin:0 0 .35rem; font-size:1.35rem; }
+.report-title p { margin:0; color:inherit; opacity:.85; font-size:.92rem; }
+.report-section { margin-top:.85rem; }
+.report-section h3 { margin:0 0 .5rem; font-size:1.05rem; }
+.report-summary-final {
+  margin-top:1.25rem; padding:.85rem 1rem;
+  border-top:2px solid currentColor;
+  display:flex; justify-content:space-between; align-items:baseline; gap:1rem; flex-wrap:wrap;
+}
+.report-summary-final .label { font-weight:700; letter-spacing:.02em; text-transform:uppercase; font-size:.9rem; }
+.report-summary-final .value { font-size:1.25rem; font-weight:800; }
 @media print {
   .sidebar, .topbar, .report-actions, .nav-exit, .no-print { display:none !important; }
   .shell { display:block !important; }
   .main { margin:0 !important; width:100% !important; }
   .content { padding:0 !important; }
-  .card, .section-card, .banner { box-shadow:none !important; border:1px solid #ccc !important; break-inside:avoid; }
+  .report-title { margin:0 0 .5rem; padding-bottom:.35rem; border-bottom:1px solid #ccc; }
+  .report-section { break-inside:auto; page-break-inside:auto; }
+  .report-section table { break-inside:auto; page-break-inside:auto; }
+  .report-section tr { break-inside:avoid; page-break-inside:avoid; }
+  .report-summary-final { break-inside:avoid; page-break-inside:avoid; }
   a { text-decoration:none; color:inherit; }
 }
 </style>
 
-<section class="banner">
+<header class="report-title">
     <h2>Reporte · <?= esc($meta['label'] ?? '') ?></h2>
     <p>
         <?= esc($meta['grupo'] ?? '') ?>
-        <?= $personaNombre ? ' · ' . esc($personaNombre) : '' ?>.
-        UF vigente <?= esc(EquityUf::fmtPesos($ufRate, 2)) ?><?= ! empty($ufVigente['fecha_cierre']) ? ' · cierre ' . esc($ufVigente['fecha_cierre']) : '' ?>.
-        Generado <?= esc(date('d/m/Y H:i')) ?>.
+        <?= $personaNombre ? ' · ' . esc($personaNombre) : '' ?>
+        · UF vigente <?= esc(EquityUf::fmtPesos($ufRate, 2)) ?><?= ! empty($ufVigente['fecha_cierre']) ? ' · cierre ' . esc($ufVigente['fecha_cierre']) : '' ?>
+        · <?= esc(date('d/m/Y H:i')) ?>
     </p>
-</section>
+</header>
 
 <div class="card section-card no-print">
     <div class="report-actions">
@@ -43,7 +59,7 @@ $clave = $meta['clave'] ?? '';
     </div>
 </div>
 
-<div class="card section-card">
+<section class="report-section card section-card">
     <h3>Detalle (<?= count($rows ?? []) ?>)</h3>
     <?php if (($rows ?? []) === []): ?>
         <p class="muted">Sin registros para reportar.</p>
@@ -75,18 +91,23 @@ $clave = $meta['clave'] ?? '';
                 </tr>
             <?php endforeach; ?>
             </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="2" style="text-align:right"><strong>Total</strong></td>
-                    <?php if ($clave === 'bienes-raices'): ?>
-                        <td><strong><?= esc(EquityUf::fmtPesos((float) ($totalAvaluo ?? 0), 0)) ?></strong></td>
-                    <?php endif; ?>
-                    <td><strong><?= esc(EquityUf::fmtUf((float) ($totalUf ?? 0), 2)) ?></strong></td>
-                    <td><strong><?= esc(EquityUf::fmtPesos((float) ($totalClp ?? 0), 0)) ?></strong></td>
-                </tr>
-            </tfoot>
         </table>
     <?php endif; ?>
+</section>
+
+<?php if (($rows ?? []) !== []): ?>
+<div class="report-summary-final">
+    <div>
+        <div class="label">Total</div>
+        <?php if ($clave === 'bienes-raices'): ?>
+            <div class="muted" style="font-size:.85rem">Avalúo fiscal <?= esc(EquityUf::fmtPesos((float) ($totalAvaluo ?? 0), 0)) ?></div>
+        <?php endif; ?>
+    </div>
+    <div style="text-align:right">
+        <div class="value"><?= esc(EquityUf::fmtPesos((float) ($totalClp ?? 0), 0)) ?></div>
+        <div class="muted"><?= esc(EquityUf::fmtUf((float) ($totalUf ?? 0), 2)) ?></div>
+    </div>
 </div>
+<?php endif; ?>
 
 <?= $this->endSection() ?>
