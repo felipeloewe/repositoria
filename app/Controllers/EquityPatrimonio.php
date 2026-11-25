@@ -2881,11 +2881,19 @@ class EquityPatrimonio extends BaseController
         $secciones = [];
         $granTotalUf  = 0.0;
         $granTotalClp = 0.0;
+        $totalIndirectaUf  = 0.0;
+        $totalIndirectaClp = 0.0;
+        $totalLineasUf     = 0.0;
+        $totalLineasClp    = 0.0;
         foreach ($claves as $clave) {
             $meta = EquityCatalogo::seccion($clave);
             if ($meta === null) {
                 continue;
             }
+            $esReferencia = $grupo === 'pasivos'
+                && in_array($clave, ['pasivos-indirecta', 'pasivos-lineas'], true);
+            $esIndirecta = $clave === 'pasivos-indirecta';
+            $esLineas    = $clave === 'pasivos-lineas';
             $rows = $this->loadRows($meta, $empresaId, $personaId);
             $totalUf  = 0.0;
             $totalClp = 0.0;
@@ -2901,30 +2909,46 @@ class EquityPatrimonio extends BaseController
                 }
             }
             unset($row);
-            $granTotalUf  += $totalUf;
-            $granTotalClp += $totalClp;
+            if (! $esReferencia) {
+                $granTotalUf  += $totalUf;
+                $granTotalClp += $totalClp;
+            } elseif ($esIndirecta) {
+                $totalIndirectaUf  += $totalUf;
+                $totalIndirectaClp += $totalClp;
+            } elseif ($esLineas) {
+                $totalLineasUf  += $totalUf;
+                $totalLineasClp += $totalClp;
+            }
             $secciones[] = [
-                'meta'     => $meta,
-                'rows'     => $rows,
-                'totalUf'  => $totalUf,
-                'totalClp' => $totalClp,
-                'path'     => $this->pathSeccion($clave),
-                'reporte'  => $this->pathReporteSeccion($clave),
+                'clave'        => $clave,
+                'meta'         => $meta,
+                'rows'         => $rows,
+                'totalUf'      => $totalUf,
+                'totalClp'     => $totalClp,
+                'path'         => $this->pathSeccion($clave),
+                'reporte'      => $this->pathReporteSeccion($clave),
+                'es_referencia'=> $esReferencia,
+                'es_indirecta' => $esIndirecta,
+                'es_lineas'    => $esLineas,
             ];
         }
 
         return view('equity/reporte_grupo', [
-            'title'         => $grupo === 'pasivos' ? 'Reporte · Pasivos' : 'Reporte · Activos',
-            'memb'          => $memb,
-            'equityNav'     => $grupo === 'pasivos' ? 'pasivos-inmuebles' : 'bienes-raices',
-            'grupo'         => $grupo,
-            'secciones'     => $secciones,
-            'personaId'     => $personaId,
-            'personaNombre' => $personaNombre,
-            'ufVigente'     => $ufVigente,
-            'granTotalUf'   => $granTotalUf,
-            'granTotalClp'  => $granTotalClp,
-            'backUrl'       => $grupo === 'pasivos' ? '/equity/pasivos/inmuebles' : '/equity/activos/bienes-raices',
+            'title'              => $grupo === 'pasivos' ? 'Reporte · Pasivos' : 'Reporte · Activos',
+            'memb'               => $memb,
+            'equityNav'          => $grupo === 'pasivos' ? 'pasivos-inmuebles' : 'bienes-raices',
+            'grupo'              => $grupo,
+            'secciones'          => $secciones,
+            'personaId'          => $personaId,
+            'personaNombre'      => $personaNombre,
+            'ufVigente'          => $ufVigente,
+            'granTotalUf'        => $granTotalUf,
+            'granTotalClp'       => $granTotalClp,
+            'totalIndirectaUf'   => $totalIndirectaUf,
+            'totalIndirectaClp'  => $totalIndirectaClp,
+            'totalLineasUf'      => $totalLineasUf,
+            'totalLineasClp'     => $totalLineasClp,
+            'backUrl'            => $grupo === 'pasivos' ? '/equity/pasivos/inmuebles' : '/equity/activos/bienes-raices',
         ]);
     }
 
