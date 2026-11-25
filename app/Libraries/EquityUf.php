@@ -209,23 +209,84 @@ final class EquityUf
         return date('Y-m-d', $ts !== false ? $ts : time());
     }
 
+    /**
+     * Parsea montos tipados en UI chilena o anglosajona.
+     * Acepta: 1500000 | 1.500.000 | 1.500.000,50 | 1500000,5 | $1.500.000 | 1,500,000.50
+     * Para pesos ($scale ≤ 2), un solo grupo miles `15.000` → 15000.
+     * Para UF ($scale ≥ 3), un solo punto se trata como decimal (`15.000` → 15).
+     */
     public static function parseDecimal(?string $raw, int $scale = 2): ?float
     {
         $v = trim((string) $raw);
         if ($v === '') {
             return null;
         }
-        if (str_contains($v, ',') && str_contains($v, '.')) {
-            $v = str_replace('.', '', $v);
-            $v = str_replace(',', '.', $v);
-        } elseif (str_contains($v, ',')) {
-            $v = str_replace(',', '.', $v);
+
+        // Quitar símbolo / texto de moneda y espacios (incl. NBSP).
+        $v = preg_replace('/\s+/u', '', $v) ?? $v;
+        $v = str_replace("\xc2\xa0", '', $v);
+        $v = preg_replace('/^(clp|uf|pesos|usd)\.?/i', '', $v) ?? $v;
+        $v = preg_replace('/(clp|uf|pesos|usd)\.?$/i', '', $v) ?? $v;
+        $v = str_replace('$', '', $v);
+        $v = trim($v);
+        if ($v === '' || $v === '+' || $v === '-') {
+            return null;
         }
+
+        $neg = false;
+        if (str_starts_with($v, '-')) {
+            $neg = true;
+            $v   = substr($v, 1);
+        } elseif (str_starts_with($v, '+')) {
+            $v = substr($v, 1);
+        }
+        $v = trim($v);
+        if ($v === '') {
+            return null;
+        }
+
+        $hasComma = str_contains($v, ',');
+        $hasDot   = str_contains($v, '.');
+
+        if ($hasComma && $hasDot) {
+            // El separador que aparece último es el decimal.
+            if (strrpos($v, ',') > strrpos($v, '.')) {
+                // Chileno: 1.234.567,89
+                $v = str_replace('.', '', $v);
+                $v = str_replace(',', '.', $v);
+            } else {
+                // US: 1,234,567.89
+                $v = str_replace(',', '', $v);
+            }
+        } elseif ($hasComma) {
+            if (substr_count($v, ',') > 1) {
+                // Miles con coma: 1,234,567
+                $v = str_replace(',', '', $v);
+            } else {
+                // Decimal chileno: 41247,63
+                $v = str_replace(',', '.', $v);
+            }
+        } elseif ($hasDot) {
+            if (substr_count($v, '.') > 1) {
+                // Miles chilenos: 1.500.000
+                $v = str_replace('.', '', $v);
+            } elseif ($scale <= 2 && preg_match('/^\d{1,3}\.\d{3}$/', $v) === 1) {
+                // Pesos con un grupo de miles: 15.000 → 15000
+                $v = str_replace('.', '', $v);
+            }
+            // else: decimal (UF 3245.6789 o pesos con centavos 41247.63)
+        }
+
         if (! is_numeric($v)) {
             return null;
         }
 
-        return round((float) $v, $scale);
+        $n = (float) $v;
+        if ($neg) {
+            $n = -$n;
+        }
+
+        return round($n, $scale);
     }
 
     /** @return array{fecha_cierre: string, valor_clp: float} */

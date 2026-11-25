@@ -1863,18 +1863,9 @@ class EquityPatrimonio extends BaseController
 
         helper('id');
         $money = static function ($raw): ?string {
-            $v = trim((string) $raw);
-            if ($v === '') {
-                return null;
-            }
-            if (str_contains($v, ',') && str_contains($v, '.')) {
-                $v = str_replace('.', '', $v);
-                $v = str_replace(',', '.', $v);
-            } elseif (str_contains($v, ',')) {
-                $v = str_replace(',', '.', $v);
-            }
+            $n = EquityUf::parseDecimal((string) $raw, 2);
 
-            return is_numeric($v) ? number_format((float) $v, 2, '.', '') : null;
+            return $n !== null ? number_format($n, 2, '.', '') : null;
         };
 
         $parValor = EquityUf::resolverPar(
@@ -2183,9 +2174,17 @@ class EquityPatrimonio extends BaseController
             if ($monedaOtro !== 'UF' && $monedaOtro !== 'CLP') {
                 $monedaOtro = 'CLP';
             }
+            $saldoUfRaw  = trim((string) $this->request->getPost('saldo_uf'));
+            $saldoClpRaw = trim((string) $this->request->getPost('saldo_clp'));
+            if ($monedaOtro === 'CLP' && $saldoClpRaw !== '' && EquityUf::parseDecimal($saldoClpRaw, 2) === null) {
+                return redirect()->to($redirectPath)->with('error', 'No se pudo interpretar el saldo en $. Usa 1500000 o 1.500.000');
+            }
+            if ($monedaOtro === 'UF' && $saldoUfRaw !== '' && EquityUf::parseDecimal($saldoUfRaw, 4) === null) {
+                return redirect()->to($redirectPath)->with('error', 'No se pudo interpretar el saldo en UF.');
+            }
             $parSaldoOtro = EquityUf::resolverPar(
-                (string) $this->request->getPost('saldo_uf'),
-                (string) $this->request->getPost('saldo_clp'),
+                $saldoUfRaw,
+                $saldoClpRaw,
                 $memb['empresa_id'],
                 null,
                 $monedaOtro
@@ -2260,7 +2259,11 @@ class EquityPatrimonio extends BaseController
 
         if ($isEdit) {
             $before = $existing ?? null;
-            $model->update($editId, $data);
+            if ($model->update($editId, $data) === false) {
+                $err = implode(' ', $model->errors() ?: ['No se pudo actualizar el registro.']);
+
+                return redirect()->to($redirectPath)->with('error', $err);
+            }
             $activoId = (string) $editId;
             $msg = 'Registro actualizado.';
         } else {
@@ -2268,7 +2271,11 @@ class EquityPatrimonio extends BaseController
             $data['id']            = new_id();
             $data['empresa_id']    = $memb['empresa_id'];
             $data['creado_por_id'] = $memb['usuario_id'];
-            $model->insert($data);
+            if ($model->insert($data) === false) {
+                $err = implode(' ', $model->errors() ?: ['No se pudo guardar el registro.']);
+
+                return redirect()->to($redirectPath)->with('error', $err);
+            }
             $activoId = (string) $data['id'];
             $msg = 'Registro agregado.';
         }

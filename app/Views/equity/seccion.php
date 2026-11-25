@@ -86,6 +86,11 @@ $val = static function (string $key, ?int $dec = null) use ($edit): string {
     }
     $v = $edit[$key];
     if ($dec !== null && is_numeric($v)) {
+        // Pesos (0 dec): miles chilenos 1.500.000. UF (≥1 dec): coma decimal sin miles.
+        if ($dec === 0) {
+            return number_format((float) $v, 0, ',', '.');
+        }
+
         return number_format((float) $v, $dec, ',', '');
     }
 
