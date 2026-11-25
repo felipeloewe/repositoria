@@ -121,7 +121,7 @@ foreach ($personas as $p) {
                         <th>Renta<br><span class="muted">Fija+Var</span></th>
                         <th>Honorarios<br><span class="muted">Hon+Com+Bon</span></th>
                         <th>Inversiones<br><span class="muted">Arr+Mut+Div</span></th>
-                        <th>Otros<br><span class="muted">Pen+Don+Ind</span></th>
+                        <th>Otros<br><span class="muted">Pen+Don+Ind+ER</span></th>
                         <th>Total mensual</th>
                         <th></th>
                     </tr>
@@ -133,7 +133,7 @@ foreach ($personas as $p) {
                     $renta = (float) ($f['ingreso_fijo'] ?? 0) + (float) ($f['ingreso_variable'] ?? 0);
                     $hon   = (float) ($f['ingreso_honorarios'] ?? 0) + (float) ($f['ingreso_comisiones'] ?? 0) + (float) ($f['ingreso_bonos'] ?? 0);
                     $inv   = (float) ($f['ingreso_arriendos'] ?? 0) + (float) ($f['ingreso_mutuos'] ?? 0) + (float) ($f['ingreso_dividendos'] ?? 0);
-                    $otr   = (float) ($f['ingreso_pensiones'] ?? 0) + (float) ($f['ingreso_donaciones'] ?? 0) + (float) ($f['ingreso_indemnizaciones'] ?? 0) + (float) ($f['ingreso_otros'] ?? 0);
+                    $otr   = (float) ($f['ingreso_pensiones'] ?? 0) + (float) ($f['ingreso_donaciones'] ?? 0) + (float) ($f['ingreso_indemnizaciones'] ?? 0) + (float) ($f['ingreso_capital_er'] ?? 0) + (float) ($f['ingreso_intereses_er'] ?? 0) + (float) ($f['ingreso_otros'] ?? 0);
                     ?>
                     <tr>
                         <td>

@@ -890,6 +890,8 @@ class Equity extends BaseController
         $ingresoDividendos      = $money($this->request->getPost('ingreso_dividendos'));
         $ingresoDonaciones      = $money($this->request->getPost('ingreso_donaciones'));
         $ingresoIndemnizaciones = $money($this->request->getPost('ingreso_indemnizaciones'));
+        $ingresoCapitalEr       = $money($this->request->getPost('ingreso_capital_er'));
+        $ingresoInteresesEr     = $money($this->request->getPost('ingreso_intereses_er'));
         $rentaLiquida           = $money($this->request->getPost('renta_liquida'));
         $activos                = $money($this->request->getPost('activos_total'));
         $pasivos                = $money($this->request->getPost('pasivos_total'));
@@ -899,6 +901,7 @@ class Equity extends BaseController
             $ingresoHonorarios, $ingresoComisiones, $ingresoBonos,
             $ingresoArriendos, $ingresoMutuos, $ingresoDividendos,
             $ingresoPensiones, $ingresoDonaciones, $ingresoIndemnizaciones,
+            $ingresoCapitalEr, $ingresoInteresesEr,
             $ingresoOtros,
         ], static fn ($v) => $v !== null);
         $totalIngreso = $money($this->request->getPost('ingreso_mensual_total'));
@@ -931,6 +934,8 @@ class Equity extends BaseController
             'ingreso_dividendos'       => $ingresoDividendos,
             'ingreso_donaciones'       => $ingresoDonaciones,
             'ingreso_indemnizaciones'  => $ingresoIndemnizaciones,
+            'ingreso_capital_er'       => $ingresoCapitalEr,
+            'ingreso_intereses_er'     => $ingresoInteresesEr,
             'ingreso_mensual_total'    => $totalIngreso,
             'activos_total'            => $activos,
             'pasivos_total'            => $pasivos,

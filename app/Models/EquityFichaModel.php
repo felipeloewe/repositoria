@@ -19,7 +19,9 @@ class EquityFichaModel extends Model
         'renta_liquida', 'ingreso_fijo', 'ingreso_honorarios', 'ingreso_arriendos',
         'ingreso_variable', 'ingreso_comisiones', 'ingreso_pensiones', 'ingreso_bonos',
         'ingreso_otros', 'ingreso_mutuos', 'ingreso_dividendos',
-        'ingreso_donaciones', 'ingreso_indemnizaciones', 'ingreso_mensual_total',
+        'ingreso_donaciones', 'ingreso_indemnizaciones',
+        'ingreso_capital_er', 'ingreso_intereses_er',
+        'ingreso_mensual_total',
         'activos_total', 'pasivos_total', 'patrimonio_neto',
         'notas', 'creado_por_id',
     ];

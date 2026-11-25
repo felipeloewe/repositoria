@@ -111,6 +111,14 @@ $val = static function (string $key) use ($ficha): string {
                 <input id="ingreso_indemnizaciones" type="text" name="ingreso_indemnizaciones" inputmode="decimal" value="<?= esc($val('ingreso_indemnizaciones')) ?>">
             </div>
             <div>
+                <label for="ingreso_capital_er">Capital ER</label>
+                <input id="ingreso_capital_er" type="text" name="ingreso_capital_er" inputmode="decimal" value="<?= esc($val('ingreso_capital_er')) ?>">
+            </div>
+            <div>
+                <label for="ingreso_intereses_er">Intereses ER</label>
+                <input id="ingreso_intereses_er" type="text" name="ingreso_intereses_er" inputmode="decimal" value="<?= esc($val('ingreso_intereses_er')) ?>">
+            </div>
+            <div>
                 <label for="ingreso_otros">Otros <span class="muted">(legacy)</span></label>
                 <input id="ingreso_otros" type="text" name="ingreso_otros" inputmode="decimal" value="<?= esc($val('ingreso_otros')) ?>">
             </div>

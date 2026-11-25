@@ -41,9 +41,25 @@ $e = static function (string $key, $default = '') use ($editRow, $fmtInput, $isE
 $qs = '';
 $periodos = EquityCatalogo::opcionesPeriodicidadIngreso();
 $estados  = EquityCatalogo::opcionesEstadoContratoIngreso();
+$reclasificable = ! empty($reclasificable);
 $subtipoLabels = [];
 foreach ($meta['campos'] as $c) {
     $subtipoLabels[$c['subtipo']] = $c['label'];
+}
+if ($reclasificable) {
+    foreach (EquityCatalogo::subtiposIngresoReclasificables() as $st => $c) {
+        $subtipoLabels[$st] = $c['label'];
+    }
+}
+$tiposPorFuente = [];
+if ($reclasificable) {
+    foreach (EquityCatalogo::fuentesIngresoReclasificables() as $fClave) {
+        $fMeta = EquityCatalogo::fuentesIngreso()[$fClave] ?? null;
+        if ($fMeta === null) {
+            continue;
+        }
+        $tiposPorFuente[$fClave] = $fMeta;
+    }
 }
 $formAction = $isEdit
     ? site_url('equity/ingresos/' . $fuente . '/contratos/' . $editRow['id'])
@@ -112,12 +128,29 @@ foreach ($personas as $p) {
                 <div>
                     <label for="subtipo">Tipo *</label>
                     <select id="subtipo" name="subtipo" required>
-                        <?php foreach ($meta['campos'] as $c): ?>
-                            <option value="<?= esc($c['subtipo']) ?>" <?= $e('subtipo') === $c['subtipo'] ? 'selected' : '' ?>>
-                                <?= esc($c['label']) ?>
-                            </option>
-                        <?php endforeach; ?>
+                        <?php if ($reclasificable): ?>
+                            <?php foreach ($tiposPorFuente as $fClave => $fMeta): ?>
+                                <optgroup label="<?= esc($fMeta['label']) ?>">
+                                    <?php foreach ($fMeta['campos'] as $c): ?>
+                                        <option value="<?= esc($c['subtipo']) ?>" <?= $e('subtipo') === $c['subtipo'] ? 'selected' : '' ?>>
+                                            <?= esc($c['label']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <?php foreach ($meta['campos'] as $c): ?>
+                                <option value="<?= esc($c['subtipo']) ?>" <?= $e('subtipo') === $c['subtipo'] ? 'selected' : '' ?>>
+                                    <?= esc($c['label']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </select>
+                    <?php if ($reclasificable): ?>
+                        <p class="muted" style="margin:.25rem 0 0;font-size:.85em">
+                            Puedes cambiar el tipo entre <strong>Inversiones</strong> y <strong>Otros</strong>; el contrato se mueve a esa pestaña al guardar.
+                        </p>
+                    <?php endif; ?>
                 </div>
                 <div>
                     <label for="contraparte_rut">Contraparte · RUT</label>
@@ -156,7 +189,7 @@ foreach ($personas as $p) {
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <?php if ($fuente === 'inversiones' && ($bienesOpciones ?? []) !== []): ?>
+                <?php if (($fuente === 'inversiones' || $reclasificable) && ($bienesOpciones ?? []) !== []): ?>
                     <div style="grid-column:1/-1">
                         <label for="bien_raiz_id">Bien raíz vinculado <span class="muted">(arriendos)</span></label>
                         <select id="bien_raiz_id" name="bien_raiz_id">

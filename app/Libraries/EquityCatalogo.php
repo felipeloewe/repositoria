@@ -134,7 +134,7 @@ final class EquityCatalogo
                 'label'       => 'Otros',
                 'grupo'       => 'Ingresos',
                 'path'        => '/equity/ingresos/otros',
-                'descripcion' => 'Pensiones / Donaciones / Indemnizaciones',
+                'descripcion' => 'Pensiones / Donaciones / Indemnizaciones / Capital ER / Intereses ER',
             ],
             [
                 'clave'       => 'egresos',
@@ -263,14 +263,67 @@ final class EquityCatalogo
             'otros' => [
                 'clave'       => 'otros',
                 'label'       => 'Otros',
-                'descripcion' => 'Pensiones, donaciones e indemnizaciones',
+                'descripcion' => 'Pensiones, donaciones, indemnizaciones, Capital ER e Intereses ER',
                 'campos'      => [
                     ['key' => 'ingreso_pensiones', 'label' => 'Pensiones', 'subtipo' => 'pensiones'],
                     ['key' => 'ingreso_donaciones', 'label' => 'Donaciones', 'subtipo' => 'donaciones'],
                     ['key' => 'ingreso_indemnizaciones', 'label' => 'Indemnizaciones', 'subtipo' => 'indemnizaciones'],
+                    ['key' => 'ingreso_capital_er', 'label' => 'Capital ER', 'subtipo' => 'capital_er'],
+                    ['key' => 'ingreso_intereses_er', 'label' => 'Intereses ER', 'subtipo' => 'intereses_er'],
                 ],
             ],
         ];
+    }
+
+    /**
+     * Fuentes de ingreso que permiten reclasificar tipos entre sí (p. ej. Balance Inversiones ↔ Otros).
+     *
+     * @return list<string>
+     */
+    public static function fuentesIngresoReclasificables(): array
+    {
+        return ['inversiones', 'otros'];
+    }
+
+    /**
+     * Mapa subtipo → meta (incluye fuente) para tipologías reclasificables.
+     *
+     * @return array<string, array{fuente: string, fuente_label: string, key: string, label: string, subtipo: string}>
+     */
+    public static function subtiposIngresoReclasificables(): array
+    {
+        $out     = [];
+        $fuentes = self::fuentesIngreso();
+        foreach (self::fuentesIngresoReclasificables() as $clave) {
+            $meta = $fuentes[$clave] ?? null;
+            if ($meta === null) {
+                continue;
+            }
+            foreach ($meta['campos'] as $c) {
+                $out[$c['subtipo']] = [
+                    'fuente'       => $clave,
+                    'fuente_label' => $meta['label'],
+                    'key'          => $c['key'],
+                    'label'        => $c['label'],
+                    'subtipo'      => $c['subtipo'],
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    public static function fuenteDeSubtipoIngreso(string $subtipo): ?string
+    {
+        foreach (self::fuentesIngreso() as $clave => $meta) {
+            foreach ($meta['campos'] as $c) {
+                if ($c['subtipo'] === $subtipo) {
+                    return $clave;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

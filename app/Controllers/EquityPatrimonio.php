@@ -1151,7 +1151,9 @@ class EquityPatrimonio extends BaseController
         $totalCanon = 0.0;
         $bienesOpciones = [];
         $contratosPorBien = [];
-        if ($fuente === 'inversiones') {
+        $reclasificable = in_array($fuente, EquityCatalogo::fuentesIngresoReclasificables(), true);
+        // Bienes disponibles también en Otros: permite reclasificar a/desde Arriendos.
+        if ($fuente === 'inversiones' || $reclasificable) {
             foreach ($contratos as $c) {
                 $bid = (string) ($c['bien_raiz_id'] ?? '');
                 if ($bid !== '') {
@@ -1168,6 +1170,9 @@ class EquityPatrimonio extends BaseController
             }
             foreach ($bq->findAll() as $br) {
                 $bienesOpciones[] = $br;
+                if ($fuente !== 'inversiones') {
+                    continue;
+                }
                 $canon = EquityArriendoSync::canonClp($br, $ufRate);
                 if ($canon <= 0) {
                     continue;
@@ -1201,23 +1206,24 @@ class EquityPatrimonio extends BaseController
         }
 
         return view('equity/ingresos_fuente', [
-            'title'          => $meta['label'],
-            'memb'           => $memb,
-            'equityNav'      => 'ingresos-' . $fuente,
-            'fuente'         => $fuente,
-            'meta'           => $meta,
-            'ficha'          => $ficha,
-            'contratos'      => $contratos,
-            'editRow'        => $editRow,
-            'personas'       => $personas,
-            'personaId'      => $personaId,
-            'arriendos'      => $arriendos,
-            'bienesOpciones' => $bienesOpciones,
-            'totalCanon'     => $totalCanon,
-            'ufVigente'      => $ufVigente,
-            'canManage'      => EquityAcl::canDeclare($memb),
-            'success'        => session()->getFlashdata('success'),
-            'error'          => session()->getFlashdata('error'),
+            'title'           => $meta['label'],
+            'memb'            => $memb,
+            'equityNav'       => 'ingresos-' . $fuente,
+            'fuente'          => $fuente,
+            'meta'            => $meta,
+            'ficha'           => $ficha,
+            'contratos'       => $contratos,
+            'editRow'         => $editRow,
+            'personas'        => $personas,
+            'personaId'       => $personaId,
+            'arriendos'       => $arriendos,
+            'bienesOpciones'  => $bienesOpciones,
+            'totalCanon'      => $totalCanon,
+            'reclasificable'  => $reclasificable,
+            'ufVigente'       => $ufVigente,
+            'canManage'       => EquityAcl::canDeclare($memb),
+            'success'         => session()->getFlashdata('success'),
+            'error'           => session()->getFlashdata('error'),
         ]);
     }
 
@@ -1338,14 +1344,30 @@ class EquityPatrimonio extends BaseController
             return redirect()->to($redirect)->with('error', 'Persona no encontrada.');
         }
 
+        $reclasificable = in_array($fuente, EquityCatalogo::fuentesIngresoReclasificables(), true);
         $subtipos = [];
-        foreach ($fuentes[$fuente]['campos'] as $c) {
-            $subtipos[$c['subtipo']] = $c;
+        if ($reclasificable) {
+            foreach (EquityCatalogo::subtiposIngresoReclasificables() as $st => $c) {
+                $subtipos[$st] = $c;
+            }
+        } else {
+            foreach ($fuentes[$fuente]['campos'] as $c) {
+                $subtipos[$c['subtipo']] = $c;
+            }
         }
         $subtipo = trim((string) $this->request->getPost('subtipo'));
         if (! isset($subtipos[$subtipo])) {
             return redirect()->to($redirect)->with('error', 'Tipo de ingreso no válido.');
         }
+        // Si el tipo pertenece a otra fuente reclasificable, mover el contrato allí.
+        $fuenteFinal = $fuente;
+        if ($reclasificable) {
+            $fuenteDeTipo = EquityCatalogo::fuenteDeSubtipoIngreso($subtipo);
+            if ($fuenteDeTipo !== null && in_array($fuenteDeTipo, EquityCatalogo::fuentesIngresoReclasificables(), true)) {
+                $fuenteFinal = $fuenteDeTipo;
+            }
+        }
+        $redirectFinal = '/equity/ingresos/' . $fuenteFinal . ($personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : '');
 
         $nombre = trim((string) $this->request->getPost('contraparte_nombre'));
         if ($nombre === '') {
@@ -1423,7 +1445,7 @@ class EquityPatrimonio extends BaseController
 
         $data = [
             'persona_id'            => $personaId,
-            'fuente'                => $fuente,
+            'fuente'                => $fuenteFinal,
             'subtipo'               => $subtipo,
             'contraparte_rut'       => $rut !== '' ? $rut : null,
             'contraparte_nombre'    => $nombre,
@@ -1469,7 +1491,9 @@ class EquityPatrimonio extends BaseController
 
         if ($isEdit) {
             model(EquityIngresoContratoModel::class)->update($id, $data);
-            $msg = 'Contrato / contraparte actualizado.';
+            $msg = $fuenteFinal !== $fuente
+                ? 'Contrato actualizado y movido a ' . ($fuentes[$fuenteFinal]['label'] ?? $fuenteFinal) . '.'
+                : 'Contrato / contraparte actualizado.';
         } else {
             $newId = new_id();
             // Si ya subimos archivo con new_id provisional distinto, re-asociar: usamos newId consistente
@@ -1481,12 +1505,14 @@ class EquityPatrimonio extends BaseController
             $data['empresa_id']    = $empresaId;
             $data['creado_por_id'] = $memb['usuario_id'];
             model(EquityIngresoContratoModel::class)->insert($data);
-            $msg = 'Contrato / contraparte agregado.';
+            $msg = $fuenteFinal !== $fuente
+                ? 'Contrato agregado en ' . ($fuentes[$fuenteFinal]['label'] ?? $fuenteFinal) . '.'
+                : 'Contrato / contraparte agregado.';
         }
 
         $this->sincronizarFichaDesdeContratos($empresaId, $personaId, $memb['usuario_id']);
 
-        return redirect()->to($redirect)->with('success', $msg);
+        return redirect()->to($redirectFinal)->with('success', $msg);
     }
 
     public function eliminarContratoIngreso(string $fuente, string $id)
@@ -1673,6 +1699,7 @@ class EquityPatrimonio extends BaseController
             'ingreso_honorarios', 'ingreso_comisiones', 'ingreso_bonos',
             'ingreso_arriendos', 'ingreso_mutuos', 'ingreso_dividendos',
             'ingreso_pensiones', 'ingreso_donaciones', 'ingreso_indemnizaciones',
+            'ingreso_capital_er', 'ingreso_intereses_er',
             'ingreso_otros',
         ];
         $sum = 0.0;
