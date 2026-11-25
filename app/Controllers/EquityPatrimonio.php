@@ -167,76 +167,15 @@ class EquityPatrimonio extends BaseController
 
         // Ingresos / Egresos del Balance: totales por pestaña (misma lógica que los hubs).
         $fuentesIngreso = EquityCatalogo::fuentesIngreso();
-        $fichasBase     = [];
-        if ($personaId !== '') {
-            $f = $this->ultimaFicha($empresaId, $personaId);
-            if (is_array($f)) {
-                $fichasBase[] = $f;
-            }
-        } else {
-            $seenFicha = [];
-            foreach (model(EquityFichaModel::class)
-                ->whereIn('empresa_id', $this->empresaScopeIds($empresaId))
-                ->orderBy('fecha_corte', 'DESC')
-                ->orderBy('created_at', 'DESC')
-                ->findAll() as $f) {
-                $pid = (string) ($f['persona_id'] ?? '');
-                if ($pid === '' || isset($seenFicha[$pid])) {
-                    continue;
-                }
-                $seenFicha[$pid] = true;
-                $fichasBase[]    = $f;
-            }
-        }
-
-        $cq = model(EquityIngresoContratoModel::class)->where('estado', 'vigente');
-        if ($personaId !== '') {
-            $cq->where('persona_id', $personaId);
-        } else {
-            $cq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
-        }
-        $sumasContrato = [];
-        $subtipoFuente = [];
-        foreach ($fuentesIngreso as $clave => $meta) {
-            $sumasContrato[$clave] = 0.0;
-            foreach ($meta['campos'] as $c) {
-                $subtipoFuente[$c['subtipo']] = $clave;
-            }
-        }
-        foreach ($cq->findAll() as $ct) {
-            $fClave = $subtipoFuente[$ct['subtipo'] ?? ''] ?? ($ct['fuente'] ?? null);
-            if ($fClave === null || ! isset($sumasContrato[$fClave])) {
-                continue;
-            }
-            $sumasContrato[$fClave] += EquityCatalogo::montoMensualEquivalente(
-                isset($ct['monto_contrato_clp']) ? (float) $ct['monto_contrato_clp'] : null,
-                $ct['periodicidad'] ?? 'mensual'
-            );
-        }
-
+        $ingTotales     = $this->totalesIngresosMensuales($empresaId, $personaId, $ufRate);
         $ingresosDetalle = [];
-        $totalIngresos   = 0.0;
         foreach ($fuentesIngreso as $clave => $meta) {
-            $sum = (float) ($sumasContrato[$clave] ?? 0);
-            if ($sum <= 0) {
-                foreach ($fichasBase as $fRow) {
-                    foreach ($meta['campos'] as $campo) {
-                        $v = $fRow[$campo['key']] ?? null;
-                        if ($v !== null && $v !== '') {
-                            $sum += (float) $v;
-                        }
-                    }
-                }
-            }
-            if ($clave === 'inversiones' && $sum <= 0) {
-                $sum += $this->sumCanonArriendos($empresaId, $personaId, $ufRate);
-            }
             $ingresosDetalle[] = [
                 'concepto' => $meta['label'],
-                'monto'    => $sum,
+                'monto'    => (float) ($ingTotales['porFuente'][$clave] ?? 0),
             ];
-            $totalIngresos += $sum;
         }
+        $totalIngresos = (float) $ingTotales['total'];
 
         $fuentesEgreso   = EquityCatalogo::fuentesEgreso();
         $egresosDetalle  = [];
@@ -577,6 +516,8 @@ class EquityPatrimonio extends BaseController
             $q->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
         }
         $rows = $q->findAll();
+        $rowsDirectos = [];
+        $rowsIndirecta = [];
         foreach ($rows as &$row) {
             $row['persona'] = $personaMap[$row['persona_id']] ?? null;
             $row['tipo_credito_label'] = $this->tipoCreditoSituacion($row);
@@ -598,22 +539,34 @@ class EquityPatrimonio extends BaseController
             $row['mora_30_show'] = $this->montoClpPreferido($row['mora_30_59_clp'] ?? null, $row['mora_30_59_uf'] ?? null, null, null, $ufRate);
             $row['mora_60_show'] = $this->montoClpPreferido($row['mora_60_89_clp'] ?? null, $row['mora_60_89_uf'] ?? null, null, null, $ufRate);
             $row['mora_90_show'] = $this->montoClpPreferido($row['mora_90_mas_clp'] ?? null, $row['mora_90_mas_uf'] ?? null, null, null, $ufRate);
+            if (($row['categoria'] ?? '') === 'indirecta') {
+                $rowsIndirecta[] = $row;
+            } else {
+                $rowsDirectos[] = $row;
+            }
         }
         unset($row);
 
-        // Reporte de ingresos informados (fichas + rentas laborales de la ficha personal).
-        $fq = model(EquityFichaModel::class)
-            ->where('empresa_id', $empresaId)
-            ->orderBy('fecha_corte', 'DESC')
-            ->orderBy('created_at', 'DESC');
-        if ($personaId !== '') {
-            $fq->where('persona_id', $personaId);
-        }
-        $ingresos = $fq->findAll();
-        foreach ($ingresos as &$ing) {
+        // Misma lógica que hub Ingresos / Balance (contratos → ficha → cánones; sin doble conteo).
+        $fuentesIngreso = EquityCatalogo::fuentesIngreso();
+        $ingTotales     = $this->totalesIngresosMensuales($empresaId, $personaId, $ufRate);
+        $totalesFuente  = $ingTotales['porFuente'];
+        $totalIngresosReportados = (float) $ingTotales['total'];
+        $ingresoMensual = $totalIngresosReportados > 0 ? $totalIngresosReportados : null;
+
+        // Última ficha por persona (detalle; no se suman cortes históricos).
+        $ingresos = [];
+        foreach ($ingTotales['fichasBase'] as $ing) {
             $ing['persona'] = $personaMap[$ing['persona_id']] ?? null;
+            $ingresos[] = $ing;
         }
-        unset($ing);
+        $totalFichasIngresos = 0.0;
+        foreach ($ingresos as $ing) {
+            $v = $ing['ingreso_mensual_total'] ?? $ing['renta_liquida'] ?? null;
+            if ($v !== null && $v !== '') {
+                $totalFichasIngresos += (float) $v;
+            }
+        }
 
         $ingresosLaborales = [];
         foreach ($personas as $p) {
@@ -626,72 +579,33 @@ class EquityPatrimonio extends BaseController
                 continue;
             }
             $ingresosLaborales[] = [
-                'persona'              => $p,
-                'fuente'               => 'Antecedentes laborales',
-                'renta_liquida'        => $renta1,
-                'renta_liquida_2'      => $renta2,
-                'empleador'            => $p['nombre_empleador'] ?? null,
-                'cargo'                => $p['cargo_actividad'] ?? null,
+                'persona'         => $p,
+                'fuente'          => 'Antecedentes laborales',
+                'renta_liquida'   => $renta1,
+                'renta_liquida_2' => $renta2,
+                'empleador'       => $p['nombre_empleador'] ?? null,
+                'cargo'           => $p['cargo_actividad'] ?? null,
             ];
         }
-
-        $bq = model(EquityBienRaizModel::class)
-            ->where('empresa_id', $empresaId)
-            ->orderBy('direccion', 'ASC');
-        $this->soloBienesActivos($bq);
-        if ($personaId !== '') {
-            $bq->where('persona_id', $personaId);
-        }
-        $arriendos = [];
-        $totalArriendos = 0.0;
-        foreach ($bq->findAll() as $br) {
-            $canon = $br['canon_mensual_clp'] ?? null;
-            if (($canon === null || $canon === '') && ! empty($br['canon_mensual_uf']) && $ufRate > 0) {
-                $canon = round((float) $br['canon_mensual_uf'] * $ufRate, 2);
-            }
-            if ($canon === null || $canon === '' || (float) $canon <= 0) {
-                continue;
-            }
-            $br['persona'] = $personaMap[$br['persona_id']] ?? null;
-            $br['canon_show'] = (float) $canon;
-            $arriendos[] = $br;
-            $totalArriendos += (float) $canon;
-        }
-
-        $ingresoMensual = null;
-        $totalFichasIngresos = 0.0;
-        if ($personaId !== '') {
-            foreach ($ingresos as $ing) {
-                $v = $ing['ingreso_mensual_total'] ?? $ing['renta_liquida'] ?? null;
-                if ($v !== null && $v !== '') {
-                    $ingresoMensual = (float) $v;
+        if ($ingresoMensual === null) {
+            foreach ($ingresosLaborales as $lab) {
+                $s = (float) ($lab['renta_liquida'] ?? 0) + (float) ($lab['renta_liquida_2'] ?? 0);
+                if ($s > 0) {
+                    $ingresoMensual = $s;
                     break;
                 }
             }
-            if ($ingresoMensual === null) {
-                foreach ($ingresosLaborales as $lab) {
-                    $s = (float) ($lab['renta_liquida'] ?? 0) + (float) ($lab['renta_liquida_2'] ?? 0);
-                    if ($s > 0) {
-                        $ingresoMensual = $s;
-                        break;
-                    }
-                }
-            }
         }
-        foreach ($ingresos as $ing) {
-            $v = $ing['ingreso_mensual_total'] ?? $ing['renta_liquida'] ?? null;
-            if ($v !== null && $v !== '') {
-                $totalFichasIngresos += (float) $v;
-            }
-        }
-        // Total reportado = fichas + cánones de bienes raíces (sin doble contar rentas laborales)
-        $totalIngresosReportados = $totalFichasIngresos + $totalArriendos;
-        if ($personaId !== '' && $totalArriendos > 0) {
-            $ingresoMensual = ($ingresoMensual !== null ? (float) $ingresoMensual : 0.0) + $totalArriendos;
+
+        // Detalle de arriendos: contratos vigentes (1 por bien); no se suman otra vez al total.
+        $arriendos = $this->detalleArriendosSituacion($empresaId, $personaId, $ufRate, $personaMap);
+        $totalArriendos = 0.0;
+        foreach ($arriendos as $ar) {
+            $totalArriendos += (float) ($ar['canon_show'] ?? 0);
         }
 
         $totalCuotas = 0.0;
-        foreach ($rows as $r) {
+        foreach ($rowsDirectos as $r) {
             if ($r['cuota_show'] !== null) {
                 $totalCuotas += (float) $r['cuota_show'];
             }
@@ -701,12 +615,15 @@ class EquityPatrimonio extends BaseController
             'title'                   => 'Situación financiera',
             'memb'                    => $memb,
             'equityNav'               => 'situacion-financiera',
-            'rows'                    => $rows,
+            'rows'                    => $rowsDirectos,
+            'rowsIndirecta'           => $rowsIndirecta,
             'ingresos'                => $ingresos,
             'ingresosLaborales'       => $ingresosLaborales,
             'arriendos'               => $arriendos,
             'totalArriendos'          => $totalArriendos,
             'totalFichasIngresos'     => $totalFichasIngresos,
+            'fuentesIngreso'          => $fuentesIngreso,
+            'totalesFuente'           => $totalesFuente,
             'personas'                => $personas,
             'personaId'               => $personaId,
             'ufVigente'               => $ufVigente,
@@ -826,81 +743,12 @@ class EquityPatrimonio extends BaseController
         $ufVigente = EquityUf::vigente($empresaId);
         $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
 
-        // Última ficha por persona (si filtra, solo esa; si no, una por cada persona)
-        $fichasBase = [];
-        if ($personaId !== '') {
-            $f = $this->ultimaFicha($empresaId, $personaId);
-            if (is_array($f)) {
-                $fichasBase[] = $f;
-            }
-        } else {
-            $seen = [];
-            foreach (model(EquityFichaModel::class)
-                ->where('empresa_id', $empresaId)
-                ->orderBy('fecha_corte', 'DESC')
-                ->orderBy('created_at', 'DESC')
-                ->findAll() as $f) {
-                $pid = (string) ($f['persona_id'] ?? '');
-                if ($pid === '' || isset($seen[$pid])) {
-                    continue;
-                }
-                $seen[$pid] = true;
-                $fichasBase[] = $f;
-            }
-        }
-        $ficha = $fichasBase[0] ?? null;
-
         $fuentes = EquityCatalogo::fuentesIngreso();
-        $totalesFuente = [];
-        $totalGeneral = 0.0;
-        // Preferir suma de contratos vigentes (equivalente mensual)
-        $cq = model(EquityIngresoContratoModel::class)
-            ->where('estado', 'vigente');
-        if ($personaId !== '') {
-            $cq->where('persona_id', $personaId);
-        } else {
-            $cq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
-        }
-        $contratosVigentes = $cq->findAll();
-        $sumasContrato = [];
-        foreach ($fuentes as $clave => $meta) {
-            $sumasContrato[$clave] = 0.0;
-        }
-        $subtipoFuente = [];
-        foreach ($fuentes as $clave => $meta) {
-            foreach ($meta['campos'] as $c) {
-                $subtipoFuente[$c['subtipo']] = $clave;
-            }
-        }
-        foreach ($contratosVigentes as $ct) {
-            $fClave = $subtipoFuente[$ct['subtipo'] ?? ''] ?? ($ct['fuente'] ?? null);
-            if ($fClave === null || ! isset($sumasContrato[$fClave])) {
-                continue;
-            }
-            $sumasContrato[$fClave] += EquityCatalogo::montoMensualEquivalente(
-                isset($ct['monto_contrato_clp']) ? (float) $ct['monto_contrato_clp'] : null,
-                $ct['periodicidad'] ?? 'mensual'
-            );
-        }
-
-        foreach ($fuentes as $clave => $meta) {
-            $sum = (float) ($sumasContrato[$clave] ?? 0);
-            if ($sum <= 0) {
-                foreach ($fichasBase as $fRow) {
-                    foreach ($meta['campos'] as $campo) {
-                        $v = $fRow[$campo['key']] ?? null;
-                        if ($v !== null && $v !== '') {
-                            $sum += (float) $v;
-                        }
-                    }
-                }
-            }
-            if ($clave === 'inversiones' && $sum <= 0) {
-                $sum += $this->sumCanonArriendos($empresaId, $personaId, $ufRate);
-            }
-            $totalesFuente[$clave] = $sum;
-            $totalGeneral += $sum;
-        }
+        $ingTotales = $this->totalesIngresosMensuales($empresaId, $personaId, $ufRate);
+        $fichasBase = $ingTotales['fichasBase'];
+        $ficha = $fichasBase[0] ?? null;
+        $totalesFuente = $ingTotales['porFuente'];
+        $totalGeneral = (float) $ingTotales['total'];
 
         $q = model(EquityFichaModel::class)
             ->orderBy('fecha_corte', 'DESC')
@@ -1701,6 +1549,197 @@ class EquityPatrimonio extends BaseController
         }
 
         return $any ? number_format($sum, 2, '.', '') : null;
+    }
+
+    /**
+     * Totales mensuales de ingresos por fuente (hub Ingresos / Balance / Situación financiera).
+     * Orden: contratos vigentes → campos de última ficha → cánones de bienes (solo si inversiones=0).
+     * Arriendos con el mismo bien_raiz_id: se cuenta un solo contrato vigente (evita duplicados).
+     *
+     * @return array{porFuente: array<string, float>, total: float, fichasBase: list<array<string, mixed>>}
+     */
+    private function totalesIngresosMensuales(string $empresaId, string $personaId, float $ufRate): array
+    {
+        $fuentes = EquityCatalogo::fuentesIngreso();
+        $fichasBase = [];
+        if ($personaId !== '') {
+            $f = $this->ultimaFicha($empresaId, $personaId);
+            if (is_array($f)) {
+                $fichasBase[] = $f;
+            }
+        } else {
+            $seen = [];
+            foreach (model(EquityFichaModel::class)
+                ->whereIn('empresa_id', $this->empresaScopeIds($empresaId))
+                ->orderBy('fecha_corte', 'DESC')
+                ->orderBy('created_at', 'DESC')
+                ->findAll() as $f) {
+                $pid = (string) ($f['persona_id'] ?? '');
+                if ($pid === '' || isset($seen[$pid])) {
+                    continue;
+                }
+                $seen[$pid] = true;
+                $fichasBase[] = $f;
+            }
+        }
+
+        $cq = model(EquityIngresoContratoModel::class)->where('estado', 'vigente');
+        if ($personaId !== '') {
+            $cq->where('persona_id', $personaId);
+        } else {
+            $cq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
+        }
+
+        $sumasContrato = [];
+        $subtipoFuente = [];
+        foreach ($fuentes as $clave => $meta) {
+            $sumasContrato[$clave] = 0.0;
+            foreach ($meta['campos'] as $c) {
+                $subtipoFuente[$c['subtipo']] = $clave;
+            }
+        }
+
+        $seenBienArriendo = [];
+        foreach ($cq->findAll() as $ct) {
+            $subtipo = (string) ($ct['subtipo'] ?? '');
+            $fClave = $subtipoFuente[$subtipo] ?? ($ct['fuente'] ?? null);
+            if ($fClave === null || ! isset($sumasContrato[$fClave])) {
+                continue;
+            }
+            // Un solo contrato vigente de arriendo por bien raíz.
+            if ($subtipo === 'arriendos') {
+                $bid = (string) ($ct['bien_raiz_id'] ?? '');
+                if ($bid !== '') {
+                    if (isset($seenBienArriendo[$bid])) {
+                        continue;
+                    }
+                    $seenBienArriendo[$bid] = true;
+                }
+            }
+            $sumasContrato[$fClave] += EquityCatalogo::montoMensualEquivalente(
+                isset($ct['monto_contrato_clp']) ? (float) $ct['monto_contrato_clp'] : null,
+                $ct['periodicidad'] ?? 'mensual'
+            );
+        }
+
+        $porFuente = [];
+        $total = 0.0;
+        foreach ($fuentes as $clave => $meta) {
+            $sum = (float) ($sumasContrato[$clave] ?? 0);
+            if ($sum <= 0) {
+                foreach ($fichasBase as $fRow) {
+                    foreach ($meta['campos'] as $campo) {
+                        $v = $fRow[$campo['key']] ?? null;
+                        if ($v !== null && $v !== '') {
+                            $sum += (float) $v;
+                        }
+                    }
+                }
+            }
+            if ($clave === 'inversiones' && $sum <= 0) {
+                $sum += $this->sumCanonArriendos($empresaId, $personaId, $ufRate);
+            }
+            $porFuente[$clave] = $sum;
+            $total += $sum;
+        }
+
+        return [
+            'porFuente'  => $porFuente,
+            'total'      => $total,
+            'fichasBase' => $fichasBase,
+        ];
+    }
+
+    /**
+     * Detalle de arriendos para Situación financiera (informativo; el total ya va en Inversiones).
+     * Preferir contratos vigentes (1 por bien); si no hay, cánones de bienes raíces.
+     *
+     * @param array<string, array<string, mixed>> $personaMap
+     * @return list<array<string, mixed>>
+     */
+    private function detalleArriendosSituacion(string $empresaId, string $personaId, float $ufRate, array $personaMap): array
+    {
+        $cq = model(EquityIngresoContratoModel::class)
+            ->where('estado', 'vigente')
+            ->where('subtipo', 'arriendos')
+            ->orderBy('created_at', 'DESC');
+        if ($personaId !== '') {
+            $cq->where('persona_id', $personaId);
+        } else {
+            $cq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
+        }
+        $contratos = $cq->findAll();
+
+        $bienIds = [];
+        foreach ($contratos as $c) {
+            $bid = (string) ($c['bien_raiz_id'] ?? '');
+            if ($bid !== '') {
+                $bienIds[$bid] = true;
+            }
+        }
+        $bienMap = [];
+        if ($bienIds !== []) {
+            foreach (model(EquityBienRaizModel::class)->whereIn('id', array_keys($bienIds))->findAll() as $br) {
+                $bienMap[(string) $br['id']] = $br;
+            }
+        }
+
+        $arriendos = [];
+        $seenBien = [];
+        foreach ($contratos as $c) {
+            $bid = (string) ($c['bien_raiz_id'] ?? '');
+            if ($bid !== '') {
+                if (isset($seenBien[$bid])) {
+                    continue;
+                }
+                $seenBien[$bid] = true;
+            }
+            $br = $bid !== '' ? ($bienMap[$bid] ?? null) : null;
+            $monto = EquityCatalogo::montoMensualEquivalente(
+                isset($c['monto_contrato_clp']) ? (float) $c['monto_contrato_clp'] : null,
+                $c['periodicidad'] ?? 'mensual'
+            );
+            if ($monto <= 0) {
+                continue;
+            }
+            $arriendos[] = [
+                'id'           => $c['id'] ?? null,
+                'bien_raiz_id' => $bid !== '' ? $bid : null,
+                'direccion'    => $br['direccion'] ?? ($br['descripcion'] ?? null)
+                    ?? (preg_match('/Bien raíz:\s*(.+?)(?:\s·|$)/u', (string) ($c['notas'] ?? ''), $m) ? $m[1] : null),
+                'arrendatario' => $c['contraparte_nombre'] ?? ($br['arrendatario'] ?? null),
+                'mes_canon'    => $br['mes_canon'] ?? null,
+                'medio_pago'   => $br['medio_pago'] ?? null,
+                'canon_show'   => $monto,
+                'persona'      => $personaMap[$c['persona_id'] ?? ''] ?? null,
+                'origen'       => 'contrato',
+            ];
+        }
+
+        if ($arriendos !== []) {
+            return $arriendos;
+        }
+
+        // Fallback: bienes con cánon (solo detalle; el total ya los incluye si no hay contratos/ficha).
+        $bq = model(EquityBienRaizModel::class)->orderBy('direccion', 'ASC');
+        $this->soloBienesActivos($bq);
+        if ($personaId !== '') {
+            $bq->where('persona_id', $personaId);
+        } else {
+            $bq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
+        }
+        foreach ($bq->findAll() as $br) {
+            $canon = EquityArriendoSync::canonClp($br, $ufRate);
+            if ($canon <= 0) {
+                continue;
+            }
+            $br['persona'] = $personaMap[$br['persona_id'] ?? ''] ?? null;
+            $br['canon_show'] = $canon;
+            $br['origen'] = 'bien';
+            $arriendos[] = $br;
+        }
+
+        return $arriendos;
     }
 
     public function respaldos()
