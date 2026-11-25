@@ -39,7 +39,8 @@ foreach ($personas as $p) {
         · <?= (int) count($items ?? []) ?> registro(s).
     </p>
     <p style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
-        <a class="btn btn-primary btn-sm" href="<?= site_url(ltrim($meta['pasivo_path'], '/')) ?>">Editar pasivos</a>
+        <a class="btn btn-primary btn-sm" href="<?= site_url('equity/reporte/egresos') ?>">Reporte · Imprimir / PDF</a>
+        <a class="btn btn-ghost btn-sm" href="<?= site_url(ltrim($meta['pasivo_path'], '/')) ?>">Editar pasivos</a>
         <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/egresos') ?>">Resumen egresos</a>
     </p>
 </section>

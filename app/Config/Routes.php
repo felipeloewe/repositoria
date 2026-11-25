@@ -119,6 +119,7 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('equity/reporte/activos', 'EquityPatrimonio::reporteGrupoActivos');
     $routes->get('equity/reporte/pasivos', 'EquityPatrimonio::reporteGrupoPasivos');
     $routes->get('equity/reporte/ingresos', 'EquityPatrimonio::reporteIngresos');
+    $routes->get('equity/reporte/egresos', 'EquityPatrimonio::reporteEgresos');
     $routes->get('equity/activos/(:segment)/reporte', 'EquityPatrimonio::reporteActivo/$1');
     $routes->get('equity/activos/(:segment)/(:segment)/bitacora', 'EquityPatrimonio::bitacoraActivo/$1/$2');
     $routes->get('equity/pasivos/(:segment)/reporte', 'EquityPatrimonio::reportePasivo/$1');

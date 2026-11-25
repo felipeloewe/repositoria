@@ -491,6 +491,113 @@ class EquityPatrimonio extends BaseController
         ]);
     }
 
+    public function reporteEgresos()
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+
+        $empresaId = $memb['empresa_id'];
+        [$personaId, $personas] = $this->personaContexto($memb);
+        $personaMap = [];
+        foreach ($personas as $p) {
+            $personaMap[$p['id']] = $p;
+        }
+        $personaNombre = null;
+        if ($personaId !== '' && isset($personaMap[$personaId])) {
+            $p = $personaMap[$personaId];
+            $personaNombre = trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''));
+        }
+
+        $ufVigente = EquityUf::vigente($empresaId);
+        $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+        $fuentes   = EquityCatalogo::fuentesEgreso();
+
+        $totalesFuente = [];
+        $secciones     = [];
+        $totalGeneral  = 0.0;
+
+        foreach ($fuentes as $clave => $meta) {
+            $q = model(EquityPasivoModel::class)
+                ->where('categoria', $meta['categoria'])
+                ->orderBy('banco_descripcion', 'ASC')
+                ->orderBy('numero_credito', 'ASC');
+            if ($personaId !== '') {
+                $q->where('persona_id', $personaId);
+            } else {
+                $q->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
+            }
+            $rows = $q->findAll();
+            $detalle = [];
+            $sum = 0.0;
+            foreach ($rows as $row) {
+                $cuotaClp = EquityEgresosProyeccion::cuotaClp($row, $ufRate);
+                $cuotaUf  = EquityEgresosProyeccion::cuotaUf($row, $ufRate);
+                $moneda   = EquityEgresosProyeccion::moneda($row);
+                if ($cuotaClp !== null) {
+                    $sum += $cuotaClp;
+                }
+                $saldoClp = null;
+                if (isset($row['saldo_clp']) && $row['saldo_clp'] !== null && $row['saldo_clp'] !== '') {
+                    $saldoClp = (float) $row['saldo_clp'];
+                } elseif (isset($row['saldo_uf']) && $row['saldo_uf'] !== null && $row['saldo_uf'] !== '' && $ufRate > 0) {
+                    $saldoClp = round((float) $row['saldo_uf'] * $ufRate, 2);
+                }
+                $saldoUf = null;
+                if (isset($row['saldo_uf']) && $row['saldo_uf'] !== null && $row['saldo_uf'] !== '') {
+                    $saldoUf = (float) $row['saldo_uf'];
+                } elseif ($saldoClp !== null && $ufRate > 0) {
+                    $saldoUf = round($saldoClp / $ufRate, 4);
+                }
+                $personaLab = '';
+                $pid = (string) ($row['persona_id'] ?? '');
+                if ($personaId === '' && $pid !== '' && isset($personaMap[$pid])) {
+                    $pp = $personaMap[$pid];
+                    $personaLab = trim(($pp['nombre'] ?? '') . ' ' . ($pp['apellido'] ?? ''));
+                }
+                $detalle[] = [
+                    'institucion'     => $row['banco_descripcion'] ?? null,
+                    'numero'          => $row['numero_credito'] ?? null,
+                    'tipo'            => $row['tipo'] ?? null,
+                    'moneda'          => $moneda,
+                    'fecha_registro'  => $row['fecha_registro'] ?? $row['fecha_otorgamiento'] ?? null,
+                    'fecha_vencimiento' => $row['fecha_vencimiento'] ?? null,
+                    'dividendo_n'     => $row['dividendo_n'] ?? null,
+                    'saldo_uf'        => $saldoUf,
+                    'saldo_clp'       => $saldoClp,
+                    'cuota_clp'       => $cuotaClp,
+                    'cuota_uf'        => $cuotaUf,
+                    'persona'         => $personaLab !== '' ? $personaLab : null,
+                ];
+            }
+            $totalesFuente[$clave] = $sum;
+            $totalGeneral += $sum;
+            $secciones[] = [
+                'clave'   => $clave,
+                'meta'    => $meta,
+                'total'   => $sum,
+                'conteo'  => count($detalle),
+                'detalle' => $detalle,
+            ];
+        }
+
+        return view('equity/reporte_egresos', [
+            'title'         => 'Reporte Egresos',
+            'memb'          => $memb,
+            'equityNav'     => 'egresos',
+            'personas'      => $personas,
+            'personaId'     => $personaId,
+            'personaNombre' => $personaNombre,
+            'ufVigente'     => $ufVigente,
+            'fuentes'       => $fuentes,
+            'totalesFuente' => $totalesFuente,
+            'totalGeneral'  => $totalGeneral,
+            'secciones'     => $secciones,
+            'canManage'     => EquityAcl::canDeclare($memb),
+        ]);
+    }
+
     public function editActivo(string $seccion, string $id)
     {
         return $this->seccionLista($this->claveActivo($seccion), $id);
