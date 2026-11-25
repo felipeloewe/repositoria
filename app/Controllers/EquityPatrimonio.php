@@ -995,7 +995,7 @@ class EquityPatrimonio extends BaseController
             }
 
             $cuotas = EquityEgresosProyeccion::proyectar($row, $ufRate, $meses);
-            if ($fuente === 'hipotecarios' && $cuotas !== []) {
+            if (in_array($fuente, ['hipotecarios', 'circulantes', 'otros'], true) && $cuotas !== []) {
                 $desarrollos[] = [
                     'label'  => (string) ($row['banco_descripcion'] ?? 'Crédito'),
                     'numero' => $row['numero_credito'] ?? null,
@@ -2111,9 +2111,10 @@ class EquityPatrimonio extends BaseController
                 'notas'               => trim((string) $this->request->getPost('notas')) ?: null,
             ];
         } else {
+            // Circulantes / Otros: misma estructura que hipotecarios; seguro = desgravamen.
             $desc = trim((string) $this->request->getPost('banco_descripcion'));
             if ($desc === '') {
-                return redirect()->to($redirectPath)->with('error', 'La descripción / banco es obligatoria.');
+                return redirect()->to($redirectPath)->with('error', 'La institución / banco es obligatoria.');
             }
             $monedaOtro = strtoupper(trim((string) $this->request->getPost('moneda')));
             if ($monedaOtro !== 'UF' && $monedaOtro !== 'CLP') {
@@ -2126,29 +2127,61 @@ class EquityPatrimonio extends BaseController
                 null,
                 $monedaOtro
             );
+            // Dividendo / cuota: acepta dividendo_* (form nuevo) o cuota_* (legado).
+            $divUfPost  = (string) $this->request->getPost('dividendo_uf');
+            $divClpPost = (string) $this->request->getPost('dividendo_clp');
+            if (trim($divUfPost) === '' && trim($divClpPost) === '') {
+                $divUfPost  = (string) $this->request->getPost('cuota_uf');
+                $divClpPost = (string) $this->request->getPost('cuota_mensual');
+            }
             $parCuotaOtro = EquityUf::resolverPar(
-                (string) $this->request->getPost('cuota_uf'),
-                (string) $this->request->getPost('cuota_mensual'),
+                $divUfPost,
+                $divClpPost,
                 $memb['empresa_id'],
                 null,
                 $monedaOtro
             );
+            $parTotalOtro = EquityUf::resolverPar(
+                (string) $this->request->getPost('total_credito_uf'),
+                (string) $this->request->getPost('total_credito_clp'),
+                $memb['empresa_id'],
+                null,
+                $monedaOtro
+            );
+            $plazoOtro = $intOrNull($this->request->getPost('plazo_pactado'));
+            $cuotasTotOtro = $intOrNull($this->request->getPost('cuotas_totales'));
+            if ($cuotasTotOtro === null) {
+                $cuotasTotOtro = $plazoOtro;
+            }
             $model = model(EquityPasivoModel::class);
             $data  = [
-                'persona_id'        => $personaId,
-                'categoria'         => $meta['categoria'] ?? 'otro',
-                'banco_descripcion' => $desc,
-                'moneda'            => $monedaOtro,
-                'saldo_clp'         => $parSaldoOtro['clp'],
-                'saldo_uf'          => $parSaldoOtro['uf'],
-                'cuotas_totales'    => $intOrNull($this->request->getPost('cuotas_totales')),
-                'cuotas_pagadas'    => $intOrNull($this->request->getPost('cuotas_pagadas')),
-                'cuota_mensual'     => $parCuotaOtro['clp'],
-                'dividendo_uf'      => $parCuotaOtro['uf'],
-                'dividendo_clp'     => $parCuotaOtro['clp'],
-                'asociacion'        => trim((string) $this->request->getPost('asociacion')) ?: null,
-                'tipo'              => trim((string) $this->request->getPost('tipo')) ?: null,
-                'notas'             => trim((string) $this->request->getPost('notas')) ?: null,
+                'persona_id'          => $personaId,
+                'categoria'           => $meta['categoria'] ?? 'otro',
+                'banco_descripcion'   => $desc,
+                'numero_credito'      => trim((string) $this->request->getPost('numero_credito')) ?: null,
+                'sucursal'            => trim((string) $this->request->getPost('sucursal')) ?: null,
+                'moneda'              => $monedaOtro,
+                'dividendo_n'         => $intOrNull($this->request->getPost('dividendo_n')),
+                'fecha_registro'      => trim((string) $this->request->getPost('fecha_registro')) ?: null,
+                'plazo_pactado'       => $plazoOtro,
+                'saldo_clp'           => $parSaldoOtro['clp'],
+                'saldo_uf'            => $parSaldoOtro['uf'],
+                'cuotas_totales'      => $cuotasTotOtro,
+                'cuotas_pagadas'      => $intOrNull($this->request->getPost('cuotas_pagadas')),
+                'cuota_mensual'       => $parCuotaOtro['clp'],
+                'dividendo_uf'        => $parCuotaOtro['uf'],
+                'dividendo_clp'       => $parCuotaOtro['clp'],
+                'amortizacion_uf'     => $ufDec($this->request->getPost('amortizacion_uf')),
+                'interes_uf'          => $ufDec($this->request->getPost('interes_uf')),
+                'comision_uf'         => $ufDec($this->request->getPost('comision_uf')),
+                'seg_desgravamen_uf'  => $ufDec($this->request->getPost('seg_desgravamen_uf')),
+                'fecha_otorgamiento'  => trim((string) $this->request->getPost('fecha_otorgamiento')) ?: null,
+                'fecha_vencimiento'   => trim((string) $this->request->getPost('fecha_vencimiento')) ?: null,
+                'total_credito_uf'    => $parTotalOtro['uf'],
+                'total_credito_clp'   => $parTotalOtro['clp'],
+                'asociacion'          => trim((string) $this->request->getPost('asociacion')) ?: null,
+                'tipo'                => trim((string) $this->request->getPost('tipo')) ?: null,
+                'notas'               => trim((string) $this->request->getPost('notas')) ?: null,
             ];
         }
 

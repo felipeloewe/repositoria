@@ -185,7 +185,7 @@ $esLineas = ($fuente === 'lineas');
             <?php endif; ?>
         </div>
 
-        <?php if ($fuente === 'hipotecarios' && ($desarrollos ?? []) !== []): ?>
+        <?php if (in_array($fuente, ['hipotecarios', 'circulantes', 'otros'], true) && ($desarrollos ?? []) !== []): ?>
             <?php foreach ($desarrollos as $dev): ?>
                 <div class="card section-card">
                     <h3>

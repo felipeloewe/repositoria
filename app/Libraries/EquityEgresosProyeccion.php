@@ -28,8 +28,14 @@ final class EquityEgresosProyeccion
         $meses = max(1, min(60, $meses));
         $categoria = (string) ($row['categoria'] ?? '');
 
-        if ($categoria === 'inmueble') {
-            return self::proyectarHipotecario($row, $ufRate, $meses);
+        // Hipotecarios, circulantes y otros usan la misma proyección por dividendo / cuota.
+        if (in_array($categoria, ['inmueble', 'circulante', 'otro'], true)) {
+            $porDividendo = self::proyectarHipotecario($row, $ufRate, $meses);
+            if ($porDividendo !== []) {
+                return $porDividendo;
+            }
+
+            return self::proyectarCuotaFija($row, $ufRate, $meses);
         }
         if ($categoria === 'linea') {
             return [];

@@ -557,27 +557,104 @@ foreach ($personas as $p) {
                 </div>
             </div>
         <?php else: ?>
+            <?php
+            $esCirculante = ($clave === 'pasivos-circulantes');
+            $monedaDefaultOtro = ($val('moneda') === '') ? 'CLP' : $val('moneda');
+            ?>
             <p class="muted" style="margin-top:0">
-                Moneda del crédito: si es UF se calcula el $; si es CLP se calcula la UF. La cuota de análisis (Egresos) queda en pesos.
+                Misma estructura que hipotecarios. La <strong>moneda</strong> define el valor canónico:
+                si es UF se calcula el $ (cuota se paga en pesos); si es CLP se calcula la UF. Ingresos/Egresos analizan siempre en $.
+                El seguro de esta sección es <strong>desgravamen</strong>.
             </p>
-            <label for="banco_descripcion">Banco / descripción *</label>
-            <input id="banco_descripcion" name="banco_descripcion" type="text" required value="<?= esc($val('banco_descripcion')) ?>">
-            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+                <div style="grid-column:1/-1">
+                    <label for="banco_descripcion">Institución / Banco *</label>
+                    <input id="banco_descripcion" name="banco_descripcion" type="text" required placeholder="Banco, casa comercial, financiera…" value="<?= esc($val('banco_descripcion')) ?>">
+                </div>
                 <div>
-                    <label for="moneda_otro">Moneda</label>
+                    <label for="numero_credito">N° crédito / préstamo</label>
+                    <input id="numero_credito" name="numero_credito" type="text" placeholder="0224059" value="<?= esc($val('numero_credito')) ?>">
+                </div>
+                <div>
+                    <label for="sucursal">Sucursal (SUC)</label>
+                    <input id="sucursal" name="sucursal" type="text" placeholder="143" value="<?= esc($val('sucursal')) ?>">
+                </div>
+                <div>
+                    <label for="moneda_otro">Moneda del crédito</label>
                     <select id="moneda_otro" name="moneda">
-                        <option value="CLP" <?= ($val('moneda') === '' || $val('moneda') === 'CLP') ? 'selected' : '' ?>>$ / CLP (calcula UF)</option>
-                        <option value="UF" <?= $sel('moneda', 'UF') ?>>UF (calcula $)</option>
+                        <option value="UF" <?= $monedaDefaultOtro === 'UF' ? 'selected' : '' ?>>UF (calcula $)</option>
+                        <option value="CLP" <?= $monedaDefaultOtro === 'CLP' ? 'selected' : '' ?>>$ / CLP (calcula UF)</option>
                     </select>
                 </div>
-                <div><label for="saldo_uf">Saldo UF</label><input id="saldo_uf" name="saldo_uf" type="text" inputmode="decimal" value="<?= esc($val('saldo_uf', 4)) ?>"></div>
-                <div><label for="saldo_clp">Saldo $</label><input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal" value="<?= esc($val('saldo_clp', 0)) ?>"></div>
-                <div><label for="cuotas_totales">Cuotas totales</label><input id="cuotas_totales" name="cuotas_totales" type="number" value="<?= esc($val('cuotas_totales')) ?>"></div>
-                <div><label for="cuotas_pagadas">Cuotas pagadas</label><input id="cuotas_pagadas" name="cuotas_pagadas" type="number" value="<?= esc($val('cuotas_pagadas')) ?>"></div>
-                <div><label for="cuota_uf">Cuota mensual UF</label><input id="cuota_uf" name="cuota_uf" type="text" inputmode="decimal" value="<?= esc($val('dividendo_uf', 4)) ?>"></div>
-                <div><label for="cuota_mensual">Cuota mensual $</label><input id="cuota_mensual" name="cuota_mensual" type="text" inputmode="decimal" value="<?= esc($val('cuota_mensual', 0)) ?>"></div>
-                <div><label for="asociacion">Asociación</label><input id="asociacion" name="asociacion" type="text" placeholder="CASA / INV" value="<?= esc($val('asociacion')) ?>"></div>
-                <div><label for="tipo">Tipo</label><input id="tipo" name="tipo" type="text" value="<?= esc($val('tipo')) ?>"></div>
+                <div>
+                    <label for="saldo_uf">Saldo deuda UF (Capital) *</label>
+                    <input id="saldo_uf" name="saldo_uf" type="text" inputmode="decimal" placeholder="923,4434" value="<?= esc($val('saldo_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="saldo_clp_otro">Saldo deuda $ <span class="muted">(opc.)</span></label>
+                    <input id="saldo_clp_otro" name="saldo_clp" type="text" inputmode="decimal" value="<?= esc($val('saldo_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="plazo_pactado">Plazo pactado (cuotas)</label>
+                    <input id="plazo_pactado" name="plazo_pactado" type="number" min="1" placeholder="240" value="<?= esc($val('plazo_pactado') !== '' ? $val('plazo_pactado') : $val('cuotas_totales')) ?>">
+                </div>
+                <div>
+                    <label for="cuotas_pagadas">Dividendos cancelados</label>
+                    <input id="cuotas_pagadas" name="cuotas_pagadas" type="number" min="0" placeholder="110" value="<?= esc($val('cuotas_pagadas')) ?>">
+                </div>
+                <div>
+                    <label for="dividendo_n">N° dividendo actual</label>
+                    <input id="dividendo_n" name="dividendo_n" type="number" min="1" value="<?= esc($val('dividendo_n')) ?>">
+                </div>
+                <div>
+                    <label for="fecha_registro">Fecha de registro (dividendo)</label>
+                    <input id="fecha_registro" name="fecha_registro" type="date" value="<?= esc($val('fecha_registro')) ?>">
+                    <p class="muted" style="margin:0.25rem 0 0;font-size:0.8rem">Periodo del recibo actual (p. ej. oct / nov / dic). No altera saldos; sirve para normalizar y proyectar egresos.</p>
+                </div>
+                <div>
+                    <label for="fecha_otorgamiento_otro">Fecha de otorgamiento</label>
+                    <input id="fecha_otorgamiento_otro" name="fecha_otorgamiento" type="date" value="<?= esc($val('fecha_otorgamiento')) ?>">
+                </div>
+                <div>
+                    <label for="fecha_vencimiento_otro">Fecha de vencimiento</label>
+                    <input id="fecha_vencimiento_otro" name="fecha_vencimiento" type="date" value="<?= esc($val('fecha_vencimiento')) ?>">
+                </div>
+                <div>
+                    <label for="total_credito_uf_otro">Monto otorgado UF</label>
+                    <input id="total_credito_uf_otro" name="total_credito_uf" type="text" inputmode="decimal" placeholder="1.457" value="<?= esc($val('total_credito_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="dividendo_uf_otro">Total dividendo UF</label>
+                    <input id="dividendo_uf_otro" name="dividendo_uf" type="text" inputmode="decimal" placeholder="8,5686" value="<?= esc($val('dividendo_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="dividendo_clp_otro">Total dividendo $ <span class="muted">(opc.)</span></label>
+                    <input id="dividendo_clp_otro" name="dividendo_clp" type="text" inputmode="decimal" value="<?= esc($val('dividendo_clp') !== '' ? $val('dividendo_clp', 0) : $val('cuota_mensual', 0)) ?>">
+                </div>
+                <div>
+                    <label for="amortizacion_uf_otro">Amortización UF</label>
+                    <input id="amortizacion_uf_otro" name="amortizacion_uf" type="text" inputmode="decimal" value="<?= esc($val('amortizacion_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="interes_uf_otro">Interés UF</label>
+                    <input id="interes_uf_otro" name="interes_uf" type="text" inputmode="decimal" value="<?= esc($val('interes_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="comision_uf_otro">Comisión UF</label>
+                    <input id="comision_uf_otro" name="comision_uf" type="text" inputmode="decimal" value="<?= esc($val('comision_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="seg_desgravamen_uf_otro">Seguro desgravamen UF</label>
+                    <input id="seg_desgravamen_uf_otro" name="seg_desgravamen_uf" type="text" inputmode="decimal" value="<?= esc($val('seg_desgravamen_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="tipo_otro">Tipo</label>
+                    <input id="tipo_otro" name="tipo" type="text" placeholder="<?= esc($esCirculante ? 'Consumo / comercial…' : 'Otro pasivo…') ?>" value="<?= esc($val('tipo')) ?>">
+                </div>
+                <div>
+                    <label for="asociacion_otro">Asociación</label>
+                    <input id="asociacion_otro" name="asociacion" type="text" placeholder="CASA / INV" value="<?= esc($val('asociacion')) ?>">
+                </div>
             </div>
         <?php endif; ?>
 
@@ -751,6 +828,19 @@ foreach ($personas as $p) {
                             . (string) ($row['banco_descripcion'] ?? '')
                             . (! empty($row['monto_directo_clp']) ? ' · Dir. $' . number_format((float) $row['monto_directo_clp'], 0, ',', '.') : '')
                             . (! empty($row['monto_indirecto_clp']) ? ' · Ind. $' . number_format((float) $row['monto_indirecto_clp'], 0, ',', '.') : ''),
+                            ' ·'
+                        ),
+                        'pasivos-circulantes', 'otros-pasivos' => trim(
+                            (string) ($row['banco_descripcion'] ?? '')
+                            . (! empty($row['numero_credito']) ? ' · Crédito ' . $row['numero_credito'] : '')
+                            . (! empty($row['tipo']) ? ' · ' . $row['tipo'] : '')
+                            . (! empty($row['dividendo_n']) ? ' · Div. ' . $row['dividendo_n'] : '')
+                            . (! empty($row['fecha_registro']) ? ' · Reg. ' . $row['fecha_registro'] : '')
+                            . (! empty($row['plazo_pactado']) ? ' · Plazo ' . $row['plazo_pactado'] : '')
+                            . (! empty($row['cuotas_pagadas']) ? ' · Cancelados ' . $row['cuotas_pagadas'] : '')
+                            . (! empty($row['dividendo_uf']) ? ' · Div. ' . number_format((float) $row['dividendo_uf'], 4, ',', '.') . ' UF' : '')
+                            . (! empty($row['cuota_mensual']) ? ' · Cuota $' . number_format((float) $row['cuota_mensual'], 0, ',', '.') : '')
+                            . (! empty($row['asociacion']) ? ' · ' . $row['asociacion'] : ''),
                             ' ·'
                         ),
                         default => (string) ($row['banco_descripcion'] ?? ''),
