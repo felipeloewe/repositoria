@@ -8,16 +8,71 @@ use App\Libraries\EquityUf;
 $ufRate = (float) (($ufVigente['valor_clp'] ?? null) ?: EquityUf::DEFAULT_VALOR_CLP);
 $fmtP = static fn ($v): string => EquityUf::fmtPesos((float) ($v ?? 0), 0);
 $fmtU = static fn ($v): string => EquityUf::fmtUf((float) ($v ?? 0), 2);
-$qs = '';
 ?>
 
 <style>
 .balance-actions { display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-end; margin-top:1rem; }
-.balance-sheet { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1rem; }
-.balance-col h3 { margin:0 0 .75rem; font-size:1.05rem; letter-spacing:.02em; text-transform:uppercase; }
-.balance-col table { width:100%; }
-.balance-col td:last-child, .balance-col th:last-child { text-align:right; white-space:nowrap; }
+/*
+ * Par Activos|Pasivos e Ingresos|Egresos:
+ * filas de grilla compartidas → totales siempre a la misma altura.
+ */
+.balance-pair {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:auto 1fr auto auto;
+  column-gap:1rem;
+  row-gap:0;
+  margin-top:1rem;
+  align-items:stretch;
+}
+.balance-pair-cell {
+  background: var(--surface, #fff);
+  border: 1px solid rgba(15, 76, 129, .12);
+  padding: .85rem 1rem;
+}
+.balance-pair-head {
+  border-radius: 12px 12px 0 0;
+  border-bottom: none;
+  padding-bottom: .35rem;
+}
+.balance-pair-head h3 {
+  margin:0;
+  font-size:1.05rem;
+  letter-spacing:.02em;
+  text-transform:uppercase;
+}
+.balance-pair-body {
+  border-top: none;
+  border-bottom: none;
+  border-radius: 0;
+  padding-top: .25rem;
+  padding-bottom: .25rem;
+}
+.balance-pair-total {
+  border-top: none;
+  border-radius: 0;
+  padding-top: .15rem;
+}
+.balance-pair-total.has-bottom {
+  border-radius: 0 0 12px 12px;
+  border-bottom: 1px solid rgba(15, 76, 129, .12);
+}
+.balance-pair-refs {
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  padding-top: .35rem;
+}
+.balance-pair-refs.is-empty {
+  border: none;
+  background: transparent;
+  padding: 0;
+  min-height: 0;
+}
+.balance-pair table { width:100%; margin:0; }
+.balance-pair td:last-child,
+.balance-pair th:last-child { text-align:right; white-space:nowrap; }
 .balance-total { font-weight:700; border-top:2px solid currentColor; }
+.balance-total td { padding-top:.65rem; }
 .balance-patrimonio {
   margin-top:1rem; padding:1rem 1.25rem; border-radius:12px;
   background: linear-gradient(135deg, rgba(15,76,129,.08), rgba(32,148,143,.1));
@@ -34,12 +89,29 @@ $qs = '';
   .shell { display:block !important; }
   .main { margin:0 !important; width:100% !important; }
   .content { padding:0 !important; }
-  .card, .section-card, .banner { box-shadow:none !important; border:1px solid #ccc !important; break-inside:avoid; }
-  .balance-sheet { gap:.75rem; }
+  .card, .section-card, .banner, .balance-pair-cell {
+    box-shadow:none !important;
+    border-color:#ccc !important;
+    break-inside:avoid;
+  }
+  .balance-pair { column-gap:.75rem; }
   a { text-decoration:none; color:inherit; }
 }
 @media (max-width: 800px) {
-  .balance-sheet { grid-template-columns:1fr; }
+  .balance-pair {
+    grid-template-columns:1fr;
+    grid-template-rows:none;
+    row-gap:0;
+  }
+  .balance-pair-cell { border-radius:0; }
+  .balance-pair-head { border-radius:12px 12px 0 0; border:1px solid rgba(15,76,129,.12); border-bottom:none; margin-top:1rem; }
+  .balance-pair-body { border-left:1px solid rgba(15,76,129,.12); border-right:1px solid rgba(15,76,129,.12); }
+  .balance-pair-total.has-bottom,
+  .balance-pair-refs:not(.is-empty) {
+    border:1px solid rgba(15,76,129,.12);
+    border-top:none;
+    border-radius:0 0 12px 12px;
+  }
 }
 </style>
 
@@ -59,9 +131,15 @@ $qs = '';
     </div>
 </div>
 
-<div class="balance-sheet">
-    <div class="card section-card balance-col">
+<div class="balance-pair">
+    <div class="balance-pair-cell balance-pair-head" style="grid-column:1;grid-row:1">
         <h3>Activos</h3>
+    </div>
+    <div class="balance-pair-cell balance-pair-head" style="grid-column:2;grid-row:1">
+        <h3>Pasivos</h3>
+    </div>
+
+    <div class="balance-pair-cell balance-pair-body" style="grid-column:1;grid-row:2">
         <table class="table">
             <thead><tr><th>Cuenta</th><th>$</th><th>UF</th></tr></thead>
             <tbody>
@@ -85,17 +163,11 @@ $qs = '';
                     <td><?= esc($fmtP($totales['otros_activos'] ?? 0)) ?></td>
                     <td><?= esc($fmtU($totalesUf['otros_activos'] ?? 0)) ?></td>
                 </tr>
-                <tr class="balance-total">
-                    <td>Total activos</td>
-                    <td><?= esc($fmtP($totales['activos'] ?? 0)) ?></td>
-                    <td><?= esc($fmtU($totalesUf['activos'] ?? 0)) ?></td>
-                </tr>
             </tbody>
         </table>
     </div>
 
-    <div class="card section-card balance-col">
-        <h3>Pasivos</h3>
+    <div class="balance-pair-cell balance-pair-body" style="grid-column:2;grid-row:2">
         <table class="table">
             <thead><tr><th>Cuenta</th><th>$</th><th>UF</th></tr></thead>
             <tbody>
@@ -114,13 +186,40 @@ $qs = '';
                     <td><?= esc($fmtP($totales['pasivos_otro'] ?? 0)) ?></td>
                     <td><?= esc($fmtU($totalesUf['pasivos_otro'] ?? 0)) ?></td>
                 </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="balance-pair-cell balance-pair-total has-bottom" style="grid-column:1;grid-row:3">
+        <table class="table">
+            <tbody>
+                <tr class="balance-total">
+                    <td>Total activos</td>
+                    <td><?= esc($fmtP($totales['activos'] ?? 0)) ?></td>
+                    <td><?= esc($fmtU($totalesUf['activos'] ?? 0)) ?></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="balance-pair-cell balance-pair-total" style="grid-column:2;grid-row:3">
+        <table class="table">
+            <tbody>
                 <tr class="balance-total">
                     <td>Total pasivos (deuda directa)</td>
                     <td><?= esc($fmtP($totales['pasivos'] ?? 0)) ?></td>
                     <td><?= esc($fmtU($totalesUf['pasivos'] ?? 0)) ?></td>
                 </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="balance-pair-refs is-empty" style="grid-column:1;grid-row:4" aria-hidden="true"></div>
+    <div class="balance-pair-cell balance-pair-refs" style="grid-column:2;grid-row:4">
+        <table class="table">
+            <tbody>
                 <tr>
-                    <td class="balance-muted" colspan="3" style="padding-top:.85rem">Referencias (no restan del patrimonio)</td>
+                    <td class="balance-muted" colspan="3">Referencias (no restan del patrimonio)</td>
                 </tr>
                 <tr>
                     <td class="balance-muted">Deuda indirecta</td>
@@ -152,9 +251,15 @@ $qs = '';
     <h3>Ingresos vs egresos (mensual)</h3>
     <p class="muted" style="margin-top:0">Flujo estimado del período: cánones de arriendo, fichas de ingreso y cuotas de créditos.</p>
 
-    <div class="balance-sheet">
-        <div class="balance-col">
+    <div class="balance-pair">
+        <div class="balance-pair-cell balance-pair-head" style="grid-column:1;grid-row:1">
             <h3>Ingresos</h3>
+        </div>
+        <div class="balance-pair-cell balance-pair-head" style="grid-column:2;grid-row:1">
+            <h3>Egresos</h3>
+        </div>
+
+        <div class="balance-pair-cell balance-pair-body" style="grid-column:1;grid-row:2">
             <table class="table">
                 <thead><tr><th>Concepto</th><th>$</th></tr></thead>
                 <tbody>
@@ -178,16 +283,11 @@ $qs = '';
                         <td><?= esc($fmtP($row['monto'])) ?></td>
                     </tr>
                 <?php endforeach; ?>
-                <tr class="balance-total">
-                    <td>Total ingresos</td>
-                    <td><?= esc($fmtP($totalIngresos ?? 0)) ?></td>
-                </tr>
                 </tbody>
             </table>
         </div>
 
-        <div class="balance-col">
-            <h3>Egresos</h3>
+        <div class="balance-pair-cell balance-pair-body" style="grid-column:2;grid-row:2">
             <table class="table">
                 <thead><tr><th>Concepto</th><th>$</th></tr></thead>
                 <tbody>
@@ -200,10 +300,28 @@ $qs = '';
                         <td><?= esc($fmtP($row['monto'])) ?></td>
                     </tr>
                 <?php endforeach; ?>
-                <tr class="balance-total">
-                    <td>Total egresos</td>
-                    <td><?= esc($fmtP($totalEgresos ?? 0)) ?></td>
-                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="balance-pair-cell balance-pair-total has-bottom" style="grid-column:1;grid-row:3">
+            <table class="table">
+                <tbody>
+                    <tr class="balance-total">
+                        <td>Total ingresos</td>
+                        <td><?= esc($fmtP($totalIngresos ?? 0)) ?></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="balance-pair-cell balance-pair-total has-bottom" style="grid-column:2;grid-row:3">
+            <table class="table">
+                <tbody>
+                    <tr class="balance-total">
+                        <td>Total egresos</td>
+                        <td><?= esc($fmtP($totalEgresos ?? 0)) ?></td>
+                    </tr>
                 </tbody>
             </table>
         </div>
