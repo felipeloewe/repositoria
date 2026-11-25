@@ -634,6 +634,59 @@ class EquityPatrimonio extends BaseController
             ];
         }
 
+        // Referencia: líneas / cupos disponibles (no suman a egresos ni a pasivos).
+        $lineasUf = $this->sumLineasDisponibles($empresaId, $personaId, $ufRate);
+        $totalLineasDisponibles = round($lineasUf * $ufRate, 2);
+        $qLin = model(EquityPasivoModel::class)
+            ->where('categoria', 'linea')
+            ->orderBy('banco_descripcion', 'ASC');
+        if ($personaId !== '') {
+            $qLin->where('persona_id', $personaId);
+        } else {
+            $qLin->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
+        }
+        $lineasDetalle = [];
+        foreach ($qLin->findAll() as $row) {
+            $cupoClp = $this->montoClpPreferido(
+                $row['total_credito_clp'] ?? null,
+                $row['total_credito_uf'] ?? null,
+                $row['saldo_clp'] ?? null,
+                $row['saldo_uf'] ?? null,
+                $ufRate
+            );
+            if ($cupoClp === null) {
+                $dir = $this->montoClpPreferido(
+                    $row['monto_directo_clp'] ?? null,
+                    $row['monto_directo_uf'] ?? null,
+                    null,
+                    null,
+                    $ufRate
+                );
+                $ind = $this->montoClpPreferido(
+                    $row['monto_indirecto_clp'] ?? null,
+                    $row['monto_indirecto_uf'] ?? null,
+                    null,
+                    null,
+                    $ufRate
+                );
+                if ($dir !== null || $ind !== null) {
+                    $cupoClp = (float) ($dir ?? 0) + (float) ($ind ?? 0);
+                }
+            }
+            $personaLab = '';
+            $pid = (string) ($row['persona_id'] ?? '');
+            if ($personaId === '' && $pid !== '' && isset($personaMap[$pid])) {
+                $pp = $personaMap[$pid];
+                $personaLab = trim(($pp['nombre'] ?? '') . ' ' . ($pp['apellido'] ?? ''));
+            }
+            $lineasDetalle[] = [
+                'institucion' => $row['banco_descripcion'] ?? null,
+                'tipo'        => $row['tipo'] ?? null,
+                'cupo_clp'    => $cupoClp,
+                'persona'     => $personaLab !== '' ? $personaLab : null,
+            ];
+        }
+
         return view('equity/reporte_egresos', [
             'title'                      => 'Reporte Egresos',
             'memb'                       => $memb,
@@ -647,9 +700,11 @@ class EquityPatrimonio extends BaseController
             'totalGeneral'               => $totalGeneral,
             'secciones'                  => $secciones,
             'indirectaDetalle'           => $indirectaDetalle,
+            'lineasDetalle'              => $lineasDetalle,
             'totalPasivosDirectos'       => $totalPasivosDirectos,
             'totalPasivosIndirecta'      => $totalPasivosIndirecta,
             'totalPasivosConIndirectos'  => $totalPasivosConIndirectos,
+            'totalLineasDisponibles'     => $totalLineasDisponibles,
             'canManage'                  => EquityAcl::canDeclare($memb),
         ]);
     }

@@ -47,6 +47,20 @@ $fmtUf = static function ($v): string {
 .report-summary-final .label { font-weight:700; letter-spacing:.02em; text-transform:uppercase; font-size:.9rem; }
 .report-summary-final .value { font-size:1.25rem; font-weight:800; }
 .report-subhead { margin:1rem 0 .4rem; font-size:.95rem; font-weight:650; }
+.report-lineas-box {
+  margin-top:1rem;
+  padding:.9rem 1.1rem;
+  border-radius:12px;
+  border:2px solid #2f9e7a;
+  background: linear-gradient(180deg, rgba(47,158,122,.08), rgba(255,255,255,.92));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.85);
+}
+.report-lineas-box .label {
+  font-weight:700; letter-spacing:.02em; text-transform:uppercase; font-size:.9rem; color:#0f6b4c;
+}
+.report-lineas-box .value { font-size:1.25rem; font-weight:800; color:#0f6b4c; }
+.report-lineas-box .muted { opacity:.8; font-size:.9rem; margin-top:.2rem; }
+.report-lineas-box table { margin-top:.75rem; }
 @media print {
   .sidebar, .topbar, .report-actions, .nav-exit, .no-print { display:none !important; }
   .shell { display:block !important; }
@@ -244,12 +258,52 @@ $fmtUf = static function ($v): string {
         <div>
             <div class="label">Total pasivos incluyendo indirectos</div>
             <div class="muted" style="margin-top:.2rem">
-                Directos<?= esc($fmtP($totalPasivosDirectos ?? 0)) ?>
+                Directos <?= esc($fmtP($totalPasivosDirectos ?? 0)) ?>
                 + Indirecta <?= esc($fmtP($totalPasivosIndirecta ?? 0)) ?>
             </div>
         </div>
         <div class="value"><?= esc($fmtDual($totalPasivosConIndirectos ?? 0)) ?></div>
     </div>
+</div>
+
+<div class="report-lineas-box">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap">
+        <div>
+            <div class="label">Líneas disponibles</div>
+            <div class="muted">Cupos / líneas de crédito (referencia · no suman a egresos ni a pasivos)</div>
+        </div>
+        <div class="value"><?= esc($fmtDual($totalLineasDisponibles ?? 0)) ?></div>
+    </div>
+    <?php if (($lineasDetalle ?? []) !== []): ?>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Institución</th>
+                    <th>Tipo</th>
+                    <?php if ($personaId === ''): ?><th>Persona</th><?php endif; ?>
+                    <th>Cupo disponible</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($lineasDetalle as $row): ?>
+                <tr>
+                    <td><?= esc($row['institucion'] ?? '—') ?></td>
+                    <td><?= esc($row['tipo'] ?? '—') ?></td>
+                    <?php if ($personaId === ''): ?>
+                        <td><?= esc($row['persona'] ?? '—') ?></td>
+                    <?php endif; ?>
+                    <td><strong><?= esc($fmtDual($row['cupo_clp'] ?? null)) ?></strong></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="<?= $personaId === '' ? 3 : 2 ?>" style="text-align:right"><strong>Total líneas</strong></td>
+                    <td><strong><?= esc($fmtDual($totalLineasDisponibles ?? 0)) ?></strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    <?php endif; ?>
 </div>
 
 <?= $this->endSection() ?>
