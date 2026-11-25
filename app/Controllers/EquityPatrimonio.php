@@ -323,8 +323,172 @@ class EquityPatrimonio extends BaseController
             return $memb;
         }
 
-        // Reutiliza la vista de situación financiera como reportería de ingresos/carga.
-        return redirect()->to('/equity/situacion-financiera');
+        $empresaId = $memb['empresa_id'];
+        [$personaId, $personas] = $this->personaContexto($memb);
+        $personaMap = [];
+        foreach ($personas as $p) {
+            $personaMap[$p['id']] = $p;
+        }
+        $personaNombre = null;
+        if ($personaId !== '' && isset($personaMap[$personaId])) {
+            $p = $personaMap[$personaId];
+            $personaNombre = trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''));
+        }
+
+        $ufVigente = EquityUf::vigente($empresaId);
+        $ufRate    = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
+        $fuentes   = EquityCatalogo::fuentesIngreso();
+        $ingTotales = $this->totalesIngresosMensuales($empresaId, $personaId, $ufRate);
+        $periodos   = EquityCatalogo::opcionesPeriodicidadIngreso();
+        $estados    = EquityCatalogo::opcionesEstadoContratoIngreso();
+
+        $subtipoFuente = [];
+        $subtipoLabel  = [];
+        foreach ($fuentes as $clave => $meta) {
+            foreach ($meta['campos'] as $c) {
+                $subtipoFuente[$c['subtipo']] = $clave;
+                $subtipoLabel[$c['subtipo']]  = $c['label'];
+            }
+        }
+
+        $cq = model(EquityIngresoContratoModel::class)
+            ->orderBy('estado', 'ASC')
+            ->orderBy('fecha_inicio_contrato', 'DESC')
+            ->orderBy('created_at', 'DESC');
+        if ($personaId !== '') {
+            $cq->where('persona_id', $personaId);
+        } else {
+            $cq->whereIn('empresa_id', $this->empresaScopeIds($empresaId));
+        }
+        $allContratos = $cq->findAll();
+
+        $bienIds = [];
+        foreach ($allContratos as $c) {
+            $bid = (string) ($c['bien_raiz_id'] ?? '');
+            if ($bid !== '') {
+                $bienIds[$bid] = true;
+            }
+        }
+        $bienMap = [];
+        if ($bienIds !== []) {
+            foreach (model(EquityBienRaizModel::class)->whereIn('id', array_keys($bienIds))->findAll() as $br) {
+                $bienMap[(string) $br['id']] = $br;
+            }
+        }
+
+        $detallePorFuente = [];
+        foreach ($fuentes as $clave => $_meta) {
+            $detallePorFuente[$clave] = [
+                'vigentes' => [],
+                'vencidos' => [],
+                'subtotales' => [],
+            ];
+            foreach ($_meta['campos'] as $c) {
+                $detallePorFuente[$clave]['subtotales'][$c['subtipo']] = [
+                    'label' => $c['label'],
+                    'monto' => 0.0,
+                ];
+            }
+        }
+
+        $seenBienArriendo = [];
+        foreach ($allContratos as $c) {
+            $subtipo = (string) ($c['subtipo'] ?? '');
+            $fClave  = $subtipoFuente[$subtipo] ?? (string) ($c['fuente'] ?? '');
+            if ($fClave === '' || ! isset($detallePorFuente[$fClave])) {
+                continue;
+            }
+            $estado = (string) ($c['estado'] ?? 'vigente');
+            $bid    = (string) ($c['bien_raiz_id'] ?? '');
+            if ($estado === 'vigente' && $subtipo === 'arriendos' && $bid !== '') {
+                if (isset($seenBienArriendo[$bid])) {
+                    continue;
+                }
+                $seenBienArriendo[$bid] = true;
+            }
+            $mensual = EquityCatalogo::montoMensualEquivalente(
+                isset($c['monto_contrato_clp']) ? (float) $c['monto_contrato_clp'] : null,
+                $c['periodicidad'] ?? 'mensual'
+            );
+            $br = $bid !== '' ? ($bienMap[$bid] ?? null) : null;
+            $row = [
+                'tipo'            => $subtipoLabel[$subtipo] ?? $subtipo,
+                'contraparte'     => $c['contraparte_nombre'] ?? null,
+                'rut'             => $c['contraparte_rut'] ?? null,
+                'bien'            => is_array($br)
+                    ? trim((string) (($br['direccion'] ?? '') !== '' ? $br['direccion'] : ($br['descripcion'] ?? '')))
+                    : null,
+                'inicio'          => $c['fecha_inicio_contrato'] ?? null,
+                'vencimiento'     => $c['fecha_vencimiento'] ?? null,
+                'periodicidad'    => $periodos[$c['periodicidad'] ?? ''] ?? ($c['periodicidad'] ?? null),
+                'monto_contrato'  => isset($c['monto_contrato_clp']) ? (float) $c['monto_contrato_clp'] : null,
+                'equiv_mensual'   => $mensual,
+                'estado'          => $estados[$estado] ?? $estado,
+                'estado_clave'    => $estado,
+                'notas'           => $c['notas'] ?? null,
+            ];
+            if ($estado === 'vigente') {
+                $detallePorFuente[$fClave]['vigentes'][] = $row;
+                if (isset($detallePorFuente[$fClave]['subtotales'][$subtipo])) {
+                    $detallePorFuente[$fClave]['subtotales'][$subtipo]['monto'] += $mensual;
+                }
+            } else {
+                $detallePorFuente[$fClave]['vencidos'][] = $row;
+            }
+        }
+
+        // Si una fuente no tiene contratos vigentes, desglose desde ficha / total hub.
+        foreach ($fuentes as $clave => $meta) {
+            $tieneVigentes = ($detallePorFuente[$clave]['vigentes'] ?? []) !== [];
+            if ($tieneVigentes) {
+                continue;
+            }
+            $sumSub = 0.0;
+            foreach ($meta['campos'] as $c) {
+                $monto = 0.0;
+                foreach ($ingTotales['fichasBase'] as $fRow) {
+                    $v = $fRow[$c['key']] ?? null;
+                    if ($v !== null && $v !== '') {
+                        $monto += (float) $v;
+                    }
+                }
+                $detallePorFuente[$clave]['subtotales'][$c['subtipo']]['monto'] = $monto;
+                $sumSub += $monto;
+            }
+            if ($clave === 'inversiones' && $sumSub <= 0) {
+                $canon = (float) ($ingTotales['porFuente']['inversiones'] ?? 0);
+                if ($canon > 0 && isset($detallePorFuente[$clave]['subtotales']['arriendos'])) {
+                    $detallePorFuente[$clave]['subtotales']['arriendos']['monto'] = $canon;
+                }
+            }
+        }
+
+        $secciones = [];
+        foreach ($fuentes as $clave => $meta) {
+            $secciones[] = [
+                'clave'      => $clave,
+                'meta'       => $meta,
+                'total'      => (float) ($ingTotales['porFuente'][$clave] ?? 0),
+                'subtotales' => array_values($detallePorFuente[$clave]['subtotales']),
+                'vigentes'   => $detallePorFuente[$clave]['vigentes'],
+                'vencidos'   => $detallePorFuente[$clave]['vencidos'],
+            ];
+        }
+
+        return view('equity/reporte_ingresos', [
+            'title'         => 'Reporte Ingresos',
+            'memb'          => $memb,
+            'equityNav'     => 'ingresos',
+            'personas'      => $personas,
+            'personaId'     => $personaId,
+            'personaNombre' => $personaNombre,
+            'ufVigente'     => $ufVigente,
+            'fuentes'       => $fuentes,
+            'totalesFuente' => $ingTotales['porFuente'],
+            'totalGeneral'  => (float) $ingTotales['total'],
+            'secciones'     => $secciones,
+            'canManage'     => EquityAcl::canDeclare($memb),
+        ]);
     }
 
     public function editActivo(string $seccion, string $id)

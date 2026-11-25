@@ -84,7 +84,7 @@ foreach ($personas as $p) {
         </p>
     <?php endif; ?>
     <p style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
-        <a class="btn btn-primary btn-sm" href="<?= site_url('equity/reporte/ingresos') ?>">Reporte</a>
+        <a class="btn btn-primary btn-sm" href="<?= site_url('equity/reporte/ingresos') ?>">Reporte · Imprimir / PDF</a>
         <?php if ($fuente === 'inversiones' && ! empty($canManage) && $personaId !== ''): ?>
             <form method="post" action="<?= site_url('equity/ingresos/inversiones/sync-arriendos') ?>" style="display:inline" onsubmit="return confirm('¿Actualizar contratos de arriendo con arrendatario/cánon de los bienes raíces activos? Los vigentes se alinean; se crean los que falten.');">
                 <?= csrf_field() ?>
