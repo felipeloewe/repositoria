@@ -53,8 +53,6 @@ $isActive = static function (string $clave) use ($title, $equityNav): bool {
         'egresos-hipotecarios' => 'Egresos · Hipotecarios',
         'egresos-circulantes' => 'Egresos · Circulantes',
         'egresos-otros' => 'Egresos · Otros',
-        'egresos-indirecta' => 'Egresos · Deuda indirecta',
-        'egresos-lineas' => 'Egresos · Líneas',
         default => '',
     };
 };
@@ -64,7 +62,7 @@ $isActive = static function (string $clave) use ($title, $equityNav): bool {
         <p class="nav-section"><?= esc($grupo) ?></p>
         <?php foreach ($items as $item): ?>
             <?php
-                $sub = in_array($item['clave'], ['socios', 'gerentes', 'familiares', 'bienes-raices', 'vehiculos', 'sociedades', 'otros-activos', 'pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos', 'pasivos-indirecta', 'pasivos-lineas', 'ingresos-renta', 'ingresos-honorarios', 'ingresos-inversiones', 'ingresos-otros', 'egresos-hipotecarios', 'egresos-circulantes', 'egresos-otros', 'egresos-indirecta', 'egresos-lineas'], true);
+                $sub = in_array($item['clave'], ['socios', 'gerentes', 'familiares', 'bienes-raices', 'vehiculos', 'sociedades', 'otros-activos', 'pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos', 'pasivos-indirecta', 'pasivos-lineas', 'ingresos-renta', 'ingresos-honorarios', 'ingresos-inversiones', 'ingresos-otros', 'egresos-hipotecarios', 'egresos-circulantes', 'egresos-otros'], true);
             ?>
             <a href="<?= site_url(ltrim($item['path'], '/')) ?>"
                class="<?= $sub ? 'nav-sub ' : '' ?><?= $isActive($item['clave']) ? 'active' : '' ?>"

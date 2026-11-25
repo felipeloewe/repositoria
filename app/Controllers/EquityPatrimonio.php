@@ -323,11 +323,11 @@ class EquityPatrimonio extends BaseController
     public function reporteGrupoPasivos()
     {
         return $this->reporteGrupo('pasivos', [
-            'pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos', 'pasivos-indirecta',
+            'pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos', 'pasivos-indirecta', 'pasivos-lineas',
         ]);
     }
 
-    /** Líneas disponibles: sección propia (fuera de Pasivos y Egresos). */
+    /** Líneas disponibles (Pasivos): listado, edición y eliminación. */
     public function lineas()
     {
         return $this->seccionLista('pasivos-lineas');
@@ -362,8 +362,9 @@ class EquityPatrimonio extends BaseController
         if (! is_array($memb)) {
             return $memb;
         }
+        $redirectLineas = '/equity/pasivos/lineas';
         if (! EquityAcl::canDeclare($memb)) {
-            return redirect()->to('/equity/lineas')->with('error', 'Sin permiso para eliminar.');
+            return redirect()->to($redirectLineas)->with('error', 'Sin permiso para eliminar.');
         }
 
         [$personaId] = $this->personaContexto($memb);
@@ -377,12 +378,12 @@ class EquityPatrimonio extends BaseController
         }
         $row = $q->first();
         if ($row === null) {
-            return redirect()->to('/equity/lineas')->with('error', 'Línea no encontrada.');
+            return redirect()->to($redirectLineas)->with('error', 'Línea no encontrada.');
         }
 
         model(EquityPasivoModel::class)->delete($id);
 
-        return redirect()->to('/equity/lineas' . ($personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : ''))
+        return redirect()->to($redirectLineas . ($personaId !== '' ? '?persona_id=' . rawurlencode($personaId) : ''))
             ->with('success', 'Línea eliminada.');
     }
 
@@ -2317,7 +2318,7 @@ class EquityPatrimonio extends BaseController
             'pasivos-circulantes' => '/equity/pasivos/circulantes',
             'otros-pasivos'       => '/equity/pasivos/otros',
             'pasivos-indirecta'   => '/equity/pasivos/indirecta',
-            'pasivos-lineas'      => '/equity/lineas',
+            'pasivos-lineas'      => '/equity/pasivos/lineas',
             default               => '/dashboard',
         };
     }
@@ -2333,7 +2334,7 @@ class EquityPatrimonio extends BaseController
             'pasivos-circulantes' => '/equity/pasivos/circulantes/reporte',
             'otros-pasivos'       => '/equity/pasivos/otros/reporte',
             'pasivos-indirecta'   => '/equity/pasivos/indirecta/reporte',
-            'pasivos-lineas'      => '/equity/lineas/reporte',
+            'pasivos-lineas'      => '/equity/pasivos/lineas/reporte',
             default               => '/equity/reporte/balance',
         };
     }

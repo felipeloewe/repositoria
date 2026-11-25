@@ -36,7 +36,7 @@ $listAction = match ($clave) {
     'pasivos-circulantes' => site_url('equity/pasivos/circulantes'),
     'otros-pasivos'       => site_url('equity/pasivos/otros'),
     'pasivos-indirecta'   => site_url('equity/pasivos/indirecta'),
-    'pasivos-lineas'      => site_url('equity/lineas'),
+    'pasivos-lineas'      => site_url('equity/pasivos/lineas'),
     default               => site_url('dashboard'),
 };
 $reportAction = match ($clave) {
@@ -48,14 +48,12 @@ $reportAction = match ($clave) {
     'pasivos-circulantes' => site_url('equity/pasivos/circulantes/reporte'),
     'otros-pasivos'       => site_url('equity/pasivos/otros/reporte'),
     'pasivos-indirecta'   => site_url('equity/pasivos/indirecta/reporte'),
-    'pasivos-lineas'      => site_url('equity/lineas/reporte'),
+    'pasivos-lineas'      => site_url('equity/pasivos/lineas/reporte'),
     default               => site_url('equity/reporte/balance'),
 };
-$grupoReportAction = $clave === 'pasivos-lineas'
-    ? site_url('equity/lineas/reporte')
-    : (str_starts_with($clave, 'pasivos') || $clave === 'otros-pasivos'
-        ? site_url('equity/reporte/pasivos')
-        : site_url('equity/reporte/activos'));
+$grupoReportAction = str_starts_with($clave, 'pasivos') || $clave === 'otros-pasivos'
+    ? site_url('equity/reporte/pasivos')
+    : site_url('equity/reporte/activos');
 $esActivo = in_array($clave, ['bienes-raices', 'vehiculos', 'sociedades', 'otros-activos'], true);
 $bitacoraPath = static function (string $id) use ($clave, $esActivo): string {
     if (! $esActivo) {
@@ -480,7 +478,7 @@ foreach ($personas as $p) {
                     Deudas adquiridas por un tercero donde eres codeudor, fiador o avalista.
                     Indica el <strong>tomador</strong> (nombre o razón social y RUT).
                 <?php else: ?>
-                    Cupos disponibles (sección propia, fuera de Pasivos y Egresos).
+                    Cupos disponibles en <strong>Pasivos</strong> (no forman parte de Egresos).
                     Institución, tipo de línea, fechas, total, vigente y tramos de mora.
                     Puedes <strong>editar</strong> y <strong>eliminar</strong> cada línea.
                 <?php endif; ?>

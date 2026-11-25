@@ -72,7 +72,7 @@ $ufRate = (float) ($ufVigente['valor_clp'] ?? EquityUf::DEFAULT_VALOR_CLP);
                 ['Pasivos — Circulantes', 'pasivos_circ', 'equity/pasivos/circulantes'],
                 ['Pasivos — Otros', 'pasivos_otro', 'equity/pasivos/otros'],
                 ['Pasivos — Deuda indirecta', 'pasivos_indirecta', 'equity/pasivos/indirecta'],
-                ['Líneas disponibles (cupos)', 'pasivos_lineas', 'equity/lineas'],
+                ['Líneas disponibles (cupos)', 'pasivos_lineas', 'equity/pasivos/lineas'],
             ];
             foreach ($filas as [$label, $key, $path]):
             ?>
