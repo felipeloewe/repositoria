@@ -28,13 +28,16 @@ final class EquityOcr
         $pdf  = $proc ? self::which('pdftotext') : null;
         $ppm  = $proc ? self::which('pdftoppm') : null;
         $listo = $proc && ($tess !== null || $pdf !== null);
+        $spa   = $tess !== null && self::tesseractTieneLang($tess, 'spa');
 
         if (! $proc) {
             $msg = 'El hosting bloquea la ejecución de binarios (proc_open).';
         } elseif ($tess === null && $pdf === null) {
             $msg = 'OCR pendiente: Tesseract / pdftotext aún no están instalados en el servidor. Puedes subir el archivo como respaldo; cuando Softnet los active, la lectura automática quedará operativa.';
         } elseif ($tess !== null && $pdf !== null) {
-            $msg = 'OCR listo (Tesseract + pdftotext).';
+            $msg = $spa
+                ? 'OCR listo (Tesseract + pdftotext' . ($ppm ? ' + pdftoppm' : '') . ').'
+                : 'OCR listo (Tesseract eng + pdftotext' . ($ppm ? ' + pdftoppm' : '') . '). Falta el paquete de idioma spa (números y tablas ya funcionan).';
         } elseif ($tess !== null) {
             $msg = 'OCR de imágenes listo (Tesseract). PDF digital limitado sin pdftotext.';
         } else {
@@ -46,6 +49,7 @@ final class EquityOcr
             'tesseract'  => $tess,
             'pdftotext'  => $pdf,
             'pdftoppm'   => $ppm,
+            'spa'        => $spa,
             'listo'      => $listo,
             'mensaje'    => $msg,
         ];
@@ -226,10 +230,8 @@ final class EquityOcr
 
     private static function tesseractLangs(string $tessBin): string
     {
-        $r = self::run($tessBin . ' --list-langs');
-        $blob = strtolower(($r['out'] ?? '') . "\n" . ($r['err'] ?? ''));
-        $hasSpa = str_contains($blob, 'spa');
-        $hasEng = str_contains($blob, 'eng');
+        $hasSpa = self::tesseractTieneLang($tessBin, 'spa');
+        $hasEng = self::tesseractTieneLang($tessBin, 'eng');
         if ($hasSpa && $hasEng) {
             return 'spa+eng';
         }
@@ -241,6 +243,14 @@ final class EquityOcr
         }
 
         return 'eng';
+    }
+
+    private static function tesseractTieneLang(string $tessBin, string $lang): bool
+    {
+        $r = self::run($tessBin . ' --list-langs');
+        $blob = strtolower(($r['out'] ?? '') . "\n" . ($r['err'] ?? ''));
+
+        return (bool) preg_match('/(?:^|\n)\s*' . preg_quote(strtolower($lang), '/') . '\s*(?:\n|$)/', $blob);
     }
 
     private static function which(string $bin): ?string
