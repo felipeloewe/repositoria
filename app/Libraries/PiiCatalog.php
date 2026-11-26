@@ -92,6 +92,16 @@ final class PiiCatalog
                 'fields' => ['banco_nombre', 'numero_cuenta', 'ultimos_4', 'fecha_vencimiento', 'monto_aprobado_clp', 'monto_aprobado_usd'],
                 'note'   => 'Antecedentes bancarios: se borran al scrub de la persona',
             ],
+            [
+                'table'  => 'equity_cuenta_claves / equity_tarjeta_pines',
+                'fields' => ['secreto_cipher', 'fecha_inicio', 'vigencia_hasta'],
+                'note'   => 'Claves internet / PIN cajero cifrados con PIN de bóveda; se borran al scrub',
+            ],
+            [
+                'table'  => 'usuarios (vault)',
+                'fields' => ['vault_pin_hash', 'vault_salt', 'vault_wrapped_dek'],
+                'note'   => 'PIN de bóveda para desbloquear secretos bancarios',
+            ],
         ];
     }
 

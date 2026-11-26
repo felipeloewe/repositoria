@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Libraries;
 
+use App\Models\EquityCuentaClaveModel;
 use App\Models\EquityPersonaBancoModel;
 use App\Models\EquityPersonaCuentaModel;
 use App\Models\EquityPersonaTarjetaModel;
+use App\Models\EquityTarjetaPinModel;
 
 /**
  * Antecedentes bancarios: bancos → cuentas corrientes + tarjetas de crédito.
@@ -117,12 +119,43 @@ final class EquityBancarios
             ->orderBy('created_at', 'ASC')
             ->findAll();
 
+        $clavesByCuenta = [];
+        $pinesByTarjeta = [];
+        if (EquityVault::tablasListas()) {
+            $cuentaIds = array_column($cuentas, 'id');
+            $tarjetaIds = array_column($tarjetas, 'id');
+            if ($cuentaIds !== []) {
+                $claves = model(EquityCuentaClaveModel::class)
+                    ->whereIn('cuenta_id', $cuentaIds)
+                    ->orderBy('fecha_inicio', 'DESC')
+                    ->orderBy('created_at', 'DESC')
+                    ->findAll();
+                foreach ($claves as $row) {
+                    $clavesByCuenta[(string) $row['cuenta_id']][] = self::enriquecerSecreto($row);
+                }
+            }
+            if ($tarjetaIds !== []) {
+                $pines = model(EquityTarjetaPinModel::class)
+                    ->whereIn('tarjeta_id', $tarjetaIds)
+                    ->orderBy('fecha_inicio', 'DESC')
+                    ->orderBy('created_at', 'DESC')
+                    ->findAll();
+                foreach ($pines as $row) {
+                    $pinesByTarjeta[(string) $row['tarjeta_id']][] = self::enriquecerSecreto($row);
+                }
+            }
+        }
+
         $byBancoC = [];
         foreach ($cuentas as $c) {
+            $cid = (string) $c['id'];
+            $c['claves'] = $clavesByCuenta[$cid] ?? [];
             $byBancoC[(string) $c['banco_id']][] = $c;
         }
         $byBancoT = [];
         foreach ($tarjetas as $t) {
+            $tid = (string) $t['id'];
+            $t['pines'] = $pinesByTarjeta[$tid] ?? [];
             $byBancoT[(string) $t['banco_id']][] = $t;
         }
 
@@ -139,16 +172,65 @@ final class EquityBancarios
         return $out;
     }
 
-    /** Borra bancos/cuentas/tarjetas de la persona (scrub / baja). */
+    /**
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    public static function enriquecerSecreto(array $row): array
+    {
+        $hoy = date('Y-m-d');
+        $estado = strtolower((string) ($row['estado'] ?? 'vigente'));
+        $hasta = $row['vigencia_hasta'] ?? null;
+        if ($estado === 'vigente' && is_string($hasta) && $hasta !== '' && $hasta < $hoy) {
+            $estado = 'caducada';
+            $row['estado_efectivo'] = 'caducada';
+        } else {
+            $row['estado_efectivo'] = $estado === 'caducada' ? 'caducada' : 'vigente';
+        }
+        $row['secreto_visible'] = null;
+        if (EquityVault::estaDesbloqueada() && ! empty($row['secreto_cipher'])) {
+            $row['secreto_visible'] = EquityVault::descifrar((string) $row['secreto_cipher']);
+        }
+
+        return $row;
+    }
+
+    /** Borra bancos/cuentas/tarjetas/secretos de la persona (scrub / baja). */
     public static function scrubPersona(string $personaId): void
     {
         if (! self::tablasListas()) {
             return;
         }
         $db = db_connect();
+        if ($db->tableExists('equity_cuenta_claves')) {
+            $db->table('equity_cuenta_claves')->where('persona_id', $personaId)->delete();
+        }
+        if ($db->tableExists('equity_tarjeta_pines')) {
+            $db->table('equity_tarjeta_pines')->where('persona_id', $personaId)->delete();
+        }
         $db->table('equity_persona_tarjetas')->where('persona_id', $personaId)->delete();
         $db->table('equity_persona_cuentas')->where('persona_id', $personaId)->delete();
         $db->table('equity_persona_bancos')->where('persona_id', $personaId)->delete();
+    }
+
+    public static function normalizarEstado(?string $estado): string
+    {
+        $e = strtolower(trim((string) $estado));
+
+        return $e === 'caducada' ? 'caducada' : 'vigente';
+    }
+
+    public static function normalizarFecha(?string $raw): ?string
+    {
+        $s = trim((string) $raw);
+        if ($s === '') {
+            return null;
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) {
+            return $s;
+        }
+
+        return null;
     }
 
     public static function normalizarVencimiento(?string $raw): ?string

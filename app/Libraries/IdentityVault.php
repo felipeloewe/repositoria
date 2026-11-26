@@ -206,6 +206,8 @@ final class IdentityVault
             'pii_scrubbed_at'    => $now,
         ]);
 
+        EquityVault::scrubUsuarioVault($usuarioId);
+
         return ['ok' => true];
     }
 

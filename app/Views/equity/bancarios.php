@@ -70,7 +70,36 @@ $checkboxApp = static function (string $name, string $key): string {
     <?php if (! empty($canManage)): ?>
         <a href="<?= site_url('equity/' . $pid . '/editar') ?>">Editar personales</a>
     <?php endif; ?>
+    <a href="<?= site_url('equity/vault-pin?return=' . rawurlencode(site_url($base))) ?>">PIN de bóveda</a>
 </div>
+
+<?php if (! empty($secretosOk) && ! empty($canManage)): ?>
+<div class="card section-card">
+    <h3 style="margin-top:0">Bóveda de secretos</h3>
+    <?php if (empty($vaultPinOk)): ?>
+        <p class="muted">Para guardar claves de internet o PIN de cajero, configura un PIN de bóveda en tu perfil.</p>
+        <a class="btn btn-primary btn-sm" href="<?= site_url('equity/vault-pin?return=' . rawurlencode(site_url($base))) ?>">Configurar PIN</a>
+    <?php elseif (! empty($vaultOpen)): ?>
+        <p class="muted" style="margin-top:0">Bóveda <strong>desbloqueada</strong> (se vuelve a bloquear a los 15 min de inactividad). Los secretos se muestran en claro.</p>
+        <form method="post" action="<?= site_url($base . '/bloquear') ?>" style="display:inline">
+            <?= csrf_field() ?>
+            <button class="btn btn-ghost btn-sm" type="submit">Bloquear ahora</button>
+        </form>
+    <?php else: ?>
+        <p class="muted" style="margin-top:0">Bóveda bloqueada. Ingresa tu PIN para ver o agregar claves / PINes de cajero.</p>
+        <form method="post" action="<?= site_url($base . '/desbloquear') ?>" class="form-row" style="grid-template-columns:160px auto;align-items:end;gap:.75rem;max-width:360px">
+            <?= csrf_field() ?>
+            <div>
+                <label for="vault_pin">PIN</label>
+                <input id="vault_pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="12" required autocomplete="off">
+            </div>
+            <div>
+                <button class="btn btn-primary btn-sm" type="submit">Desbloquear</button>
+            </div>
+        </form>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
 
 <?php if (empty($tablasOk)): ?>
     <div class="alert alert-error">Falta la migración de antecedentes bancarios (000040).</div>
@@ -152,7 +181,8 @@ $checkboxApp = static function (string $name, string $key): string {
                     </thead>
                     <tbody>
                     <?php foreach ($nodo['cuentas'] as $c): ?>
-                        <tr>
+                        <?php $cid = (string) ($c['id'] ?? ''); ?>
+                        <tr id="cuenta-<?= esc($cid) ?>">
                             <td><?= esc(Bancarios::labelTipoCuenta($c['tipo'] ?? null)) ?></td>
                             <td><?= esc($c['moneda'] ?? '—') ?></td>
                             <td><?php
@@ -162,7 +192,7 @@ $checkboxApp = static function (string $name, string $key): string {
                             <td><?= $appsHtml($c) ?></td>
                             <td style="white-space:nowrap">
                                 <?php if (! empty($canManage)): ?>
-                                    <form method="post" action="<?= site_url($base . '/cuenta/' . $c['id'] . '/eliminar') ?>" style="display:inline"
+                                    <form method="post" action="<?= site_url($base . '/cuenta/' . $cid . '/eliminar') ?>" style="display:inline"
                                           onsubmit="return confirm('¿Eliminar esta cuenta?');">
                                         <?= csrf_field() ?>
                                         <button class="btn btn-ghost btn-sm" type="submit">Eliminar</button>
@@ -170,6 +200,88 @@ $checkboxApp = static function (string $name, string $key): string {
                                 <?php endif; ?>
                             </td>
                         </tr>
+                        <?php if (! empty($secretosOk)): ?>
+                        <tr>
+                            <td colspan="5" style="background:transparent;border-top:0;padding-top:0">
+                                <div style="margin:.25rem 0 1rem;padding:.75rem 1rem;border-left:3px solid var(--border,#ccc)">
+                                    <strong>Claves de internet</strong> <span class="muted">(opcional)</span>
+                                    <?php $claves = $c['claves'] ?? []; ?>
+                                    <?php if ($claves === []): ?>
+                                        <p class="muted" style="margin:.35rem 0">Sin bitácora aún.</p>
+                                    <?php else: ?>
+                                        <table class="table" style="margin:.5rem 0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Inicio</th>
+                                                    <th>Vigencia hasta</th>
+                                                    <th>Estado</th>
+                                                    <th>Clave</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                            <?php foreach ($claves as $k): ?>
+                                                <tr>
+                                                    <td><?= esc($k['fecha_inicio'] ?? '—') ?></td>
+                                                    <td><?= esc($k['vigencia_hasta'] ?? '—') ?></td>
+                                                    <td><?= esc(($k['estado_efectivo'] ?? $k['estado'] ?? '') === 'caducada' ? 'Caducada' : 'Vigente') ?></td>
+                                                    <td style="font-family:ui-monospace,monospace">
+                                                        <?php if (! empty($vaultOpen) && array_key_exists('secreto_visible', $k) && $k['secreto_visible'] !== null): ?>
+                                                            <?= esc((string) $k['secreto_visible']) ?>
+                                                        <?php else: ?>
+                                                            <span class="muted">••••••••</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td>
+                                                        <?php if (! empty($canManage)): ?>
+                                                            <form method="post" action="<?= site_url($base . '/clave/' . $k['id'] . '/eliminar') ?>" style="display:inline"
+                                                                  onsubmit="return confirm('¿Eliminar esta clave?');">
+                                                                <?= csrf_field() ?>
+                                                                <button class="btn btn-ghost btn-sm" type="submit">Eliminar</button>
+                                                            </form>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    <?php endif; ?>
+                                    <?php if (! empty($canManage) && ! empty($vaultOpen)): ?>
+                                        <form method="post" action="<?= site_url($base . '/cuenta/' . $cid . '/clave') ?>" autocomplete="off">
+                                            <?= csrf_field() ?>
+                                            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));align-items:end;gap:.5rem">
+                                                <div>
+                                                    <label>Fecha cambio</label>
+                                                    <input type="date" name="fecha_inicio" value="<?= esc(date('Y-m-d')) ?>" required>
+                                                </div>
+                                                <div>
+                                                    <label>Vigencia hasta</label>
+                                                    <input type="date" name="vigencia_hasta">
+                                                </div>
+                                                <div>
+                                                    <label>Estado</label>
+                                                    <select name="estado">
+                                                        <option value="vigente" selected>Vigente</option>
+                                                        <option value="caducada">Caducada</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label>Clave</label>
+                                                    <input type="password" name="clave" required autocomplete="off">
+                                                </div>
+                                                <div>
+                                                    <label class="checkbox-inline"><input type="checkbox" name="caducar_anteriores" value="1" checked> Caducar vigentes previas</label>
+                                                    <button class="btn btn-primary btn-sm" type="submit" style="margin-top:.35rem">Agregar clave</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    <?php elseif (! empty($canManage) && empty($vaultOpen)): ?>
+                                        <p class="muted" style="margin:.35rem 0 0">Desbloquea la bóveda para agregar claves.</p>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endif; ?>
                     <?php endforeach; ?>
                     </tbody>
                 </table>
@@ -232,7 +344,8 @@ $checkboxApp = static function (string $name, string $key): string {
                     </thead>
                     <tbody>
                     <?php foreach ($nodo['tarjetas'] as $t): ?>
-                        <tr>
+                        <?php $tid = (string) ($t['id'] ?? ''); ?>
+                        <tr id="tarjeta-<?= esc($tid) ?>">
                             <td><?= esc(Bancarios::labelMarca($t['marca'] ?? null)) ?></td>
                             <td><?= esc($t['tipo_producto'] ?? '—') ?></td>
                             <td><?= esc($fmtMoney($t['monto_aprobado_clp'] ?? null, '$')) ?></td>
@@ -244,7 +357,7 @@ $checkboxApp = static function (string $name, string $key): string {
                             <td><?= $appsHtml($t) ?></td>
                             <td style="white-space:nowrap">
                                 <?php if (! empty($canManage)): ?>
-                                    <form method="post" action="<?= site_url($base . '/tarjeta/' . $t['id'] . '/eliminar') ?>" style="display:inline"
+                                    <form method="post" action="<?= site_url($base . '/tarjeta/' . $tid . '/eliminar') ?>" style="display:inline"
                                           onsubmit="return confirm('¿Eliminar esta tarjeta?');">
                                         <?= csrf_field() ?>
                                         <button class="btn btn-ghost btn-sm" type="submit">Eliminar</button>
@@ -252,6 +365,88 @@ $checkboxApp = static function (string $name, string $key): string {
                                 <?php endif; ?>
                             </td>
                         </tr>
+                        <?php if (! empty($secretosOk)): ?>
+                        <tr>
+                            <td colspan="8" style="background:transparent;border-top:0;padding-top:0">
+                                <div style="margin:.25rem 0 1rem;padding:.75rem 1rem;border-left:3px solid var(--border,#ccc)">
+                                    <strong>PIN de cajero</strong> <span class="muted">(opcional, 4 dígitos)</span>
+                                    <?php $pines = $t['pines'] ?? []; ?>
+                                    <?php if ($pines === []): ?>
+                                        <p class="muted" style="margin:.35rem 0">Sin bitácora aún.</p>
+                                    <?php else: ?>
+                                        <table class="table" style="margin:.5rem 0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Inicio</th>
+                                                    <th>Vigencia hasta</th>
+                                                    <th>Estado</th>
+                                                    <th>PIN</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                            <?php foreach ($pines as $p): ?>
+                                                <tr>
+                                                    <td><?= esc($p['fecha_inicio'] ?? '—') ?></td>
+                                                    <td><?= esc($p['vigencia_hasta'] ?? '—') ?></td>
+                                                    <td><?= esc(($p['estado_efectivo'] ?? $p['estado'] ?? '') === 'caducada' ? 'Caducada' : 'Vigente') ?></td>
+                                                    <td style="font-family:ui-monospace,monospace">
+                                                        <?php if (! empty($vaultOpen) && array_key_exists('secreto_visible', $p) && $p['secreto_visible'] !== null): ?>
+                                                            <?= esc((string) $p['secreto_visible']) ?>
+                                                        <?php else: ?>
+                                                            <span class="muted">••••</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td>
+                                                        <?php if (! empty($canManage)): ?>
+                                                            <form method="post" action="<?= site_url($base . '/pin/' . $p['id'] . '/eliminar') ?>" style="display:inline"
+                                                                  onsubmit="return confirm('¿Eliminar este PIN?');">
+                                                                <?= csrf_field() ?>
+                                                                <button class="btn btn-ghost btn-sm" type="submit">Eliminar</button>
+                                                            </form>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    <?php endif; ?>
+                                    <?php if (! empty($canManage) && ! empty($vaultOpen)): ?>
+                                        <form method="post" action="<?= site_url($base . '/tarjeta/' . $tid . '/pin') ?>" autocomplete="off">
+                                            <?= csrf_field() ?>
+                                            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));align-items:end;gap:.5rem">
+                                                <div>
+                                                    <label>Fecha cambio</label>
+                                                    <input type="date" name="fecha_inicio" value="<?= esc(date('Y-m-d')) ?>" required>
+                                                </div>
+                                                <div>
+                                                    <label>Vigencia hasta</label>
+                                                    <input type="date" name="vigencia_hasta">
+                                                </div>
+                                                <div>
+                                                    <label>Estado</label>
+                                                    <select name="estado">
+                                                        <option value="vigente" selected>Vigente</option>
+                                                        <option value="caducada">Caducada</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label>PIN (4 dígitos)</label>
+                                                    <input type="password" name="pin_cajero" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required autocomplete="off">
+                                                </div>
+                                                <div>
+                                                    <label class="checkbox-inline"><input type="checkbox" name="caducar_anteriores" value="1" checked> Caducar vigentes previos</label>
+                                                    <button class="btn btn-primary btn-sm" type="submit" style="margin-top:.35rem">Agregar PIN</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    <?php elseif (! empty($canManage) && empty($vaultOpen)): ?>
+                                        <p class="muted" style="margin:.35rem 0 0">Desbloquea la bóveda para agregar PINes.</p>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endif; ?>
                     <?php endforeach; ?>
                     </tbody>
                 </table>
