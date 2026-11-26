@@ -162,6 +162,7 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('equity/seguros', 'EquityPatrimonio::seguros');
     $routes->post('equity/seguros', 'EquityPatrimonio::storeSeguro');
     $routes->get('equity/cierre', 'EquityCierre::index');
+    $routes->get('equity/cierre/validar', 'EquityCierre::validar');
     $routes->post('equity/cierre/cerrar', 'EquityCierre::cerrar');
     $routes->get('equity/cierre/periodo/(:segment)', 'EquityCierre::periodo/$1');
     $routes->get('equity/cierre/reporte/(:segment)', 'EquityCierre::reporte/$1');

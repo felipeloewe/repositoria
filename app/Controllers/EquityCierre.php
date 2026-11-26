@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Libraries\EquityAcl;
 use App\Libraries\EquityCierre as EquityCierreLib;
+use App\Libraries\EquityCierreValidacion;
 use App\Libraries\EquityUf;
 use App\Libraries\MembershipAuth;
 use App\Models\EquityPeriodoCierreModel;
@@ -80,6 +81,7 @@ class EquityCierre extends BaseController
         $ufRow         = EquityUf::vigente($empresaId, $fechaCierre);
         $tablasOk      = db_connect()->tableExists('equity_periodos_cierre')
             && db_connect()->tableExists('equity_reportes_historial');
+        $validacion    = EquityCierreValidacion::validar($empresaId, $personaId, $anio, $mes);
 
         return view('equity/cierre', [
             'title'         => 'Cierre mensual',
@@ -94,10 +96,28 @@ class EquityCierre extends BaseController
             'fechaCierre'   => $fechaCierre,
             'ufRow'         => $ufRow,
             'tablasOk'      => $tablasOk,
+            'validacion'    => $validacion,
             'canDeclare'    => EquityAcl::canDeclare($memb),
             'success'       => session()->getFlashdata('success'),
             'error'         => session()->getFlashdata('error'),
         ]);
+    }
+
+    /** JSON: pre-chequeo de fechas / actualización del periodo. */
+    public function validar()
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $this->response->setStatusCode(401)->setJSON(['ok' => false, 'error' => 'No autenticado']);
+        }
+
+        $empresaId = $memb['empresa_id'];
+        [$personaId] = $this->personaContexto($memb);
+        $anio = (int) ($this->request->getGet('anio') ?: $this->request->getPost('anio') ?: date('Y'));
+        $mes  = (int) ($this->request->getGet('mes') ?: $this->request->getPost('mes') ?: date('n'));
+        $validacion = EquityCierreValidacion::validar($empresaId, $personaId, $anio, $mes);
+
+        return $this->response->setJSON($validacion);
     }
 
     public function cerrar()
@@ -116,6 +136,16 @@ class EquityCierre extends BaseController
         $mes  = (int) $this->request->getPost('mes');
         $vbNota = trim((string) $this->request->getPost('vb_nota'));
         $notas  = trim((string) $this->request->getPost('notas'));
+        $forzar = (int) $this->request->getPost('forzar') === 1;
+
+        $qs = '?anio=' . $anio . '&mes=' . $mes;
+        $validacion = EquityCierreValidacion::validar($empresaId, $personaId, $anio, $mes);
+        if (! $forzar && ($validacion['bloqueantes'] ?? 0) > 0) {
+            $n = (int) $validacion['bloqueantes'];
+
+            return redirect()->to('/equity/cierre' . $qs)
+                ->with('error', 'No se puede cerrar: hay ' . $n . ' problema(s) de fechas/actualización. Revisa el detalle en pantalla o fuerza el cierre solo si corresponde.');
+        }
 
         $result = EquityCierreLib::cerrarConVb(
             $empresaId,
@@ -127,7 +157,6 @@ class EquityCierre extends BaseController
             $notas !== '' ? $notas : null
         );
 
-        $qs = '?anio=' . $anio . '&mes=' . $mes;
         if (! ($result['ok'] ?? false)) {
             return redirect()->to('/equity/cierre' . $qs)->with('error', $result['error'] ?? 'No se pudo cerrar.');
         }
