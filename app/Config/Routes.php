@@ -155,6 +155,12 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
         return redirect()->to('/equity/pasivos/lineas');
     });
     $routes->get('equity/respaldos', 'EquityPatrimonio::respaldos');
+    // Seguros (fuera de Activos/Pasivos y de reportes)
+    $routes->get('equity/seguros/(:segment)/editar', 'EquityPatrimonio::editSeguro/$1');
+    $routes->post('equity/seguros/(:segment)/eliminar', 'EquityPatrimonio::eliminarSeguro/$1');
+    $routes->post('equity/seguros/(:segment)', 'EquityPatrimonio::updateSeguro/$1');
+    $routes->get('equity/seguros', 'EquityPatrimonio::seguros');
+    $routes->post('equity/seguros', 'EquityPatrimonio::storeSeguro');
     $routes->get('equity/cierre', 'EquityCierre::index');
     $routes->post('equity/cierre/cerrar', 'EquityCierre::cerrar');
     $routes->get('equity/cierre/periodo/(:segment)', 'EquityCierre::periodo/$1');

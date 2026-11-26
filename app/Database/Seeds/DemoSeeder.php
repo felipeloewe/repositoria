@@ -29,7 +29,7 @@ class DemoSeeder extends Seeder
             'promocion_sucursal_auditoria',
             'canal_paquete_auditoria', 'canal_paquete_documentos', 'canal_paquetes',
             'fiscalizacion_auditoria', 'fiscalizacion_documentos', 'fiscalizacion_solicitudes',
-            'equity_pasivos', 'equity_fondos_pension', 'equity_otros_activos', 'equity_sociedades', 'equity_vehiculos', 'equity_bienes_raices',
+            'equity_pasivos', 'equity_seguros', 'equity_fondos_pension', 'equity_otros_activos', 'equity_sociedades', 'equity_vehiculos', 'equity_bienes_raices',
             'equity_respaldos', 'equity_fichas', 'equity_personas',
 
             'socio_form_instancias', 'socio_form_shares', 'socio_form_campos', 'socio_form_plantillas',

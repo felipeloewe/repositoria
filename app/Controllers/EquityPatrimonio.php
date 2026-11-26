@@ -21,6 +21,7 @@ use App\Models\EquityIngresoContratoModel;
 use App\Models\EquityFondoPensionModel;
 use App\Models\EquityOtroActivoModel;
 use App\Models\EquityPasivoModel;
+use App\Models\EquitySeguroModel;
 use App\Models\EquityPersonaModel;
 use App\Models\EquityRespaldoModel;
 use App\Models\EquitySociedadModel;
@@ -265,6 +266,54 @@ class EquityPatrimonio extends BaseController
         return $this->reporteGrupo('pasivos', [
             'pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos', 'pasivos-indirecta', 'pasivos-lineas',
         ]);
+    }
+
+    /** Seguros · pólizas (flujo propio; fuera de reportes). */
+    public function seguros()
+    {
+        return $this->seccionLista('seguros');
+    }
+
+    public function editSeguro(string $id)
+    {
+        return $this->seccionLista('seguros', $id);
+    }
+
+    public function storeSeguro()
+    {
+        return $this->storeSeccion('seguros');
+    }
+
+    public function updateSeguro(string $id)
+    {
+        return $this->storeSeccion('seguros', $id);
+    }
+
+    public function eliminarSeguro(string $id)
+    {
+        $memb = $this->requireAccess();
+        if (! is_array($memb)) {
+            return $memb;
+        }
+        $redirect = '/equity/seguros';
+        if (! EquityAcl::canDeclare($memb)) {
+            return redirect()->to($redirect)->with('error', 'Sin permiso para eliminar.');
+        }
+
+        [$personaId] = $this->personaContexto($memb);
+        $q = model(EquitySeguroModel::class)->where('id', $id);
+        if ($personaId !== '') {
+            $q->where('persona_id', $personaId);
+        } else {
+            $q->whereIn('empresa_id', $this->empresaScopeIds((string) $memb['empresa_id']));
+        }
+        $row = $q->first();
+        if (! is_array($row)) {
+            return redirect()->to($redirect)->with('error', 'Póliza no encontrada.');
+        }
+        model(EquitySeguroModel::class)->delete($id);
+
+        return redirect()->to($redirect)->with('success', 'Póliza eliminada.');
     }
 
     /** Líneas disponibles (Pasivos): listado, edición y eliminación. */
@@ -2850,6 +2899,31 @@ class EquityPatrimonio extends BaseController
                 'multiplicador'      => $dec4($this->request->getPost('multiplicador')),
                 'notas'              => trim((string) $this->request->getPost('notas')) ?: null,
             ];
+        } elseif ($clave === 'seguros') {
+            $tipoSeg = $intOrNull($this->request->getPost('tipo_seguro'));
+            $compania = trim((string) $this->request->getPost('compania'));
+            if ($tipoSeg === null || $compania === '') {
+                return redirect()->to($redirectPath)->with('error', 'Tipo de seguro y compañía son obligatorios.');
+            }
+            $estado = trim((string) $this->request->getPost('estado'));
+            if (! isset(EquityCatalogo::opcionesEstadoSeguro()[$estado])) {
+                $estado = 'vigente';
+            }
+            $model = model(EquitySeguroModel::class);
+            $data  = [
+                'persona_id'           => $personaId,
+                'tipo_seguro'          => $tipoSeg,
+                'compania'             => $compania,
+                'numero_poliza'        => trim((string) $this->request->getPost('numero_poliza')) ?: null,
+                'materia'              => trim((string) $this->request->getPost('materia')) ?: null,
+                'monto_asegurado_clp'  => $money($this->request->getPost('monto_asegurado_clp')),
+                'prima_mensual_clp'    => $money($this->request->getPost('prima_mensual_clp')),
+                'prima_anual_clp'      => $money($this->request->getPost('prima_anual_clp')),
+                'vigencia_desde'       => trim((string) $this->request->getPost('vigencia_desde')) ?: null,
+                'vigencia_hasta'       => trim((string) $this->request->getPost('vigencia_hasta')) ?: null,
+                'estado'               => $estado,
+                'notas'                => trim((string) $this->request->getPost('notas')) ?: null,
+            ];
         } elseif ($clave === 'pasivos-inmuebles') {
             $desc = trim((string) $this->request->getPost('banco_descripcion'));
             if ($desc === '') {
@@ -3172,6 +3246,7 @@ class EquityPatrimonio extends BaseController
             'sociedades'          => '/equity/activos/sociedades',
             'otros-activos'       => '/equity/activos/otros',
             'fondos-pension'      => '/equity/activos/fondos-pension',
+            'seguros'             => '/equity/seguros',
             'pasivos-inmuebles'   => '/equity/pasivos/inmuebles',
             'pasivos-circulantes' => '/equity/pasivos/circulantes',
             'otros-pasivos'       => '/equity/pasivos/otros',
@@ -3409,6 +3484,16 @@ class EquityPatrimonio extends BaseController
                 . (! empty($row['numero_cuenta']) ? ' · N° ' . $row['numero_cuenta'] : ''),
                 ' ·'
             ),
+            'seguros' => trim(
+                EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoSeguro(), $row['tipo_seguro'] ?? null)
+                . ' · '
+                . (string) ($row['compania'] ?? '')
+                . (! empty($row['numero_poliza']) ? ' · Póliza ' . $row['numero_poliza'] : '')
+                . (! empty($row['materia']) ? ' · ' . $row['materia'] : '')
+                . (! empty($row['estado']) ? ' · ' . EquityCatalogo::labelOpcion(EquityCatalogo::opcionesEstadoSeguro(), $row['estado']) : '')
+                . (! empty($row['prima_mensual_clp']) ? ' · Prima $' . number_format((float) $row['prima_mensual_clp'], 0, ',', '.') : ''),
+                ' ·'
+            ),
             'pasivos-inmuebles' => trim(
                 (string) ($row['banco_descripcion'] ?? '')
                 . (! empty($row['numero_credito']) ? ' · Crédito ' . $row['numero_credito'] : '')
@@ -3477,6 +3562,7 @@ class EquityPatrimonio extends BaseController
             'equity_sociedades'    => model(EquitySociedadModel::class),
             'equity_otros_activos'   => model(EquityOtroActivoModel::class),
             'equity_fondos_pension'  => model(EquityFondoPensionModel::class),
+            'equity_seguros'         => model(EquitySeguroModel::class),
             'equity_pasivos'         => model(EquityPasivoModel::class),
             default                  => null,
         };
@@ -3526,6 +3612,7 @@ class EquityPatrimonio extends BaseController
             'equity_sociedades'     => model(EquitySociedadModel::class),
             'equity_otros_activos'   => model(EquityOtroActivoModel::class),
             'equity_fondos_pension'  => model(EquityFondoPensionModel::class),
+            'equity_seguros'         => model(EquitySeguroModel::class),
             'equity_pasivos'         => model(EquityPasivoModel::class),
             default                  => null,
         };

@@ -33,6 +33,7 @@ $listAction = match ($clave) {
     'sociedades'          => site_url('equity/activos/sociedades'),
     'otros-activos'       => site_url('equity/activos/otros'),
     'fondos-pension'      => site_url('equity/activos/fondos-pension'),
+    'seguros'             => site_url('equity/seguros'),
     'pasivos-inmuebles'   => site_url('equity/pasivos/inmuebles'),
     'pasivos-circulantes' => site_url('equity/pasivos/circulantes'),
     'otros-pasivos'       => site_url('equity/pasivos/otros'),
@@ -55,7 +56,7 @@ $reportAction = match ($clave) {
 $grupoReportAction = str_starts_with($clave, 'pasivos') || $clave === 'otros-pasivos'
     ? site_url('equity/reporte/pasivos')
     : site_url('equity/reporte/activos');
-$esReferenciaActivo = $clave === 'fondos-pension';
+$esReferenciaActivo = in_array($clave, ['fondos-pension', 'seguros'], true);
 $esActivo = in_array($clave, ['bienes-raices', 'vehiculos', 'sociedades', 'otros-activos'], true);
 $bitacoraPath = static function (string $id) use ($clave, $esActivo): string {
     if (! $esActivo) {
@@ -82,6 +83,7 @@ $eliminarPath = static function (string $id) use ($listAction): string {
 };
 $puedeDarDeBaja = $clave === 'bienes-raices';
 $puedeEliminarLinea = $clave === 'pasivos-lineas';
+$puedeEliminarSeguro = $clave === 'seguros';
 $val = static function (string $key, ?int $dec = null) use ($edit): string {
     if (! is_array($edit) || ! array_key_exists($key, $edit) || $edit[$key] === null || $edit[$key] === '') {
         return '';
@@ -123,8 +125,8 @@ $chk = static function (string $key) use ($edit): string {
     </p>
     <?php if ($esReferenciaActivo): ?>
         <p class="muted" style="margin-top:.75rem;margin-bottom:0">
-            <strong>Referencia</strong>: no suma a Balance, Situación financiera, Cierre ni al reporte de Activos
-            (hasta que se incluya expresamente).
+            <strong>Referencia</strong>: flujo propio — no suma a Balance, Situación financiera, Cierre ni a reportes
+            de Activos/Pasivos (hasta que se incluya expresamente).
         </p>
     <?php else: ?>
         <p style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
@@ -505,6 +507,61 @@ foreach ($personas as $p) {
                     <input id="multiplicador" name="multiplicador" type="text" inputmode="decimal" placeholder="2,41" value="<?= esc($val('multiplicador', 2)) ?>">
                 </div>
             </div>
+        <?php elseif ($clave === 'seguros'): ?>
+            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+                <div>
+                    <label for="tipo_seguro">Tipo *</label>
+                    <select id="tipo_seguro" name="tipo_seguro" required>
+                        <option value="">—</option>
+                        <?php foreach (EquityCatalogo::opcionesTipoSeguro() as $k => $lab): ?>
+                            <option value="<?= (int) $k ?>" <?= $sel('tipo_seguro', $k) ?>><?= (int) $k ?>. <?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label for="compania">Compañía / aseguradora *</label>
+                    <input id="compania" name="compania" type="text" required placeholder="Consorcio, SURA, BCI Seguros…" value="<?= esc($val('compania')) ?>">
+                </div>
+                <div>
+                    <label for="numero_poliza">N° póliza</label>
+                    <input id="numero_poliza" name="numero_poliza" type="text" value="<?= esc($val('numero_poliza')) ?>">
+                </div>
+                <div style="grid-column:1/-1">
+                    <label for="materia">Materia / bien asegurado</label>
+                    <input id="materia" name="materia" type="text" placeholder="Vehículo, vivienda, titular…" value="<?= esc($val('materia')) ?>">
+                </div>
+                <div>
+                    <label for="monto_asegurado_clp">Monto asegurado $</label>
+                    <input id="monto_asegurado_clp" name="monto_asegurado_clp" type="text" inputmode="decimal" value="<?= esc($val('monto_asegurado_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="prima_mensual_clp">Prima mensual $</label>
+                    <input id="prima_mensual_clp" name="prima_mensual_clp" type="text" inputmode="decimal" value="<?= esc($val('prima_mensual_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="prima_anual_clp">Prima anual $</label>
+                    <input id="prima_anual_clp" name="prima_anual_clp" type="text" inputmode="decimal" value="<?= esc($val('prima_anual_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="vigencia_desde">Vigencia desde</label>
+                    <input id="vigencia_desde" name="vigencia_desde" type="date" value="<?= esc($val('vigencia_desde')) ?>">
+                </div>
+                <div>
+                    <label for="vigencia_hasta">Vigencia hasta</label>
+                    <input id="vigencia_hasta" name="vigencia_hasta" type="date" value="<?= esc($val('vigencia_hasta')) ?>">
+                </div>
+                <div>
+                    <label for="estado_seguro">Estado</label>
+                    <select id="estado_seguro" name="estado">
+                        <?php
+                        $estadoActual = $val('estado') !== '' ? $val('estado') : 'vigente';
+                        foreach (EquityCatalogo::opcionesEstadoSeguro() as $k => $lab):
+                        ?>
+                            <option value="<?= esc($k) ?>" <?= $estadoActual === $k ? 'selected' : '' ?>><?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
         <?php elseif ($clave === 'pasivos-inmuebles'): ?>
             <?php
             $moneyPair = static function (
@@ -816,6 +873,12 @@ foreach ($personas as $p) {
             <button class="btn btn-ghost" type="submit">Eliminar línea</button>
         </form>
     <?php endif; ?>
+    <?php if ($isEdit && $puedeEliminarSeguro && ! empty($canManage)): ?>
+        <form method="post" action="<?= esc($eliminarPath((string) $edit['id'])) ?>" style="margin-top:.75rem" onsubmit="return confirm('¿Eliminar esta póliza?');">
+            <?= csrf_field() ?>
+            <button class="btn btn-ghost" type="submit">Eliminar póliza</button>
+        </form>
+    <?php endif; ?>
 </div>
 <?php if (in_array($clave, ['pasivos-inmuebles', 'pasivos-circulantes', 'otros-pasivos', 'pasivos-indirecta', 'pasivos-lineas'], true)): ?>
 <script>
@@ -899,6 +962,13 @@ foreach ($personas as $p) {
             $totalUf = 0.0;
             $totalClp = 0.0;
             foreach ($rows as $rTot) {
+                if ($clave === 'seguros') {
+                    $prima = $rTot['prima_mensual_clp'] ?? null;
+                    if ($prima !== null && $prima !== '') {
+                        $totalClp += (float) $prima;
+                    }
+                    continue;
+                }
                 $ufRaw = match ($clave) {
                     'bienes-raices', 'vehiculos', 'sociedades' => $rTot['valor_uf'] ?? null,
                     default => $rTot['saldo_uf'] ?? null,
@@ -925,8 +995,13 @@ foreach ($personas as $p) {
                 <tr>
                     <th>Persona</th>
                     <th>Detalle</th>
-                    <th>UF</th>
-                    <th>$ (vigente)</th>
+                    <?php if ($clave === 'seguros'): ?>
+                        <th>Monto asegurado $</th>
+                        <th>Prima mensual $</th>
+                    <?php else: ?>
+                        <th>UF</th>
+                        <th>$ (vigente)</th>
+                    <?php endif; ?>
                     <?php if (! empty($canManage)): ?><th></th><?php endif; ?>
                 </tr>
             </thead>
@@ -978,6 +1053,15 @@ foreach ($personas as $p) {
                             . (! empty($row['saldo_cuotas']) ? ' · ' . number_format((float) $row['saldo_cuotas'], 2, ',', '.') . ' cuotas' : '')
                             . (! empty($row['multiplicador']) ? ' · ×' . number_format((float) $row['multiplicador'], 2, ',', '.') : '')
                             . (! empty($row['numero_cuenta']) ? ' · N° ' . $row['numero_cuenta'] : ''),
+                            ' ·'
+                        ),
+                        'seguros' => trim(
+                            EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoSeguro(), $row['tipo_seguro'] ?? null)
+                            . ' · '
+                            . (string) ($row['compania'] ?? '')
+                            . (! empty($row['numero_poliza']) ? ' · Póliza ' . $row['numero_poliza'] : '')
+                            . (! empty($row['materia']) ? ' · ' . $row['materia'] : '')
+                            . (! empty($row['estado']) ? ' · ' . EquityCatalogo::labelOpcion(EquityCatalogo::opcionesEstadoSeguro(), $row['estado']) : ''),
                             ' ·'
                         ),
                         'pasivos-inmuebles' => trim(
@@ -1048,8 +1132,13 @@ foreach ($personas as $p) {
                         <?php endif; ?>
                     </td>
                     <td><?= esc($detalle !== '' ? $detalle : '—') ?></td>
-                    <td><?= esc($ufShow !== null ? EquityUf::fmtUf($ufShow, 2) : '—') ?></td>
-                    <td><?= esc($clpShow !== null ? EquityUf::fmtPesos($clpShow, 0) : '—') ?></td>
+                    <?php if ($clave === 'seguros'): ?>
+                        <td><?= esc(($row['monto_asegurado_clp'] ?? null) !== null && $row['monto_asegurado_clp'] !== '' ? EquityUf::fmtPesos((float) $row['monto_asegurado_clp'], 0) : '—') ?></td>
+                        <td><?= esc(($row['prima_mensual_clp'] ?? null) !== null && $row['prima_mensual_clp'] !== '' ? EquityUf::fmtPesos((float) $row['prima_mensual_clp'], 0) : '—') ?></td>
+                    <?php else: ?>
+                        <td><?= esc($ufShow !== null ? EquityUf::fmtUf($ufShow, 2) : '—') ?></td>
+                        <td><?= esc($clpShow !== null ? EquityUf::fmtPesos($clpShow, 0) : '—') ?></td>
+                    <?php endif; ?>
                     <?php if (! empty($canManage)): ?>
                         <td style="white-space:nowrap">
                             <a class="btn btn-ghost btn-sm" href="<?= esc($editPath((string) $row['id'])) ?>">Editar</a>
@@ -1071,6 +1160,12 @@ foreach ($personas as $p) {
                                     <button class="btn btn-ghost btn-sm" type="submit">Eliminar</button>
                                 </form>
                             <?php endif; ?>
+                            <?php if ($puedeEliminarSeguro): ?>
+                                <form method="post" action="<?= esc($eliminarPath((string) $row['id'])) ?>" style="display:inline" onsubmit="return confirm('¿Eliminar esta póliza?');">
+                                    <?= csrf_field() ?>
+                                    <button class="btn btn-ghost btn-sm" type="submit">Eliminar</button>
+                                </form>
+                            <?php endif; ?>
                         </td>
                     <?php endif; ?>
                 </tr>
@@ -1078,9 +1173,14 @@ foreach ($personas as $p) {
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="2" style="text-align:right"><strong>Total</strong></td>
-                    <td><strong><?= esc(EquityUf::fmtUf($totalUf, 2)) ?></strong></td>
-                    <td><strong><?= esc(EquityUf::fmtPesos($totalClp, 0)) ?></strong></td>
+                    <td colspan="2" style="text-align:right"><strong><?= $clave === 'seguros' ? 'Total primas mensuales' : 'Total' ?></strong></td>
+                    <?php if ($clave === 'seguros'): ?>
+                        <td></td>
+                        <td><strong><?= esc(EquityUf::fmtPesos($totalClp, 0)) ?></strong></td>
+                    <?php else: ?>
+                        <td><strong><?= esc(EquityUf::fmtUf($totalUf, 2)) ?></strong></td>
+                        <td><strong><?= esc(EquityUf::fmtPesos($totalClp, 0)) ?></strong></td>
+                    <?php endif; ?>
                     <?php if (! empty($canManage)): ?><td></td><?php endif; ?>
                 </tr>
             </tfoot>

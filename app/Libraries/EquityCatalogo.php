@@ -179,6 +179,13 @@ final class EquityCatalogo
                 'descripcion' => 'Consumo y otros pasivos',
             ],
             [
+                'clave'       => 'seguros',
+                'label'       => 'Seguros',
+                'grupo'       => 'Seguros',
+                'path'        => '/equity/seguros',
+                'descripcion' => 'Pólizas (flujo propio; no entra a reportes patrimoniales)',
+            ],
+            [
                 'clave'       => 'respaldos',
                 'label'       => 'Respaldos',
                 'grupo'       => 'Documentos',
@@ -232,6 +239,9 @@ final class EquityCatalogo
                 ['clave' => 'otros-pasivos', 'label' => 'Otros pasivos', 'path' => '/equity/pasivos/otros'],
                 ['clave' => 'pasivos-indirecta', 'label' => 'Deuda indirecta', 'path' => '/equity/pasivos/indirecta'],
                 ['clave' => 'pasivos-lineas', 'label' => 'Líneas disponibles', 'path' => '/equity/pasivos/lineas'],
+            ],
+            'Seguros' => [
+                ['clave' => 'seguros', 'label' => 'Pólizas', 'path' => '/equity/seguros'],
             ],
             'Documentos' => [
                 ['clave' => 'respaldos', 'label' => 'Respaldos', 'path' => '/equity/respaldos'],
@@ -477,6 +487,12 @@ final class EquityCatalogo
                 'grupo'     => 'Pasivos',
                 'table'     => 'equity_pasivos',
                 'categoria' => 'linea',
+            ],
+            'seguros' => [
+                'clave' => 'seguros',
+                'label' => 'Seguros',
+                'grupo' => 'Seguros',
+                'table' => 'equity_seguros',
             ],
         ];
 
@@ -768,6 +784,31 @@ final class EquityCatalogo
             2 => 'Línea de crédito',
             3 => 'Tarjeta de crédito',
             4 => 'Otros',
+        ];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesTipoSeguro(): array
+    {
+        return [
+            1 => 'Vida',
+            2 => 'Salud',
+            3 => 'Automotriz',
+            4 => 'Hogar / Incendio',
+            5 => 'SOAP',
+            6 => 'Desgravamen',
+            7 => 'Responsabilidad civil',
+            8 => 'Otro',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public static function opcionesEstadoSeguro(): array
+    {
+        return [
+            'vigente'   => 'Vigente',
+            'vencida'   => 'Vencida',
+            'cancelada' => 'Cancelada',
         ];
     }
 
