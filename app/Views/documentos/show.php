@@ -34,6 +34,7 @@ $cadena = $cadena ?? [];
             \App\Libraries\DocumentAcl::AMBITO_SOCIO          => '← Volver a Socios',
             \App\Libraries\DocumentAcl::AMBITO_CONTRATO       => '← Volver a Contratos',
             \App\Libraries\DocumentAcl::AMBITO_SOCIO_CONTRATO => '← Volver a Contratos de socios',
+            \App\Libraries\DocumentAcl::AMBITO_EQUITY         => '← Volver a Equity',
             default                                            => '← Volver al listado',
         };
     ?>

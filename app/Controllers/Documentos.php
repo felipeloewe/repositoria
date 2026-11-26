@@ -20,6 +20,7 @@ use App\Models\DocumentoModel;
 use App\Models\DocumentoSeccionModel;
 use App\Models\DocumentoTipoModel;
 use App\Models\DocumentoVersionModel;
+use App\Models\EquityRespaldoModel;
 use App\Models\SucursalModel;
 use RuntimeException;
 
@@ -1131,7 +1132,7 @@ class Documentos extends BaseController
 
         $doc = $loaded['doc'];
         if (! DocumentAcl::canDelete($memb, $loaded['aclDoc'])) {
-            $fallback = DocumentAcl::isSocioDoc($loaded['aclDoc']) ? '/socios' : '/documentos';
+            $fallback = DocumentAcl::listPathForAmbito($loaded['aclDoc']['ambito'] ?? null);
 
             return redirect()->to($fallback)->with('error', 'Sin permiso para eliminar.');
         }
@@ -1142,6 +1143,9 @@ class Documentos extends BaseController
             DocumentStorage::delete((string) $v['ruta_relativa']);
         }
 
+        if (db_connect()->tableExists('equity_respaldos')) {
+            model(EquityRespaldoModel::class)->where('documento_id', $id)->delete();
+        }
         model(DocumentoAutorizacionModel::class)->where('documento_id', $id)->delete();
         model(DocumentoVersionModel::class)->where('documento_id', $id)->delete();
         model(DocumentoEstadoHistorialModel::class)->where('documento_id', $id)->delete();
@@ -1149,7 +1153,7 @@ class Documentos extends BaseController
         model(DocumentoModel::class)->delete($id);
         DocumentStorage::delete((string) $doc['ruta_relativa']);
 
-        $fallback = DocumentAcl::isSocioDoc($loaded['aclDoc']) ? '/socios' : '/documentos';
+        $fallback = DocumentAcl::listPathForAmbito($loaded['aclDoc']['ambito'] ?? null);
 
         return redirect()->to($fallback)->with('success', 'Documento eliminado.');
     }

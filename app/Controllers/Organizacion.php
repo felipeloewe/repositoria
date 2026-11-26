@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Libraries\DepartamentoCatalogo;
 use App\Libraries\MembershipAuth;
 use App\Libraries\PlanEntitlement;
+use App\Libraries\Product;
 use App\Libraries\RecursoSistema;
 use App\Libraries\Roles;
 use App\Models\DepartamentoModel;
@@ -96,6 +97,11 @@ class Organizacion extends BaseController
         $memb = $this->requireMaster();
         if (! is_array($memb)) {
             return $memb;
+        }
+
+        // En Equity, Organización solo expone Recursos genéricos.
+        if (Product::isEquity()) {
+            return redirect()->to('/organizacion');
         }
 
         $eventos = [];

@@ -16,6 +16,9 @@ class UsuarioModel extends Model
     protected $allowedFields    = [
         'id', 'email', 'nombre', 'alias', 'cargo', 'rut',
         'password_hash', 'activo', 'es_admin_central',
+        'email_verified_at', 'email_verify_token', 'email_verify_sent_at', 'must_change_password',
+        'deactivated_at', 'pii_scrubbed_at',
+        'vault_pin_hash', 'vault_salt', 'vault_wrapped_dek', 'vault_pin_set_at',
     ];
 
     public function findByEmail(string $email): ?array

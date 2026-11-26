@@ -18,5 +18,7 @@ class EmpresaModel extends Model
         'promoted_from_sucursal_id', 'origen_empresa_id',
         'tipo', 'plan_id', 'subscription_status',
         'seats_limit', 'storage_limit_bytes',
+        'equity_es_matriz', 'equity_matriz_id',
+        'deactivated_at', 'pii_scrubbed_at',
     ];
 }

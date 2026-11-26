@@ -29,7 +29,28 @@ class App extends BaseConfig
      *
      * @var list<string>
      */
-    public array $allowedHostnames = [];
+    public array $allowedHostnames = [
+        'repositoria.booklet.cl',
+        'www.repositoria.booklet.cl',
+        'equity.booklet.cl',
+        'www.equity.booklet.cl',
+    ];
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        // Shared docroot for repositoria.booklet.cl + equity.booklet.cl:
+        // keep site_url()/redirects on the host that served the request.
+        $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+        $host = preg_replace('/:\d+$/', '', $host) ?? $host;
+        if ($host !== '' && in_array($host, $this->allowedHostnames, true)) {
+            $https = (! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                || ((string) ($_SERVER['SERVER_PORT'] ?? '') === '443')
+                || (strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
+            $this->baseURL = ($https ? 'https://' : 'http://') . $host . '/';
+        }
+    }
 
     /**
      * --------------------------------------------------------------------------

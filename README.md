@@ -15,6 +15,17 @@ El prototipo Next.js (rama `cursor/scaffold-repositoria-e946` / PR #1) queda com
 - **Fase 4:** fiscalización (Master aprueba antes de envío) + canales seguros + auditoría
 - **Promoción (b)→(a):** Admin central / spark `repositoria:promover-sucursal` — crea Empresa desde Sucursal/Filial, remapea docs/ACL/membresías y mueve blobs
 - Migraciones + seed demo
+- **Equity** (`equity.booklet.cl`): fichas financieras de socios/gerentes + respaldos (mismo look)
+
+## Equity (equity.booklet.cl)
+
+Módulo en el mismo stack CI4 (look idéntico a Repositoria) para información financiera de **socios** y **gerentes**, con respaldos documentales.
+
+- UI Inicio / sidebar: **Grupo Familiar** (Antecedentes Personales / Laborales), **Activos**, **Pasivos**, **Ingresos**, **Respaldos**, Resumen patrimonial
+- `/equity` — grupo familiar; fichas de ingreso y upload de respaldos por integrante
+- Pool documental aislado `ambito=equity` → disco `{STORAGE_ROOT}/{empresa}/equity/{docId}/`
+- Acceso por defecto: Administrador Master (`menu.equity` + caps en Perfiles)
+- Marca: host `equity.*` o `PRODUCT_KEY=equity` en `.env` (sidebar “Equity · Información financiera”)
 
 ## Jerarquía e identidad
 

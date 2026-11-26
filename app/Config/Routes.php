@@ -11,6 +11,8 @@ $routes->get('login', 'Auth::login');
 $routes->post('login', 'Auth::attempt');
 $routes->get('login/empresa', 'Auth::selectEmpresa');
 $routes->post('login/empresa', 'Auth::chooseEmpresa');
+$routes->get('verificar-email', 'Auth::verificarEmail');
+$routes->get('bienvenida', 'Auth::bienvenida');
 $routes->get('logout', 'Auth::logout');
 
 // Self-serve alta empresa FREE + admin Master
@@ -32,6 +34,10 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('dashboard', 'Dashboard::index');
     $routes->get('empresa/cambiar', 'Auth::switchEmpresa');
     $routes->post('empresa/cambiar', 'Auth::doSwitchEmpresa');
+    $routes->get('cambiar-clave', 'Auth::cambiarClaveForm');
+    $routes->post('cambiar-clave', 'Auth::cambiarClave');
+    $routes->get('login/persona', 'Auth::selectPersona');
+    $routes->post('login/persona', 'Auth::choosePersona');
 
     $routes->get('organizacion', 'Organizacion::index');
     $routes->get('organizacion/log', 'Organizacion::log');
@@ -107,10 +113,129 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('socios/contratos', 'ContratosSocios::index');
     $routes->post('socios/contratos/upload', 'ContratosSocios::upload');
 
+    // Menú Equity — patrimonio (rutas fijas ANTES de equity/(:segment))
+    $routes->get('equity/resumen', 'EquityPatrimonio::resumen');
+    $routes->get('equity/reporte/balance', 'EquityPatrimonio::reporteBalance');
+    $routes->get('equity/reporte/activos', 'EquityPatrimonio::reporteGrupoActivos');
+    $routes->get('equity/reporte/pasivos', 'EquityPatrimonio::reporteGrupoPasivos');
+    $routes->get('equity/reporte/ingresos', 'EquityPatrimonio::reporteIngresos');
+    $routes->get('equity/reporte/egresos', 'EquityPatrimonio::reporteEgresos');
+    $routes->get('equity/activos/(:segment)/reporte', 'EquityPatrimonio::reporteActivo/$1');
+    $routes->get('equity/activos/(:segment)/(:segment)/bitacora', 'EquityPatrimonio::bitacoraActivo/$1/$2');
+    $routes->get('equity/pasivos/(:segment)/reporte', 'EquityPatrimonio::reportePasivo/$1');
+    $routes->get('equity/situacion-financiera', 'EquityPatrimonio::situacionFinanciera');
+    $routes->post('equity/situacion-financiera/cuotas', 'EquityPatrimonio::guardarCuotasSituacion');
+    $routes->get('equity/ingresos', 'EquityPatrimonio::ingresos');
+    $routes->get('equity/ingresos/(:segment)/contratos/(:segment)/archivo', 'EquityPatrimonio::descargarContratoIngreso/$1/$2');
+    $routes->post('equity/ingresos/(:segment)/contratos/(:segment)/eliminar', 'EquityPatrimonio::eliminarContratoIngreso/$1/$2');
+    $routes->post('equity/ingresos/(:segment)/contratos/(:segment)', 'EquityPatrimonio::guardarContratoIngreso/$1/$2');
+    $routes->post('equity/ingresos/(:segment)/contratos', 'EquityPatrimonio::guardarContratoIngreso/$1');
+    $routes->post('equity/ingresos/(:segment)/sync-arriendos', 'EquityPatrimonio::syncArriendosDesdeBienes/$1');
+    $routes->get('equity/ingresos/(:segment)', 'EquityPatrimonio::ingresosFuente/$1');
+    $routes->post('equity/ingresos/(:segment)', 'EquityPatrimonio::guardarIngresosFuente/$1');
+    $routes->get('equity/egresos', 'EquityPatrimonio::egresos');
+    $routes->get('equity/egresos/(:segment)', 'EquityPatrimonio::egresosFuente/$1');
+    // Líneas viven en Pasivos (edición + eliminación). Alias /equity/lineas → /equity/pasivos/lineas.
+    $routes->get('equity/pasivos/lineas/reporte', 'EquityPatrimonio::reporteLineas');
+    $routes->get('equity/pasivos/lineas/(:segment)/editar', 'EquityPatrimonio::editLinea/$1');
+    $routes->post('equity/pasivos/lineas/(:segment)/eliminar', 'EquityPatrimonio::eliminarLinea/$1');
+    $routes->post('equity/pasivos/lineas/(:segment)', 'EquityPatrimonio::updateLinea/$1');
+    $routes->get('equity/pasivos/lineas', 'EquityPatrimonio::lineas');
+    $routes->post('equity/pasivos/lineas', 'EquityPatrimonio::storeLinea');
+    $routes->get('equity/lineas/reporte', static function () {
+        return redirect()->to('/equity/pasivos/lineas/reporte');
+    });
+    $routes->get('equity/lineas/(:segment)/editar', static function ($id) {
+        return redirect()->to('/equity/pasivos/lineas/' . $id . '/editar');
+    });
+    $routes->post('equity/lineas/(:segment)/eliminar', 'EquityPatrimonio::eliminarLinea/$1');
+    $routes->post('equity/lineas/(:segment)', 'EquityPatrimonio::updateLinea/$1');
+    $routes->post('equity/lineas', 'EquityPatrimonio::storeLinea');
+    $routes->get('equity/lineas', static function () {
+        return redirect()->to('/equity/pasivos/lineas');
+    });
+    $routes->get('equity/respaldos', 'EquityPatrimonio::respaldos');
+    // Seguros (fuera de Activos/Pasivos y de reportes)
+    $routes->get('equity/seguros/(:segment)/editar', 'EquityPatrimonio::editSeguro/$1');
+    $routes->post('equity/seguros/(:segment)/eliminar', 'EquityPatrimonio::eliminarSeguro/$1');
+    $routes->post('equity/seguros/(:segment)', 'EquityPatrimonio::updateSeguro/$1');
+    $routes->get('equity/seguros', 'EquityPatrimonio::seguros');
+    $routes->post('equity/seguros', 'EquityPatrimonio::storeSeguro');
+    $routes->get('equity/cierre', 'EquityCierre::index');
+    $routes->get('equity/cierre/validar', 'EquityCierre::validar');
+    $routes->post('equity/cierre/cerrar', 'EquityCierre::cerrar');
+    $routes->get('equity/cierre/periodo/(:segment)', 'EquityCierre::periodo/$1');
+    $routes->get('equity/cierre/reporte/(:segment)', 'EquityCierre::reporte/$1');
+    $routes->get('equity/configuracion', 'EquityConfiguracion::index');
+    $routes->post('equity/configuracion/uf', 'EquityConfiguracion::storeUf');
+    $routes->post('equity/configuracion/uf/(:segment)/eliminar', 'EquityConfiguracion::deleteUf/$1');
+    $routes->get('equity/grupo', 'EquityGrupo::index');
+    $routes->get('equity/grupo/privacidad', 'EquityGrupo::privacidad');
+    $routes->post('equity/grupo/subsidiaria', 'EquityGrupo::storeSubsidiaria');
+    $routes->post('equity/grupo/persona', 'EquityGrupo::storePersonaUsuario');
+    $routes->post('equity/grupo/persona/(:segment)/baja', 'EquityGrupo::bajaPersona/$1');
+    $routes->post('equity/grupo/persona/(:segment)/scrub', 'EquityGrupo::scrubPersona/$1');
+    $routes->get('equity/activos/(:segment)/(:segment)/editar', 'EquityPatrimonio::editActivo/$1/$2');
+    $routes->post('equity/activos/(:segment)/(:segment)/eliminar', 'EquityPatrimonio::eliminarActivo/$1/$2');
+    $routes->post('equity/activos/(:segment)/(:segment)', 'EquityPatrimonio::updateActivo/$1/$2');
+    $routes->get('equity/activos/(:segment)', 'EquityPatrimonio::activos/$1');
+    $routes->post('equity/activos/(:segment)', 'EquityPatrimonio::storeActivo/$1');
+    $routes->get('equity/pasivos/(:segment)/(:segment)/editar', 'EquityPatrimonio::editPasivo/$1/$2');
+    $routes->get('equity/pasivos/(:segment)/(:segment)/desarrollo', 'EquityPatrimonio::desarrolloPasivo/$1/$2');
+    $routes->post('equity/pasivos/(:segment)/(:segment)/desarrollo', 'EquityPatrimonio::guardarDesarrolloPasivo/$1/$2');
+    $routes->post('equity/pasivos/(:segment)/(:segment)/desarrollo/importar', 'EquityPatrimonio::importarDesarrolloPasivo/$1/$2');
+    $routes->post('equity/pasivos/(:segment)/(:segment)/desarrollo/regenerar', 'EquityPatrimonio::regenerarDesarrolloPasivo/$1/$2');
+    $routes->get('equity/pasivos/(:segment)/(:segment)/desarrollo/archivo', 'EquityPatrimonio::descargarDesarrolloArchivo/$1/$2');
+    $routes->post('equity/pasivos/(:segment)/(:segment)', 'EquityPatrimonio::updatePasivo/$1/$2');
+    $routes->get('equity/pasivos/(:segment)', 'EquityPatrimonio::pasivos/$1');
+    $routes->post('equity/pasivos/(:segment)', 'EquityPatrimonio::storePasivo/$1');
+    // Prefijos sin sección: no deben caer en equity/(:segment) como si fueran un id de persona.
+    $routes->get('equity/activos', static function () {
+        return redirect()->to('/equity/activos/bienes-raices');
+    });
+    $routes->get('equity/pasivos', static function () {
+        return redirect()->to('/equity/pasivos/inmuebles');
+    });
+
+    // Menú Equity — personas (socio/gerente) + fichas + respaldos por persona
+    $routes->get('equity', 'Equity::index');
+    $routes->get('equity/nueva', 'Equity::createForm');
+    $routes->get('equity/buscar-rut', 'Equity::buscarPorRut');
+    $routes->post('equity', 'Equity::store');
+    $routes->get('equity/vault-pin', 'EquityBancarios::vaultPinForm');
+    $routes->post('equity/vault-pin', 'EquityBancarios::vaultPinSave');
+    $routes->get('equity/(:segment)', 'Equity::show/$1');
+    $routes->get('equity/(:segment)/editar', 'Equity::editForm/$1');
+    $routes->post('equity/(:segment)', 'Equity::update/$1');
+    $routes->get('equity/(:segment)/bancarios', 'EquityBancarios::index/$1');
+    $routes->post('equity/(:segment)/bancarios/desbloquear', 'EquityBancarios::vaultUnlock/$1');
+    $routes->post('equity/(:segment)/bancarios/bloquear', 'EquityBancarios::vaultLock/$1');
+    $routes->post('equity/(:segment)/bancarios/banco', 'EquityBancarios::storeBanco/$1');
+    $routes->post('equity/(:segment)/bancarios/banco/(:segment)/eliminar', 'EquityBancarios::deleteBanco/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/banco/(:segment)/cuenta', 'EquityBancarios::storeCuenta/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/banco/(:segment)/tarjeta', 'EquityBancarios::storeTarjeta/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/banco/(:segment)', 'EquityBancarios::updateBanco/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/cuenta/(:segment)/clave', 'EquityBancarios::storeCuentaClave/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/cuenta/(:segment)/eliminar', 'EquityBancarios::deleteCuenta/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/clave/(:segment)/eliminar', 'EquityBancarios::deleteCuentaClave/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/tarjeta/(:segment)/pin', 'EquityBancarios::storeTarjetaPin/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/tarjeta/(:segment)/eliminar', 'EquityBancarios::deleteTarjeta/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/pin/(:segment)/eliminar', 'EquityBancarios::deleteTarjetaPin/$1/$2');
+    $routes->get('equity/(:segment)/fichas/nueva', 'Equity::fichaForm/$1');
+    $routes->post('equity/(:segment)/fichas', 'Equity::storeFicha/$1');
+    $routes->get('equity/(:segment)/fichas/(:segment)/editar', 'Equity::editFichaForm/$1/$2');
+    $routes->post('equity/(:segment)/fichas/(:segment)', 'Equity::updateFicha/$1/$2');
+    $routes->post('equity/(:segment)/respaldos', 'Equity::uploadRespaldo/$1');
+
     // Admin central — empresas/planes + promoción filial (b) → empresa (a)
     $routes->get('admin/empresas', 'AdminCentral::empresas');
     $routes->post('admin/empresas/asignar-plan', 'AdminCentral::assignPlan');
     $routes->post('admin/empresas/crear', 'AdminCentral::crearEmpresa');
+    $routes->get('admin/empresas/(:segment)', 'AdminCentral::editarEmpresa/$1');
+    $routes->post('admin/empresas/(:segment)/actualizar', 'AdminCentral::actualizarEmpresa/$1');
+    $routes->post('admin/empresas/(:segment)/invitar-admin', 'AdminCentral::invitarAdmin/$1');
+    $routes->post('admin/empresas/(:segment)/reinvitar-admin', 'AdminCentral::reinvitarAdmin/$1');
+    $routes->post('admin/empresas/(:segment)/admin-declarante', 'AdminCentral::adminEsDeclarante/$1');
     $routes->get('admin/promociones', 'AdminCentral::index');
     $routes->post('admin/promociones/promover', 'AdminCentral::promover');
 

@@ -1,14 +1,21 @@
 <?= $this->extend('layouts/shell') ?>
 
 <?= $this->section('content') ?>
+<?php $isEquity = \App\Libraries\Product::isEquity(); ?>
 
 <section class="banner">
     <h2>Organización</h2>
-    <p>Empresa → Sucursales y membresías. Departamentos, Actividades y Temas de Interés viven en el menú
-        <a href="<?= site_url('departamentos') ?>">Administración → Departamentos</a>.</p>
+    <?php if ($isEquity): ?>
+        <p>Plantillas y formularios genéricos vinculados al flujo Equity (estado de situación, DJ, solicitud interna). Se activan o desactivan por empresa.</p>
+    <?php else: ?>
+        <p>Empresa → Sucursales y membresías. Departamentos, Actividades y Temas de Interés viven en el menú
+            <a href="<?= site_url('departamentos') ?>">Administración → Departamentos</a>.</p>
+    <?php endif; ?>
 </section>
 
-<?= $this->include('organizacion/_tabs') ?>
+<?php if (! $isEquity): ?>
+    <?= $this->include('organizacion/_tabs') ?>
+<?php endif; ?>
 
 <?php if (! empty($success)): ?>
     <div class="alert alert-ok"><?= esc($success) ?></div>
@@ -68,6 +75,8 @@
         </table>
     <?php endif; ?>
 </div>
+
+<?php if (! $isEquity): ?>
 
 <?php if (! empty($planSnap)): ?>
 <div class="card section-card">
@@ -238,5 +247,7 @@
         </tbody>
     </table>
 </div>
+
+<?php endif; /* ! $isEquity — bloques Repositoria (cupos, miembros, sucursales) */ ?>
 
 <?= $this->endSection() ?>

@@ -4,7 +4,10 @@
 
 <section class="banner">
     <h2>Admin central · Empresas y planes</h2>
-    <p>Asigna planes manualmente. El uso de disco mide la carpeta real de cada empresa bajo STORAGE_ROOT. Tipo (b) FREE hasta 3 usuarios / 10 GB; tipo (a) siempre Plan de pago.</p>
+    <p>
+        Superadmin crea la empresa y el contacto Admin (correo). El Admin verifica el mail, entra con clave temporal y define su propia clave.
+        Después, ese Admin inscribe en <strong>Grupo / Usuarios</strong> a las personas que declaran patrimonio.
+    </p>
 </section>
 
 <nav class="admin-subnav" aria-label="Admin central">
@@ -15,13 +18,20 @@
 <?php if (! empty($success)): ?>
     <div class="alert alert-ok"><?= esc($success) ?></div>
 <?php endif; ?>
+<?php if (! empty($inviteInfo)): ?>
+    <div class="alert alert-ok" style="white-space:pre-wrap;font-size:.9rem"><?= esc($inviteInfo) ?></div>
+<?php endif; ?>
 <?php if (! empty($error)): ?>
     <div class="alert alert-error"><?= esc($error) ?></div>
 <?php endif; ?>
 
 <div class="card section-card">
-    <h3>Nueva empresa + administrador</h3>
-    <p class="hint">Primero se crea la empresa; luego el usuario Admin queda como Administrador Master. Tipo (b) = FREE 3u/10GB. Tipo (a) requiere Plan de pago.</p>
+    <h3>Nueva empresa + contacto Admin</h3>
+    <p class="hint">
+        Se crea la empresa (matriz Equity) y se invita al Admin Master por correo.
+        No defines su contraseña aquí: el Admin la autogestiona tras verificar el correo.
+        Tipo (b) = FREE 3u/10GB. Tipo (a) requiere Plan de pago.
+    </p>
     <form method="post" action="<?= site_url('admin/empresas/crear') ?>" class="admin-create-empresa">
         <?= csrf_field() ?>
         <div class="stack-forms">
@@ -54,19 +64,22 @@
                 </select>
             </div>
             <div>
-                <label for="adm_nombre">Nombre admin</label>
+                <label for="adm_nombre">Nombre contacto Admin</label>
                 <input id="adm_nombre" type="text" name="admin_nombre" required maxlength="191">
                 <label for="adm_alias">Alias admin</label>
                 <input id="adm_alias" type="text" name="admin_alias" required maxlength="64" placeholder="ana.admin">
                 <label for="adm_cargo">Cargo</label>
                 <input id="adm_cargo" type="text" name="admin_cargo" maxlength="191" placeholder="Opcional">
                 <label for="adm_rut">RUT admin</label>
-                <input id="adm_rut" type="text" name="admin_rut" maxlength="32" placeholder="Opcional">
-                <label for="adm_email">Email admin</label>
-                <input id="adm_email" type="email" name="admin_email" required maxlength="191">
-                <label for="adm_password">Contraseña admin</label>
-                <input id="adm_password" type="password" name="admin_password" required minlength="6" autocomplete="new-password">
-                <button class="btn btn-primary" type="submit" style="width:auto;margin-top:.5rem">Crear empresa y admin</button>
+                <input id="adm_rut" type="text" name="admin_rut" maxlength="32" placeholder="Obligatorio si también declara">
+                <label for="adm_email">Correo admin *</label>
+                <input id="adm_email" type="email" name="admin_email" required maxlength="191" placeholder="admin@empresa.cl">
+                <label style="display:flex;gap:.5rem;align-items:center;margin-top:.75rem">
+                    <input type="checkbox" name="admin_es_declarante" value="1" checked>
+                    Admin también es declarante en esta empresa
+                </label>
+                <p class="hint" style="margin:.35rem 0 0">Recibirá verificación + clave temporal; al entrar debe cambiarla. Si además declara, el RUT homologa usuario ↔ ficha persona (el patrimonio usa solo IDs).</p>
+                <button class="btn btn-primary" type="submit" style="width:auto;margin-top:.75rem">Crear empresa e invitar Admin</button>
             </div>
         </div>
     </form>
@@ -86,6 +99,7 @@
                 <th>Usuarios</th>
                 <th>Disco vs plan</th>
                 <th>Asignar plan</th>
+                <th></th>
             </tr>
             </thead>
             <tbody>
@@ -156,6 +170,9 @@
                             </select>
                             <button class="btn btn-primary btn-sm" type="submit">Guardar</button>
                         </form>
+                    </td>
+                    <td>
+                        <a class="btn btn-ghost btn-sm" href="<?= site_url('admin/empresas/' . $e['id']) ?>">Editar</a>
                     </td>
                 </tr>
             <?php endforeach; ?>

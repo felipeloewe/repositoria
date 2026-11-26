@@ -35,11 +35,14 @@ final class EmpresaOnboarding
      *   plan_id?: ?string,
      *   admin_nombre: string,
      *   admin_email: string,
-     *   admin_password: string,
+     *   admin_password?: string,
      *   admin_alias: string,
      *   admin_cargo?: ?string,
      *   admin_rut?: ?string,
-     *   create_defaults?: bool
+     *   create_defaults?: bool,
+     *   invite_admin?: bool,
+     *   equity_matriz?: bool,
+     *   admin_es_declarante?: bool
      * } $input
      *
      * @return array{
@@ -49,7 +52,12 @@ final class EmpresaOnboarding
      *   departamento_id: ?string,
      *   sucursal_id: ?string,
      *   tipo: string,
-     *   plan_codigo: ?string
+     *   plan_codigo: ?string,
+     *   admin_temp_password?: ?string,
+     *   admin_verify_url?: ?string,
+     *   admin_email?: string,
+     *   admin_es_declarante?: bool,
+     *   persona_id?: ?string
      * }
      */
     public function createEmpresaWithAdmin(array $input): array
@@ -72,6 +80,14 @@ final class EmpresaOnboarding
         $adminCargo  = trim((string) ($input['admin_cargo'] ?? '')) ?: null;
         $adminRut    = trim((string) ($input['admin_rut'] ?? '')) ?: null;
         $createDefs  = ($input['create_defaults'] ?? true) !== false;
+        $inviteAdmin = (bool) ($input['invite_admin'] ?? false);
+        $equityMatriz = (bool) ($input['equity_matriz'] ?? false);
+        $adminEsDeclarante = (bool) ($input['admin_es_declarante'] ?? false);
+        if ($adminEsDeclarante && ($adminRut === null || IdentityHomolog::normalizeRut($adminRut) === '')) {
+            throw new RuntimeException(
+                'Si el Admin también es Declarante, el RUT es obligatorio (homologa usuario y ficha persona).'
+            );
+        }
 
         if ($nombre === '') {
             throw new RuntimeException('El nombre de la empresa es obligatorio.');
@@ -85,7 +101,15 @@ final class EmpresaOnboarding
         if (! filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
             throw new RuntimeException('El correo del administrador no es válido.');
         }
-        if (strlen($adminPass) < 6) {
+
+        $tempPassword = null;
+        $verifyToken  = null;
+        if ($inviteAdmin) {
+            // Superadmin no define la clave: se minta temporal y el Admin la cambia al entrar.
+            $tempPassword = EquityPassword::mintDefault(8);
+            $adminPass    = $tempPassword;
+            $verifyToken  = bin2hex(random_bytes(24));
+        } elseif (strlen($adminPass) < 6) {
             throw new RuntimeException('La contraseña del administrador debe tener al menos 6 caracteres.');
         }
 
@@ -151,11 +175,12 @@ final class EmpresaOnboarding
         $membresiaId = new_id();
         $deptoId     = null;
         $sucursalId  = null;
+        $personaId   = null;
 
         $this->db->transBegin();
 
         try {
-            $this->db->table('empresas')->insert([
+            $empresaRow = [
                 'id'                   => $empresaId,
                 'nombre'               => $nombre,
                 'slug'                 => $slug,
@@ -168,9 +193,14 @@ final class EmpresaOnboarding
                 'storage_limit_bytes'  => $storage,
                 'created_at'           => $now,
                 'updated_at'           => $now,
-            ]);
+            ];
+            if ($this->db->fieldExists('equity_es_matriz', 'empresas')) {
+                $empresaRow['equity_es_matriz'] = $equityMatriz ? 1 : 0;
+                $empresaRow['equity_matriz_id'] = null;
+            }
+            $this->db->table('empresas')->insert($empresaRow);
 
-            $this->db->table('usuarios')->insert([
+            $usuarioRow = [
                 'id'               => $usuarioId,
                 'email'            => $adminEmail,
                 'nombre'           => $adminNombre,
@@ -182,7 +212,14 @@ final class EmpresaOnboarding
                 'es_admin_central' => 0,
                 'created_at'       => $now,
                 'updated_at'       => $now,
-            ]);
+            ];
+            if ($inviteAdmin) {
+                $usuarioRow['email_verified_at']    = null;
+                $usuarioRow['email_verify_token']   = $verifyToken;
+                $usuarioRow['email_verify_sent_at'] = $now;
+                $usuarioRow['must_change_password'] = 1;
+            }
+            $this->db->table('usuarios')->insert($usuarioRow);
 
             if ($createDefs) {
                 $deptoId = new_id();
@@ -215,7 +252,7 @@ final class EmpresaOnboarding
                 ]);
             }
 
-            $this->db->table('membresias')->insert([
+            $membRow = [
                 'id'          => $membresiaId,
                 'empresa_id'  => $empresaId,
                 'usuario_id'  => $usuarioId,
@@ -224,7 +261,22 @@ final class EmpresaOnboarding
                 'activa'      => 1,
                 'created_at'  => $now,
                 'updated_at'  => $now,
-            ]);
+            ];
+            if ($this->db->fieldExists('es_declarante', 'membresias')) {
+                $membRow['es_declarante'] = $adminEsDeclarante ? 1 : 0;
+            }
+            $this->db->table('membresias')->insert($membRow);
+
+            if ($adminEsDeclarante) {
+                $personaId = $this->ensureDeclarantePersona(
+                    $empresaId,
+                    $usuarioId,
+                    $adminNombre,
+                    $adminEmail,
+                    $adminRut,
+                    $usuarioId
+                );
+            }
 
             if ($this->db->transStatus() === false) {
                 throw new RuntimeException('No se pudo completar el alta de la empresa.');
@@ -244,14 +296,25 @@ final class EmpresaOnboarding
             }
         }
 
+        $verifyUrl = null;
+        if ($inviteAdmin && $verifyToken !== null) {
+            $verifyUrl = site_url('verificar-email?t=' . rawurlencode($verifyToken));
+            EquityMail::enviarInvitacionAdmin($adminEmail, $adminNombre, $verifyUrl, $tempPassword, $nombre);
+        }
+
         return [
-            'empresa_id'      => $empresaId,
-            'usuario_id'      => $usuarioId,
-            'membresia_id'    => $membresiaId,
-            'departamento_id' => $deptoId,
-            'sucursal_id'     => $sucursalId,
-            'tipo'            => $tipo,
-            'plan_codigo'     => $planCodigo,
+            'empresa_id'           => $empresaId,
+            'usuario_id'           => $usuarioId,
+            'membresia_id'         => $membresiaId,
+            'departamento_id'      => $deptoId,
+            'sucursal_id'          => $sucursalId,
+            'tipo'                 => $tipo,
+            'plan_codigo'          => $planCodigo,
+            'admin_email'          => $adminEmail,
+            'admin_temp_password'  => $tempPassword,
+            'admin_verify_url'     => $verifyUrl,
+            'admin_es_declarante'  => $adminEsDeclarante,
+            'persona_id'           => $personaId ?? null,
         ];
     }
 
@@ -287,9 +350,516 @@ final class EmpresaOnboarding
     }
 
     /**
-     * Normalize empresa Alias → empresas.slug; required + unique (no auto-suffix).
+     * Actualiza datos de empresa (nombre, alias, RUT, activa, matriz Equity).
+     *
+     * @param array{
+     *   nombre?: string,
+     *   alias?: ?string,
+     *   slug?: ?string,
+     *   rut?: ?string,
+     *   activa?: bool|int,
+     *   equity_matriz?: bool|int
+     * } $input
+     *
+     * @return array<string, mixed> fila empresas actualizada
      */
-    public function normalizeRequiredAlias(string $alias): string
+    public function updateEmpresa(string $empresaId, array $input): array
+    {
+        $empresa = model(EmpresaModel::class)->find($empresaId);
+        if ($empresa === null) {
+            throw new RuntimeException('Empresa no encontrada.');
+        }
+
+        $nombre = array_key_exists('nombre', $input)
+            ? trim((string) $input['nombre'])
+            : (string) $empresa['nombre'];
+        if ($nombre === '') {
+            throw new RuntimeException('El nombre de la empresa es obligatorio.');
+        }
+
+        $aliasIn = array_key_exists('alias', $input) || array_key_exists('slug', $input)
+            ? trim((string) ($input['alias'] ?? $input['slug'] ?? ''))
+            : (string) $empresa['slug'];
+        $slug = $this->normalizeRequiredAlias($aliasIn, $empresaId);
+
+        $rut = array_key_exists('rut', $input)
+            ? (trim((string) $input['rut']) ?: null)
+            : ($empresa['rut'] ?? null);
+
+        $now  = date('Y-m-d H:i:s');
+        $patch = [
+            'nombre'     => $nombre,
+            'slug'       => $slug,
+            'rut'        => $rut,
+            'updated_at' => $now,
+        ];
+
+        if (array_key_exists('activa', $input)) {
+            $patch['activa'] = ((int) $input['activa']) === 1 ? 1 : 0;
+        }
+
+        if ($this->db->fieldExists('equity_es_matriz', 'empresas') && array_key_exists('equity_matriz', $input)) {
+            $patch['equity_es_matriz'] = ((int) $input['equity_matriz']) === 1 ? 1 : 0;
+            if ((int) $patch['equity_es_matriz'] === 1) {
+                $patch['equity_matriz_id'] = null;
+            }
+        }
+
+        $this->db->table('empresas')->where('id', $empresaId)->update($patch);
+
+        $updated = model(EmpresaModel::class)->find($empresaId);
+        if ($updated === null) {
+            throw new RuntimeException('No se pudo actualizar la empresa.');
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Admins Master activos/inactivos de la empresa.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listMasterAdmins(string $empresaId): array
+    {
+        $select = 'm.id AS membresia_id, m.activa AS membresia_activa, m.created_at AS membresia_desde, u.*';
+        if ($this->db->fieldExists('es_declarante', 'membresias')) {
+            $select .= ', m.es_declarante';
+        }
+
+        return $this->db->table('membresias m')
+            ->select($select)
+            ->join('usuarios u', 'u.id = m.usuario_id')
+            ->where('m.empresa_id', $empresaId)
+            ->where('m.rol', Roles::ADMINISTRADOR_MASTER)
+            ->orderBy('u.nombre', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
+
+    /**
+     * Invita (o agrega) un Admin Master a una empresa ya existente.
+     *
+     * @param array{
+     *   admin_nombre: string,
+     *   admin_email: string,
+     *   admin_alias: string,
+     *   admin_cargo?: ?string,
+     *   admin_rut?: ?string,
+     *   admin_es_declarante?: bool
+     * } $input
+     *
+     * @return array{
+     *   empresa_id: string,
+     *   usuario_id: string,
+     *   membresia_id: string,
+     *   created_user: bool,
+     *   admin_email: string,
+     *   admin_temp_password: ?string,
+     *   admin_verify_url: ?string,
+     *   admin_es_declarante: bool,
+     *   persona_id?: ?string
+     * }
+     */
+    public function inviteAdminMaster(string $empresaId, array $input): array
+    {
+        helper('id');
+
+        $empresa = model(EmpresaModel::class)->find($empresaId);
+        if ($empresa === null) {
+            throw new RuntimeException('Empresa no encontrada.');
+        }
+
+        $adminNombre = trim((string) ($input['admin_nombre'] ?? ''));
+        $adminEmail  = strtolower(trim((string) ($input['admin_email'] ?? '')));
+        $adminAlias  = trim((string) ($input['admin_alias'] ?? ''));
+        $adminCargo  = trim((string) ($input['admin_cargo'] ?? '')) ?: null;
+        $adminRut    = trim((string) ($input['admin_rut'] ?? '')) ?: null;
+        $adminEsDeclarante = (bool) ($input['admin_es_declarante'] ?? false);
+
+        if ($adminNombre === '' || $adminEmail === '') {
+            throw new RuntimeException('Nombre y correo del administrador son obligatorios.');
+        }
+        if (! filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException('El correo del administrador no es válido.');
+        }
+
+        $existing = model(UsuarioModel::class)->findByEmail($adminEmail);
+        if ($adminRut === null && $existing !== null) {
+            $adminRut = trim((string) ($existing['rut'] ?? '')) ?: null;
+        }
+        if ($adminEsDeclarante && ($adminRut === null || IdentityHomolog::normalizeRut($adminRut) === '')) {
+            throw new RuntimeException(
+                'Si el Admin también es Declarante, el RUT es obligatorio (homologa usuario y ficha persona).'
+            );
+        }
+        if ($existing !== null) {
+            $memb = $this->db->table('membresias')
+                ->where('empresa_id', $empresaId)
+                ->where('usuario_id', $existing['id'])
+                ->where('rol', Roles::ADMINISTRADOR_MASTER)
+                ->get()
+                ->getRowArray();
+            if ($memb !== null) {
+                throw new RuntimeException(
+                    'Ese correo ya es Admin Master de esta empresa. Usa Reinvitar para reenviar acceso.'
+                );
+            }
+        }
+
+        $tempPassword = EquityPassword::mintDefault(8);
+        $verifyToken  = bin2hex(random_bytes(24));
+        $now          = date('Y-m-d H:i:s');
+        $createdUser  = false;
+        $usuarioId    = null;
+        $membresiaId  = null;
+
+        $this->db->transBegin();
+
+        try {
+            if ($existing === null) {
+                (new PlanEntitlement($this->db))->assertCanAddUser($empresaId);
+                $userAlias = $this->normalizeRequiredUserAlias($adminAlias);
+                $usuarioId = new_id();
+                $this->db->table('usuarios')->insert([
+                    'id'                    => $usuarioId,
+                    'email'                 => $adminEmail,
+                    'nombre'                => $adminNombre,
+                    'alias'                 => $userAlias,
+                    'cargo'                 => $adminCargo,
+                    'rut'                   => $adminRut,
+                    'password_hash'         => password_hash($tempPassword, PASSWORD_DEFAULT),
+                    'activo'                => 1,
+                    'es_admin_central'      => 0,
+                    'email_verified_at'     => null,
+                    'email_verify_token'    => $verifyToken,
+                    'email_verify_sent_at'  => $now,
+                    'must_change_password'  => 1,
+                    'created_at'            => $now,
+                    'updated_at'            => $now,
+                ]);
+                $createdUser = true;
+            } else {
+                $usuarioId = (string) $existing['id'];
+                $anyMemb = $this->db->table('membresias')
+                    ->where('empresa_id', $empresaId)
+                    ->where('usuario_id', $usuarioId)
+                    ->get()
+                    ->getRowArray();
+                if ($anyMemb === null) {
+                    (new PlanEntitlement($this->db))->assertCanAddUser($empresaId);
+                }
+
+                $userPatch = [
+                    'nombre'               => $adminNombre,
+                    'cargo'                => $adminCargo,
+                    'rut'                  => $adminRut,
+                    'activo'               => 1,
+                    'password_hash'        => password_hash($tempPassword, PASSWORD_DEFAULT),
+                    'email_verified_at'    => null,
+                    'email_verify_token'   => $verifyToken,
+                    'email_verify_sent_at' => $now,
+                    'must_change_password' => 1,
+                    'updated_at'           => $now,
+                ];
+                if ($adminAlias !== '') {
+                    $currentAlias = (string) ($existing['alias'] ?? '');
+                    if ($currentAlias === '' || strcasecmp($currentAlias, $adminAlias) !== 0) {
+                        $userPatch['alias'] = $this->normalizeRequiredUserAlias($adminAlias);
+                    }
+                }
+                $this->db->table('usuarios')->where('id', $usuarioId)->update($userPatch);
+
+                if ($anyMemb !== null && ($anyMemb['rol'] ?? '') !== Roles::ADMINISTRADOR_MASTER) {
+                    $patch = [
+                        'rol'        => Roles::ADMINISTRADOR_MASTER,
+                        'activa'     => 1,
+                        'updated_at' => $now,
+                    ];
+                    if ($this->db->fieldExists('es_declarante', 'membresias')) {
+                        $patch['es_declarante'] = $adminEsDeclarante ? 1 : 0;
+                    }
+                    $this->db->table('membresias')->where('id', $anyMemb['id'])->update($patch);
+                    $membresiaId = (string) $anyMemb['id'];
+                } elseif ($anyMemb !== null) {
+                    $patch = [
+                        'activa'     => 1,
+                        'updated_at' => $now,
+                    ];
+                    if ($this->db->fieldExists('es_declarante', 'membresias')) {
+                        $patch['es_declarante'] = $adminEsDeclarante ? 1 : 0;
+                    }
+                    $this->db->table('membresias')->where('id', $anyMemb['id'])->update($patch);
+                    $membresiaId = (string) $anyMemb['id'];
+                }
+            }
+
+            if ($membresiaId === null) {
+                $membresiaId = new_id();
+                $membRow = [
+                    'id'          => $membresiaId,
+                    'empresa_id'  => $empresaId,
+                    'usuario_id'  => $usuarioId,
+                    'rol'         => Roles::ADMINISTRADOR_MASTER,
+                    'sucursal_id' => null,
+                    'activa'      => 1,
+                    'created_at'  => $now,
+                    'updated_at'  => $now,
+                ];
+                if ($this->db->fieldExists('es_declarante', 'membresias')) {
+                    $membRow['es_declarante'] = $adminEsDeclarante ? 1 : 0;
+                }
+                $this->db->table('membresias')->insert($membRow);
+            }
+
+            $personaId = null;
+            if ($adminEsDeclarante) {
+                $personaId = $this->ensureDeclarantePersona(
+                    $empresaId,
+                    (string) $usuarioId,
+                    $adminNombre,
+                    $adminEmail,
+                    $adminRut,
+                    (string) $usuarioId
+                );
+            }
+
+            if ($this->db->transStatus() === false) {
+                throw new RuntimeException('No se pudo completar la invitación del Admin.');
+            }
+            $this->db->transCommit();
+        } catch (Throwable $e) {
+            $this->db->transRollback();
+            throw $e;
+        }
+
+        $verifyUrl = site_url('verificar-email?t=' . rawurlencode($verifyToken));
+        EquityMail::enviarInvitacionAdmin(
+            $adminEmail,
+            $adminNombre,
+            $verifyUrl,
+            $tempPassword,
+            (string) $empresa['nombre']
+        );
+
+        return [
+            'empresa_id'          => $empresaId,
+            'usuario_id'          => (string) $usuarioId,
+            'membresia_id'        => (string) $membresiaId,
+            'created_user'        => $createdUser,
+            'admin_email'         => $adminEmail,
+            'admin_temp_password' => $tempPassword,
+            'admin_verify_url'    => $verifyUrl,
+            'admin_es_declarante' => $adminEsDeclarante,
+            'persona_id'          => $personaId ?? null,
+        ];
+    }
+
+    /**
+     * Marca/desmarca Admin Master como declarante en esa empresa (crea o desactiva ficha).
+     *
+     * @return array{es_declarante: bool, persona_id: ?string}
+     */
+    public function setAdminEsDeclarante(string $empresaId, string $usuarioId, bool $esDeclarante): array
+    {
+        helper('id');
+
+        $memb = $this->db->table('membresias')
+            ->where('empresa_id', $empresaId)
+            ->where('usuario_id', $usuarioId)
+            ->where('rol', Roles::ADMINISTRADOR_MASTER)
+            ->get()
+            ->getRowArray();
+        if ($memb === null) {
+            throw new RuntimeException('Ese usuario no es Admin Master de esta empresa.');
+        }
+
+        $user = model(UsuarioModel::class)->find($usuarioId);
+        if ($user === null) {
+            throw new RuntimeException('Usuario no encontrado.');
+        }
+
+        $now = date('Y-m-d H:i:s');
+        if ($this->db->fieldExists('es_declarante', 'membresias')) {
+            $this->db->table('membresias')->where('id', $memb['id'])->update([
+                'es_declarante' => $esDeclarante ? 1 : 0,
+                'updated_at'    => $now,
+            ]);
+        }
+
+        $personaId = null;
+        if ($esDeclarante) {
+            $personaId = $this->ensureDeclarantePersona(
+                $empresaId,
+                $usuarioId,
+                (string) ($user['nombre'] ?? $user['email']),
+                (string) $user['email'],
+                isset($user['rut']) ? (string) $user['rut'] : null,
+                $usuarioId
+            );
+            // Patrimonio va por persona_id: alinea empresa_id residual (seed/import).
+            (new PatrimonioRelink($this->db))->alignEmpresaToPersona($personaId);
+        } else {
+            $this->db->table('equity_personas')
+                ->where('empresa_id', $empresaId)
+                ->where('usuario_id', $usuarioId)
+                ->update(['activo' => 0, 'updated_at' => $now]);
+            $row = $this->db->table('equity_personas')
+                ->where('empresa_id', $empresaId)
+                ->where('usuario_id', $usuarioId)
+                ->get()
+                ->getRowArray();
+            $personaId = $row['id'] ?? null;
+        }
+
+        return [
+            'es_declarante' => $esDeclarante,
+            'persona_id'    => $personaId !== null ? (string) $personaId : null,
+        ];
+    }
+
+    /**
+     * Crea o vincula la ficha equity_personas del Admin declarante en la empresa.
+     * Homologa RUT/nombre/email con el usuario; si ya hay persona con ese RUT, la reutiliza (no duplica).
+     */
+    private function ensureDeclarantePersona(
+        string $empresaId,
+        string $usuarioId,
+        string $nombreCompleto,
+        string $email,
+        ?string $rut,
+        ?string $creadoPorId
+    ): string {
+        helper('id');
+
+        $rut = trim((string) $rut) ?: null;
+        if ($rut === null || IdentityHomolog::normalizeRut($rut) === '') {
+            throw new RuntimeException(
+                'Para marcar Admin como Declarante debe homologar el RUT (mismo RUT en usuario y ficha persona).'
+            );
+        }
+
+        $existing = IdentityHomolog::findPersonaForUsuario($this->db, $empresaId, $usuarioId, $rut);
+        $now      = date('Y-m-d H:i:s');
+
+        if ($existing !== null) {
+            $personaId = (string) $existing['id'];
+            IdentityHomolog::syncUsuarioPersona($this->db, $usuarioId, $personaId, [
+                'nombre_completo' => $nombreCompleto,
+                'email'           => $email,
+                'rut'             => $rut,
+            ]);
+
+            return $personaId;
+        }
+
+        [$nombre, $apellido] = IdentityHomolog::splitNombre($nombreCompleto);
+        $personaId           = new_id();
+        $row                 = [
+            'id'            => $personaId,
+            'empresa_id'    => $empresaId,
+            'tipo'          => 'socio',
+            'nombre'        => $nombre,
+            'apellido'      => $apellido,
+            'rut'           => $rut,
+            'email'         => $email !== '' ? $email : null,
+            'usuario_id'    => $usuarioId,
+            'activo'        => 1,
+            'creado_por_id' => $creadoPorId,
+            'created_at'    => $now,
+            'updated_at'    => $now,
+        ];
+        if ($this->db->fieldExists('representado_por_usuario_id', 'equity_personas')) {
+            $row['representado_por_usuario_id'] = null;
+        }
+        $this->db->table('equity_personas')->insert($row);
+
+        IdentityHomolog::syncUsuarioPersona($this->db, $usuarioId, $personaId, [
+            'nombre_completo' => $nombreCompleto,
+            'email'           => $email,
+            'rut'             => $rut,
+        ]);
+
+        return $personaId;
+    }
+
+    /**
+     * Reenvía acceso (clave temporal + verificación) a un Admin Master existente.
+     *
+     * @return array{
+     *   empresa_id: string,
+     *   usuario_id: string,
+     *   admin_email: string,
+     *   admin_temp_password: string,
+     *   admin_verify_url: string
+     * }
+     */
+    public function reinviteAdminMaster(string $empresaId, string $usuarioId): array
+    {
+        $empresa = model(EmpresaModel::class)->find($empresaId);
+        if ($empresa === null) {
+            throw new RuntimeException('Empresa no encontrada.');
+        }
+
+        $memb = $this->db->table('membresias')
+            ->where('empresa_id', $empresaId)
+            ->where('usuario_id', $usuarioId)
+            ->where('rol', Roles::ADMINISTRADOR_MASTER)
+            ->get()
+            ->getRowArray();
+        if ($memb === null) {
+            throw new RuntimeException('Ese usuario no es Admin Master de esta empresa.');
+        }
+
+        $user = model(UsuarioModel::class)->find($usuarioId);
+        if ($user === null) {
+            throw new RuntimeException('Usuario no encontrado.');
+        }
+
+        $tempPassword = EquityPassword::mintDefault(8);
+        $verifyToken  = bin2hex(random_bytes(24));
+        $now          = date('Y-m-d H:i:s');
+
+        $this->db->table('usuarios')->where('id', $usuarioId)->update([
+            'activo'               => 1,
+            'password_hash'        => password_hash($tempPassword, PASSWORD_DEFAULT),
+            'email_verified_at'    => null,
+            'email_verify_token'   => $verifyToken,
+            'email_verify_sent_at' => $now,
+            'must_change_password' => 1,
+            'updated_at'           => $now,
+        ]);
+        $this->db->table('membresias')->where('id', $memb['id'])->update([
+            'activa'     => 1,
+            'updated_at' => $now,
+        ]);
+
+        $email     = (string) $user['email'];
+        $nombre    = (string) ($user['nombre'] ?? $email);
+        $verifyUrl = site_url('verificar-email?t=' . rawurlencode($verifyToken));
+        EquityMail::enviarInvitacionAdmin(
+            $email,
+            $nombre,
+            $verifyUrl,
+            $tempPassword,
+            (string) $empresa['nombre']
+        );
+
+        return [
+            'empresa_id'          => $empresaId,
+            'usuario_id'          => $usuarioId,
+            'admin_email'         => $email,
+            'admin_temp_password' => $tempPassword,
+            'admin_verify_url'    => $verifyUrl,
+        ];
+    }
+
+    /**
+     * Normalize empresa Alias → empresas.slug; required + unique (no auto-suffix).
+     *
+     * @param string|null $excludeEmpresaId al editar, permite conservar el mismo alias
+     */
+    public function normalizeRequiredAlias(string $alias, ?string $excludeEmpresaId = null): string
     {
         $alias = trim($alias);
         if ($alias === '') {
@@ -309,7 +879,11 @@ final class EmpresaOnboarding
             );
         }
 
-        if (model(EmpresaModel::class)->where('slug', $slug)->countAllResults() > 0) {
+        $q = model(EmpresaModel::class)->where('slug', $slug);
+        if ($excludeEmpresaId !== null && $excludeEmpresaId !== '') {
+            $q->where('id !=', $excludeEmpresaId);
+        }
+        if ($q->countAllResults() > 0) {
             throw new RuntimeException('Ese Alias de empresa ya está en uso. Elige otro.');
         }
 
