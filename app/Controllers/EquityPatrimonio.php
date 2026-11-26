@@ -18,6 +18,7 @@ use App\Libraries\MembershipAuth;
 use App\Models\EquityBienRaizModel;
 use App\Models\EquityFichaModel;
 use App\Models\EquityIngresoContratoModel;
+use App\Models\EquityFondoPensionModel;
 use App\Models\EquityOtroActivoModel;
 use App\Models\EquityPasivoModel;
 use App\Models\EquityPersonaModel;
@@ -237,7 +238,14 @@ class EquityPatrimonio extends BaseController
 
     public function reporteActivo(string $seccion)
     {
-        return $this->reporteSeccion($this->claveActivo($seccion));
+        $clave = $this->claveActivo($seccion);
+        // Fondos de pensión: referencia; no hay reporte de sección ni de grupo.
+        if ($clave === 'fondos-pension') {
+            return redirect()->to('/equity/activos/fondos-pension')
+                ->with('error', 'Fondos de pensión es referencia y no tiene reporte (no suma a Activos).');
+        }
+
+        return $this->reporteSeccion($clave);
     }
 
     public function reportePasivo(string $seccion)
@@ -1162,11 +1170,12 @@ class EquityPatrimonio extends BaseController
     private function claveActivo(string $seccion): string
     {
         return match ($seccion) {
-            'bienes-raices' => 'bienes-raices',
-            'vehiculos'     => 'vehiculos',
-            'sociedades'    => 'sociedades',
-            'otros'         => 'otros-activos',
-            default         => '',
+            'bienes-raices'   => 'bienes-raices',
+            'vehiculos'       => 'vehiculos',
+            'sociedades'      => 'sociedades',
+            'otros'           => 'otros-activos',
+            'fondos-pension'  => 'fondos-pension',
+            default           => '',
         };
     }
 
@@ -2796,6 +2805,27 @@ class EquityPatrimonio extends BaseController
                 'saldo_uf'    => $parSaldo['uf'],
                 'notas'       => trim((string) $this->request->getPost('notas')) ?: null,
             ];
+        } elseif ($clave === 'fondos-pension') {
+            $afp = trim((string) $this->request->getPost('afp'));
+            if ($afp === '') {
+                return redirect()->to($redirectPath)->with('error', 'La AFP / administradora es obligatoria.');
+            }
+            $tipoFondo = strtoupper(trim((string) $this->request->getPost('tipo_fondo')));
+            if ($tipoFondo !== '' && ! in_array($tipoFondo, EquityCatalogo::opcionesTipoFondoPension(), true)) {
+                return redirect()->to($redirectPath)->with('error', 'Tipo de fondo inválido (A–E).');
+            }
+            $tipoCuenta = $intOrNull($this->request->getPost('tipo_cuenta'));
+            $model = model(EquityFondoPensionModel::class);
+            $data  = [
+                'persona_id'    => $personaId,
+                'afp'           => $afp,
+                'tipo_fondo'    => $tipoFondo !== '' ? $tipoFondo : null,
+                'tipo_cuenta'   => $tipoCuenta,
+                'numero_cuenta' => trim((string) $this->request->getPost('numero_cuenta')) ?: null,
+                'saldo_clp'     => $parSaldo['clp'],
+                'saldo_uf'      => $parSaldo['uf'],
+                'notas'         => trim((string) $this->request->getPost('notas')) ?: null,
+            ];
         } elseif ($clave === 'pasivos-inmuebles') {
             $desc = trim((string) $this->request->getPost('banco_descripcion'));
             if ($desc === '') {
@@ -3117,6 +3147,7 @@ class EquityPatrimonio extends BaseController
             'vehiculos'           => '/equity/activos/vehiculos',
             'sociedades'          => '/equity/activos/sociedades',
             'otros-activos'       => '/equity/activos/otros',
+            'fondos-pension'      => '/equity/activos/fondos-pension',
             'pasivos-inmuebles'   => '/equity/pasivos/inmuebles',
             'pasivos-circulantes' => '/equity/pasivos/circulantes',
             'otros-pasivos'       => '/equity/pasivos/otros',
@@ -3344,6 +3375,14 @@ class EquityPatrimonio extends BaseController
                 . (string) ($row['institucion'] ?? ''),
                 ' ·'
             ),
+            'fondos-pension' => trim(
+                (string) ($row['afp'] ?? '')
+                . (! empty($row['tipo_fondo']) ? ' · Fondo ' . $row['tipo_fondo'] : '')
+                . ' · '
+                . EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoCuentaPension(), $row['tipo_cuenta'] ?? null)
+                . (! empty($row['numero_cuenta']) ? ' · N° ' . $row['numero_cuenta'] : ''),
+                ' ·'
+            ),
             'pasivos-inmuebles' => trim(
                 (string) ($row['banco_descripcion'] ?? '')
                 . (! empty($row['numero_credito']) ? ' · Crédito ' . $row['numero_credito'] : '')
@@ -3410,9 +3449,10 @@ class EquityPatrimonio extends BaseController
             'equity_bienes_raices' => model(EquityBienRaizModel::class),
             'equity_vehiculos'     => model(EquityVehiculoModel::class),
             'equity_sociedades'    => model(EquitySociedadModel::class),
-            'equity_otros_activos' => model(EquityOtroActivoModel::class),
-            'equity_pasivos'       => model(EquityPasivoModel::class),
-            default                => null,
+            'equity_otros_activos'   => model(EquityOtroActivoModel::class),
+            'equity_fondos_pension'  => model(EquityFondoPensionModel::class),
+            'equity_pasivos'         => model(EquityPasivoModel::class),
+            default                  => null,
         };
         if ($model === null) {
             return null;
@@ -3458,9 +3498,10 @@ class EquityPatrimonio extends BaseController
             'equity_bienes_raices'  => model(EquityBienRaizModel::class),
             'equity_vehiculos'      => model(EquityVehiculoModel::class),
             'equity_sociedades'     => model(EquitySociedadModel::class),
-            'equity_otros_activos'  => model(EquityOtroActivoModel::class),
-            'equity_pasivos'        => model(EquityPasivoModel::class),
-            default                 => null,
+            'equity_otros_activos'   => model(EquityOtroActivoModel::class),
+            'equity_fondos_pension'  => model(EquityFondoPensionModel::class),
+            'equity_pasivos'         => model(EquityPasivoModel::class),
+            default                  => null,
         };
         if ($model === null) {
             return [];

@@ -19,6 +19,7 @@ final class PatrimonioRelink
         'equity_vehiculos',
         'equity_sociedades',
         'equity_otros_activos',
+        'equity_fondos_pension',
         'equity_ingresos_contratos',
         'equity_respaldos',
         'equity_fichas',

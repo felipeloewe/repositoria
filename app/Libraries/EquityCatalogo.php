@@ -74,6 +74,13 @@ final class EquityCatalogo
                 'descripcion' => 'Depósitos, acciones, bonos, ahorros',
             ],
             [
+                'clave'       => 'fondos-pension',
+                'label'       => 'Fondos de pensión',
+                'grupo'       => 'Activos',
+                'path'        => '/equity/activos/fondos-pension',
+                'descripcion' => 'AFP / multifondos (referencia; no entra a reportes)',
+            ],
+            [
                 'clave'       => 'pasivos-inmuebles',
                 'label'       => 'Hipotecarios',
                 'grupo'       => 'Pasivos',
@@ -217,6 +224,7 @@ final class EquityCatalogo
                 ['clave' => 'vehiculos', 'label' => 'Vehículos', 'path' => '/equity/activos/vehiculos'],
                 ['clave' => 'sociedades', 'label' => 'Sociedades', 'path' => '/equity/activos/sociedades'],
                 ['clave' => 'otros-activos', 'label' => 'Otros activos', 'path' => '/equity/activos/otros'],
+                ['clave' => 'fondos-pension', 'label' => 'Fondos de pensión', 'path' => '/equity/activos/fondos-pension'],
             ],
             'Pasivos' => [
                 ['clave' => 'pasivos-inmuebles', 'label' => 'Hipotecarios', 'path' => '/equity/pasivos/inmuebles'],
@@ -429,6 +437,12 @@ final class EquityCatalogo
                 'grupo'  => 'Activos',
                 'table'  => 'equity_otros_activos',
             ],
+            'fondos-pension' => [
+                'clave'  => 'fondos-pension',
+                'label'  => 'Fondos de pensión',
+                'grupo'  => 'Activos',
+                'table'  => 'equity_fondos_pension',
+            ],
             'pasivos-inmuebles' => [
                 'clave'     => 'pasivos-inmuebles',
                 'label'     => 'Hipotecarios',
@@ -631,6 +645,42 @@ final class EquityCatalogo
             3 => 'Bonos',
             4 => 'Cuentas de Ahorro',
             5 => 'Otros',
+        ];
+    }
+
+    /** AFP / administradoras (Chile). */
+    /** @return list<string> */
+    public static function opcionesAfp(): array
+    {
+        return [
+            'Capital',
+            'Cuprum',
+            'Habitat',
+            'Modelo',
+            'PlanVital',
+            'Provida',
+            'Uno',
+            'Otra',
+        ];
+    }
+
+    /** Multifondos A–E. */
+    /** @return list<string> */
+    public static function opcionesTipoFondoPension(): array
+    {
+        return ['A', 'B', 'C', 'D', 'E'];
+    }
+
+    /** @return array<int|string, string> */
+    public static function opcionesTipoCuentaPension(): array
+    {
+        return [
+            1 => 'Cotización obligatoria',
+            2 => 'APV',
+            3 => 'Cuenta 2 / Ahorro voluntario',
+            4 => 'Depósito convenido',
+            5 => 'APVC',
+            6 => 'Otro',
         ];
     }
 

@@ -32,6 +32,7 @@ $listAction = match ($clave) {
     'vehiculos'           => site_url('equity/activos/vehiculos'),
     'sociedades'          => site_url('equity/activos/sociedades'),
     'otros-activos'       => site_url('equity/activos/otros'),
+    'fondos-pension'      => site_url('equity/activos/fondos-pension'),
     'pasivos-inmuebles'   => site_url('equity/pasivos/inmuebles'),
     'pasivos-circulantes' => site_url('equity/pasivos/circulantes'),
     'otros-pasivos'       => site_url('equity/pasivos/otros'),
@@ -54,6 +55,7 @@ $reportAction = match ($clave) {
 $grupoReportAction = str_starts_with($clave, 'pasivos') || $clave === 'otros-pasivos'
     ? site_url('equity/reporte/pasivos')
     : site_url('equity/reporte/activos');
+$esReferenciaActivo = $clave === 'fondos-pension';
 $esActivo = in_array($clave, ['bienes-raices', 'vehiculos', 'sociedades', 'otros-activos'], true);
 $bitacoraPath = static function (string $id) use ($clave, $esActivo): string {
     if (! $esActivo) {
@@ -119,15 +121,22 @@ $chk = static function (string $key) use ($edit): string {
         Montos en <strong>UF</strong> (fijos); $ con UF vigente
         <?= esc(EquityUf::fmtPesos($ufRate, 2)) ?><?= $ufVigente ? ' · cierre ' . esc($ufVigente['fecha_cierre']) : '' ?>.
     </p>
-    <p style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
-        <a class="btn btn-primary btn-sm" href="<?= esc($reportAction) ?>">Reporte</a>
-        <a class="btn btn-ghost btn-sm" href="<?= esc($grupoReportAction) ?>">Reporte <?= esc(str_starts_with($clave, 'pasivos') || $clave === 'otros-pasivos' ? 'pasivos' : 'activos') ?></a>
-    </p>
-    <?php if ($esActivo): ?>
-        <p class="muted" style="margin-top:.6rem;margin-bottom:0;font-size:.9rem">
-            Valor comercial<?= $clave === 'bienes-raices' ? ' y avalúo fiscal' : '' ?>:
-            los cambios se atribuyen al <strong>cierre del mes en curso</strong>; el mes anterior conserva el valor previo.
+    <?php if ($esReferenciaActivo): ?>
+        <p class="muted" style="margin-top:.75rem;margin-bottom:0">
+            <strong>Referencia</strong>: no suma a Balance, Situación financiera, Cierre ni al reporte de Activos
+            (hasta que se incluya expresamente).
         </p>
+    <?php else: ?>
+        <p style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
+            <a class="btn btn-primary btn-sm" href="<?= esc($reportAction) ?>">Reporte</a>
+            <a class="btn btn-ghost btn-sm" href="<?= esc($grupoReportAction) ?>">Reporte <?= esc(str_starts_with($clave, 'pasivos') || $clave === 'otros-pasivos' ? 'pasivos' : 'activos') ?></a>
+        </p>
+        <?php if ($esActivo): ?>
+            <p class="muted" style="margin-top:.6rem;margin-bottom:0;font-size:.9rem">
+                Valor comercial<?= $clave === 'bienes-raices' ? ' y avalúo fiscal' : '' ?>:
+                los cambios se atribuyen al <strong>cierre del mes en curso</strong>; el mes anterior conserva el valor previo.
+            </p>
+        <?php endif; ?>
     <?php endif; ?>
 </section>
 
@@ -341,6 +350,48 @@ foreach ($personas as $p) {
                 <div>
                     <label for="saldo_clp">Saldo $ <span class="muted">(opc.)</span></label>
                     <input id="saldo_clp" name="saldo_clp" type="text" inputmode="decimal" value="<?= esc($val('saldo_clp', 0)) ?>">
+                </div>
+            </div>
+        <?php elseif ($clave === 'fondos-pension'): ?>
+            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+                <div>
+                    <label for="afp">AFP / administradora *</label>
+                    <select id="afp" name="afp" required>
+                        <option value="">—</option>
+                        <?php foreach (EquityCatalogo::opcionesAfp() as $lab): ?>
+                            <option value="<?= esc($lab) ?>" <?= $sel('afp', $lab) ?>><?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label for="tipo_fondo">Fondo (multifondo)</label>
+                    <select id="tipo_fondo" name="tipo_fondo">
+                        <option value="">—</option>
+                        <?php foreach (EquityCatalogo::opcionesTipoFondoPension() as $lab): ?>
+                            <option value="<?= esc($lab) ?>" <?= $sel('tipo_fondo', $lab) ?>><?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label for="tipo_cuenta">Tipo de cuenta</label>
+                    <select id="tipo_cuenta" name="tipo_cuenta">
+                        <option value="">—</option>
+                        <?php foreach (EquityCatalogo::opcionesTipoCuentaPension() as $k => $lab): ?>
+                            <option value="<?= (int) $k ?>" <?= $sel('tipo_cuenta', $k) ?>><?= (int) $k ?>. <?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label for="numero_cuenta_fp">N° cuenta</label>
+                    <input id="numero_cuenta_fp" name="numero_cuenta" type="text" value="<?= esc($val('numero_cuenta')) ?>">
+                </div>
+                <div>
+                    <label for="saldo_uf_fp">Saldo UF *</label>
+                    <input id="saldo_uf_fp" name="saldo_uf" type="text" inputmode="decimal" value="<?= esc($val('saldo_uf', 4)) ?>">
+                </div>
+                <div>
+                    <label for="saldo_clp_fp">Saldo $ <span class="muted">(opc.)</span></label>
+                    <input id="saldo_clp_fp" name="saldo_clp" type="text" inputmode="decimal" value="<?= esc($val('saldo_clp', 0)) ?>">
                 </div>
             </div>
         <?php elseif ($clave === 'pasivos-inmuebles'): ?>
@@ -805,6 +856,14 @@ foreach ($personas as $p) {
                             EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoOtroActivo(), $row['tipo_activo'] ?? null)
                             . ' · '
                             . (string) ($row['institucion'] ?? ''),
+                            ' ·'
+                        ),
+                        'fondos-pension' => trim(
+                            (string) ($row['afp'] ?? '')
+                            . (! empty($row['tipo_fondo']) ? ' · Fondo ' . $row['tipo_fondo'] : '')
+                            . ' · '
+                            . EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoCuentaPension(), $row['tipo_cuenta'] ?? null)
+                            . (! empty($row['numero_cuenta']) ? ' · N° ' . $row['numero_cuenta'] : ''),
                             ' ·'
                         ),
                         'pasivos-inmuebles' => trim(
