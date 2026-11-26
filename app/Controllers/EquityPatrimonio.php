@@ -2811,21 +2811,44 @@ class EquityPatrimonio extends BaseController
             if ($afpRow === null) {
                 return redirect()->to($redirectPath)->with('error', 'Selecciona una administradora de la tabla.');
             }
+            $periodo = trim((string) $this->request->getPost('periodo_cierre'));
+            if ($periodo === '' || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $periodo)) {
+                return redirect()->to($redirectPath)->with('error', 'El periodo de cierre del estado de cuenta es obligatorio.');
+            }
+            if ($parSaldo['clp'] === null && $parSaldo['uf'] === null) {
+                return redirect()->to($redirectPath)->with('error', 'Indica el saldo en pesos (o UF) del estado de cuenta.');
+            }
             $tipoFondo = strtoupper(trim((string) $this->request->getPost('tipo_fondo')));
             if ($tipoFondo !== '' && ! in_array($tipoFondo, EquityCatalogo::opcionesTipoFondoPension(), true)) {
                 return redirect()->to($redirectPath)->with('error', 'Tipo de fondo inválido (A–E).');
             }
             $tipoCuenta = $intOrNull($this->request->getPost('tipo_cuenta'));
+            $dec4 = static function ($raw) use ($ufDec): ?string {
+                return $ufDec($raw);
+            };
+            $moneyClp = static function ($raw) use ($money): ?string {
+                return $money($raw);
+            };
             $model = model(EquityFondoPensionModel::class);
             $data  = [
-                'persona_id'    => $personaId,
-                'afp'           => $afpRow['label'],
-                'tipo_fondo'    => $tipoFondo !== '' ? $tipoFondo : null,
-                'tipo_cuenta'   => $tipoCuenta,
-                'numero_cuenta' => trim((string) $this->request->getPost('numero_cuenta')) ?: null,
-                'saldo_clp'     => $parSaldo['clp'],
-                'saldo_uf'      => $parSaldo['uf'],
-                'notas'         => trim((string) $this->request->getPost('notas')) ?: null,
+                'persona_id'         => $personaId,
+                'afp'                => $afpRow['label'],
+                'tipo_fondo'         => $tipoFondo !== '' ? $tipoFondo : null,
+                'tipo_cuenta'        => $tipoCuenta,
+                'numero_cuenta'      => trim((string) $this->request->getPost('numero_cuenta')) ?: null,
+                'periodo_cierre'     => $periodo,
+                'valor_cuota'        => $dec4($this->request->getPost('valor_cuota')),
+                'saldo_cuotas'       => $dec4($this->request->getPost('saldo_cuotas')),
+                'distribucion_pct'   => $dec4($this->request->getPost('distribucion_pct')),
+                'saldo_clp'          => $parSaldo['clp'],
+                'saldo_uf'           => $parSaldo['uf'],
+                'indemnizacion_clp'  => $moneyClp($this->request->getPost('indemnizacion_clp')),
+                'aportes_clp'        => $moneyClp($this->request->getPost('aportes_clp')),
+                'rentabilidad_clp'   => $moneyClp($this->request->getPost('rentabilidad_clp')),
+                'retiros_clp'        => $moneyClp($this->request->getPost('retiros_clp')),
+                'ahorro_total_clp'   => $moneyClp($this->request->getPost('ahorro_total_clp')),
+                'multiplicador'      => $dec4($this->request->getPost('multiplicador')),
+                'notas'              => trim((string) $this->request->getPost('notas')) ?: null,
             ];
         } elseif ($clave === 'pasivos-inmuebles') {
             $desc = trim((string) $this->request->getPost('banco_descripcion'));
@@ -3378,9 +3401,11 @@ class EquityPatrimonio extends BaseController
             ),
             'fondos-pension' => trim(
                 (string) ($row['afp'] ?? '')
+                . (! empty($row['periodo_cierre']) ? ' · Cierre ' . $row['periodo_cierre'] : '')
                 . (! empty($row['tipo_fondo']) ? ' · Fondo ' . $row['tipo_fondo'] : '')
                 . ' · '
                 . EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoCuentaPension(), $row['tipo_cuenta'] ?? null)
+                . (! empty($row['saldo_cuotas']) ? ' · ' . number_format((float) $row['saldo_cuotas'], 2, ',', '.') . ' cuotas' : '')
                 . (! empty($row['numero_cuenta']) ? ' · N° ' . $row['numero_cuenta'] : ''),
                 ' ·'
             ),

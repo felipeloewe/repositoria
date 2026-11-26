@@ -750,12 +750,13 @@ final class EquityCatalogo
     public static function opcionesTipoCuentaPension(): array
     {
         return [
-            1 => 'Cotización obligatoria',
+            1 => 'Cotizaciones obligatorias',
             2 => 'APV',
             3 => 'Cuenta 2 / Ahorro voluntario',
             4 => 'Depósito convenido',
             5 => 'APVC',
-            6 => 'Otro',
+            6 => 'Indemnización',
+            7 => 'Otro',
         ];
     }
 

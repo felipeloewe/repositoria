@@ -423,18 +423,17 @@ foreach ($personas as $p) {
               });
             })();
             </script>
+            <p style="margin:1rem 0 .5rem;font-weight:600">Estado de cuenta (cartola mensual)</p>
+            <p class="muted" style="margin:0 0 .75rem;font-size:.9rem">
+                Datos del estado de cuenta mensual AFP: saldo al cierre, cuotas y desglose de aportes / rentabilidad / retiros.
+            </p>
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
                 <div>
-                    <label for="tipo_fondo">Fondo (multifondo)</label>
-                    <select id="tipo_fondo" name="tipo_fondo">
-                        <option value="">—</option>
-                        <?php foreach (EquityCatalogo::opcionesTipoFondoPension() as $lab): ?>
-                            <option value="<?= esc($lab) ?>" <?= $sel('tipo_fondo', $lab) ?>><?= esc($lab) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <label for="periodo_cierre">Periodo cierre *</label>
+                    <input id="periodo_cierre" name="periodo_cierre" type="date" required value="<?= esc($val('periodo_cierre')) ?>">
                 </div>
                 <div>
-                    <label for="tipo_cuenta">Tipo de cuenta</label>
+                    <label for="tipo_cuenta">Cuenta</label>
                     <select id="tipo_cuenta" name="tipo_cuenta">
                         <option value="">—</option>
                         <?php foreach (EquityCatalogo::opcionesTipoCuentaPension() as $k => $lab): ?>
@@ -443,16 +442,67 @@ foreach ($personas as $p) {
                     </select>
                 </div>
                 <div>
-                    <label for="numero_cuenta_fp">N° cuenta</label>
-                    <input id="numero_cuenta_fp" name="numero_cuenta" type="text" value="<?= esc($val('numero_cuenta')) ?>">
+                    <label for="tipo_fondo">Fondo</label>
+                    <select id="tipo_fondo" name="tipo_fondo">
+                        <option value="">—</option>
+                        <?php foreach (EquityCatalogo::opcionesTipoFondoPension() as $lab): ?>
+                            <option value="<?= esc($lab) ?>" <?= $sel('tipo_fondo', $lab) ?>><?= esc($lab) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 <div>
-                    <label for="saldo_uf_fp">Saldo UF *</label>
+                    <label for="distribucion_pct">Distribución %</label>
+                    <input id="distribucion_pct" name="distribucion_pct" type="text" inputmode="decimal" placeholder="100" value="<?= esc($val('distribucion_pct', 2)) ?>">
+                </div>
+                <div>
+                    <label for="valor_cuota">Valor cuota</label>
+                    <input id="valor_cuota" name="valor_cuota" type="text" inputmode="decimal" placeholder="83.012,8" value="<?= esc($val('valor_cuota', 4)) ?>">
+                </div>
+                <div>
+                    <label for="saldo_cuotas">Saldo en cuotas</label>
+                    <input id="saldo_cuotas" name="saldo_cuotas" type="text" inputmode="decimal" placeholder="1.022,76" value="<?= esc($val('saldo_cuotas', 4)) ?>">
+                </div>
+                <div>
+                    <label for="saldo_clp_fp">Saldo en pesos $ *</label>
+                    <input id="saldo_clp_fp" name="saldo_clp" type="text" inputmode="decimal" required placeholder="84.902.171" value="<?= esc($val('saldo_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="saldo_uf_fp">Saldo UF <span class="muted">(opc.)</span></label>
                     <input id="saldo_uf_fp" name="saldo_uf" type="text" inputmode="decimal" value="<?= esc($val('saldo_uf', 4)) ?>">
                 </div>
                 <div>
-                    <label for="saldo_clp_fp">Saldo $ <span class="muted">(opc.)</span></label>
-                    <input id="saldo_clp_fp" name="saldo_clp" type="text" inputmode="decimal" value="<?= esc($val('saldo_clp', 0)) ?>">
+                    <label for="indemnizacion_clp">Total indemnización $</label>
+                    <input id="indemnizacion_clp" name="indemnizacion_clp" type="text" inputmode="decimal" placeholder="0" value="<?= esc($val('indemnizacion_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="numero_cuenta_fp">N° cuenta <span class="muted">(opc.)</span></label>
+                    <input id="numero_cuenta_fp" name="numero_cuenta" type="text" value="<?= esc($val('numero_cuenta')) ?>">
+                </div>
+            </div>
+            <p style="margin:1.25rem 0 .5rem;font-weight:600">Desglose histórico (cuenta de ahorro)</p>
+            <p class="muted" style="margin:0 0 .75rem;font-size:.9rem">
+                Como en la cartola: aportes, ganancia por rentabilidad, retiros y ahorro total.
+            </p>
+            <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+                <div>
+                    <label for="aportes_clp">Tus aportes $</label>
+                    <input id="aportes_clp" name="aportes_clp" type="text" inputmode="decimal" placeholder="40.694.960" value="<?= esc($val('aportes_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="rentabilidad_clp">Ganancia por rentabilidad $</label>
+                    <input id="rentabilidad_clp" name="rentabilidad_clp" type="text" inputmode="decimal" placeholder="57.388.927" value="<?= esc($val('rentabilidad_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="retiros_clp">Tus retiros $</label>
+                    <input id="retiros_clp" name="retiros_clp" type="text" inputmode="decimal" placeholder="13.181.716" value="<?= esc($val('retiros_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="ahorro_total_clp">Tu ahorro total $</label>
+                    <input id="ahorro_total_clp" name="ahorro_total_clp" type="text" inputmode="decimal" placeholder="98.083.887" value="<?= esc($val('ahorro_total_clp', 0)) ?>">
+                </div>
+                <div>
+                    <label for="multiplicador">Multiplicador (veces)</label>
+                    <input id="multiplicador" name="multiplicador" type="text" inputmode="decimal" placeholder="2,41" value="<?= esc($val('multiplicador', 2)) ?>">
                 </div>
             </div>
         <?php elseif ($clave === 'pasivos-inmuebles'): ?>
@@ -921,9 +971,12 @@ foreach ($personas as $p) {
                         ),
                         'fondos-pension' => trim(
                             (string) ($row['afp'] ?? '')
+                            . (! empty($row['periodo_cierre']) ? ' · Cierre ' . $row['periodo_cierre'] : '')
                             . (! empty($row['tipo_fondo']) ? ' · Fondo ' . $row['tipo_fondo'] : '')
                             . ' · '
                             . EquityCatalogo::labelOpcion(EquityCatalogo::opcionesTipoCuentaPension(), $row['tipo_cuenta'] ?? null)
+                            . (! empty($row['saldo_cuotas']) ? ' · ' . number_format((float) $row['saldo_cuotas'], 2, ',', '.') . ' cuotas' : '')
+                            . (! empty($row['multiplicador']) ? ' · ×' . number_format((float) $row['multiplicador'], 2, ',', '.') : '')
                             . (! empty($row['numero_cuenta']) ? ' · N° ' . $row['numero_cuenta'] : ''),
                             ' ·'
                         ),
