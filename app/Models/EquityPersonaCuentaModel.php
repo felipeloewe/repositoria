@@ -16,6 +16,6 @@ class EquityPersonaCuentaModel extends Model
     protected $useTimestamps    = true;
     protected $allowedFields    = [
         'id', 'banco_id', 'empresa_id', 'persona_id', 'tipo', 'moneda',
-        'ultimos_digitos', 'en_google_wallet', 'en_gpay', 'en_link', 'notas',
+        'numero_cuenta', 'en_google_wallet', 'en_gpay', 'en_link', 'notas',
     ];
 }

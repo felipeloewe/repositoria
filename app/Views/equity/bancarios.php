@@ -145,7 +145,7 @@ $checkboxApp = static function (string $name, string $key): string {
                         <tr>
                             <th>Tipo</th>
                             <th>Moneda</th>
-                            <th>Últimos dígitos</th>
+                            <th>N° cuenta</th>
                             <th>Apps</th>
                             <th></th>
                         </tr>
@@ -155,7 +155,10 @@ $checkboxApp = static function (string $name, string $key): string {
                         <tr>
                             <td><?= esc(Bancarios::labelTipoCuenta($c['tipo'] ?? null)) ?></td>
                             <td><?= esc($c['moneda'] ?? '—') ?></td>
-                            <td><?= esc($c['ultimos_digitos'] ? ('…' . $c['ultimos_digitos']) : '—') ?></td>
+                            <td><?php
+                                $nro = (string) ($c['numero_cuenta'] ?? $c['ultimos_digitos'] ?? '');
+                                echo $nro !== '' ? esc($nro) : '—';
+                            ?></td>
                             <td><?= $appsHtml($c) ?></td>
                             <td style="white-space:nowrap">
                                 <?php if (! empty($canManage)): ?>
@@ -193,9 +196,9 @@ $checkboxApp = static function (string $name, string $key): string {
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div>
-                        <label>Últimos dígitos</label>
-                        <input name="ultimos_digitos" type="text" inputmode="numeric" maxlength="8" placeholder="1234">
+                    <div style="grid-column:span 2">
+                        <label>Número de cuenta</label>
+                        <input name="numero_cuenta" type="text" inputmode="numeric" maxlength="64" placeholder="Ej. 00-123-45678901" autocomplete="off">
                     </div>
                     <div>
                         <?= $checkboxApp('en_google_wallet', 'google_wallet') ?>

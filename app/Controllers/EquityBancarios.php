@@ -198,8 +198,12 @@ class EquityBancarios extends BaseController
             $moneda = 'CLP';
         }
 
-        $ultimos = preg_replace('/\D+/', '', (string) $this->request->getPost('ultimos_digitos')) ?? '';
-        $ultimos = $ultimos !== '' ? mb_substr($ultimos, -8) : null;
+        // Número completo (referencial entre bancos); no truncar a últimos dígitos.
+        $numero = trim((string) $this->request->getPost('numero_cuenta'));
+        if ($numero === '') {
+            $numero = trim((string) $this->request->getPost('ultimos_digitos'));
+        }
+        $numero = $numero !== '' ? mb_substr($numero, 0, 64) : null;
 
         helper('id');
         model(EquityPersonaCuentaModel::class)->insert([
@@ -209,7 +213,7 @@ class EquityBancarios extends BaseController
             'persona_id'       => $personaId,
             'tipo'             => $tipo,
             'moneda'           => $moneda,
-            'ultimos_digitos'  => $ultimos,
+            'numero_cuenta'    => $numero,
             'en_google_wallet' => $this->request->getPost('en_google_wallet') ? 1 : 0,
             'en_gpay'          => $this->request->getPost('en_gpay') ? 1 : 0,
             'en_link'          => $this->request->getPost('en_link') ? 1 : 0,

@@ -85,9 +85,9 @@ class CreateEquityAntecedentesBancarios extends Migration
                     'constraint' => 8,
                     'default'    => 'CLP',
                 ],
-                'ultimos_digitos' => [
+                'numero_cuenta' => [
                     'type'       => 'VARCHAR',
-                    'constraint' => 8,
+                    'constraint' => 64,
                     'null'       => true,
                 ],
                 'en_google_wallet' => [

@@ -89,7 +89,7 @@ final class PiiCatalog
             ],
             [
                 'table'  => 'equity_persona_bancos / cuentas / tarjetas',
-                'fields' => ['banco_nombre', 'ultimos_digitos', 'ultimos_4', 'fecha_vencimiento', 'monto_aprobado_clp', 'monto_aprobado_usd'],
+                'fields' => ['banco_nombre', 'numero_cuenta', 'ultimos_4', 'fecha_vencimiento', 'monto_aprobado_clp', 'monto_aprobado_usd'],
                 'note'   => 'Antecedentes bancarios: se borran al scrub de la persona',
             ],
         ];
