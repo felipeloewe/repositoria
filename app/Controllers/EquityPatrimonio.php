@@ -11,6 +11,7 @@ use App\Libraries\EquityArriendoSync;
 use App\Libraries\EquityCatalogo;
 use App\Libraries\EquityDesarrolloCuotas;
 use App\Libraries\EquityDesarrolloImport;
+use App\Libraries\EquityOcr;
 use App\Libraries\EquityEgresosProyeccion;
 use App\Libraries\EquityUf;
 use App\Libraries\MembershipAuth;
@@ -794,6 +795,7 @@ class EquityPatrimonio extends BaseController
             'ufVigente' => $ufVigente,
             'tablasOk'  => EquityDesarrolloCuotas::tablasListas(),
             'canManage' => EquityAcl::canDeclare($memb),
+            'ocrEstado' => EquityOcr::estado(),
             'success'   => session()->getFlashdata('success'),
             'error'     => session()->getFlashdata('error'),
         ]);
@@ -894,7 +896,7 @@ class EquityPatrimonio extends BaseController
         $file = $this->request->getFile('desarrollo_archivo');
         if ($file === null || ! $file->isValid() || $file->getError() === UPLOAD_ERR_NO_FILE) {
             return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')
-                ->with('error', 'Selecciona un archivo Excel (.xlsx), CSV o PDF.');
+                ->with('error', 'Selecciona Excel (.xlsx), CSV, PDF o imagen (JPG/PNG) del desarrollo.');
         }
         if ($file->getSize() > 20 * 1024 * 1024) {
             return redirect()->to('/equity/pasivos/' . $seccion . '/' . $id . '/desarrollo')

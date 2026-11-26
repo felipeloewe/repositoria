@@ -31,4 +31,13 @@ final class EquityDesarrolloImportTest extends CIUnitTestCase
         $res = EquityDesarrolloImport::parse('x.csv', "foo;bar\n1;2\n", 'text/csv');
         $this->assertFalse($res['ok'] ?? true);
     }
+
+    public function testParseImagenSinTesseractFallaConMensajeRespaldo(): void
+    {
+        // JPEG mínimo (no es imagen real válida para OCR; debe fallar con mensaje claro).
+        $fake = "\xFF\xD8\xFF\xD9";
+        $res = EquityDesarrolloImport::parse('scan.jpg', $fake, 'image/jpeg');
+        $this->assertFalse($res['ok'] ?? true);
+        $this->assertNotEmpty($res['error'] ?? '');
+    }
 }

@@ -56,21 +56,37 @@ $base = 'equity/pasivos/' . $seccion . '/' . ($pasivo['id'] ?? '');
 <?php endif; ?>
 
 <?php if (! empty($canManage) && ! empty($tablasOk)): ?>
-<div class="card section-card">
-    <h3>Subir desarrollo (Excel / CSV / PDF)</h3>
+<?php
+    $ocr = $ocrEstado ?? [];
+    $ocrListo = ! empty($ocr['listo']);
+    $ocrMsg = (string) ($ocr['mensaje'] ?? '');
+?>
+<div class="card section-card" id="carga-desarrollo">
+    <h3>Cargar desarrollo (Excel / CSV / PDF / imagen OCR)</h3>
     <p class="muted" style="margin-top:0">
-        Solo se toman las columnas presentes: fecha, n° dividendo, cuota, amortización, interés, saldo (UF y/o $).
-        El resto se deja como está. El archivo queda como respaldo.
+        Sube la tabla del banco: Excel (.xlsx), CSV, PDF (texto o escaneado) o foto JPG/PNG del desarrollo completo.
+        Se toman solo las columnas reconocidas (fecha, n° dividendo, cuota, amortización, interés, saldo en UF y/o $).
+        El archivo queda siempre como respaldo; luego puedes corregir cuotas a mano.
     </p>
+    <?php if ($ocrMsg !== ''): ?>
+        <p class="<?= $ocrListo ? 'alert alert-ok' : 'alert alert-error' ?>" style="margin:.75rem 0">
+            <?= esc($ocrMsg) ?>
+            <?php if (! empty($ocr['tesseract'])): ?> · Tesseract OK<?php endif; ?>
+            <?php if (! empty($ocr['pdftotext'])): ?> · pdftotext OK<?php endif; ?>
+            <?php if (! empty($ocr['pdftoppm'])): ?> · pdftoppm OK<?php endif; ?>
+        </p>
+    <?php endif; ?>
     <form method="post" action="<?= site_url($base . '/desarrollo/importar') ?>" enctype="multipart/form-data">
         <?= csrf_field() ?>
         <div class="form-row" style="grid-template-columns:1fr auto;align-items:end;gap:1rem">
             <div>
                 <label for="desarrollo_archivo">Archivo</label>
-                <input id="desarrollo_archivo" name="desarrollo_archivo" type="file" accept=".xlsx,.csv,.pdf,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+                <input id="desarrollo_archivo" name="desarrollo_archivo" type="file"
+                       accept=".xlsx,.csv,.pdf,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                       required>
             </div>
             <div>
-                <button class="btn btn-primary" type="submit">Importar</button>
+                <button class="btn btn-primary" type="submit">Importar / OCR</button>
             </div>
         </div>
     </form>

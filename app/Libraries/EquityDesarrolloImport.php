@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Libraries;
 
 /**
- * Importa desarrollo de crédito desde CSV / Excel (.xlsx) / PDF.
+ * Importa desarrollo de crédito desde CSV / Excel (.xlsx) / PDF / imagen (OCR).
  * Solo toma columnas reconocidas presentes en el archivo.
  */
 final class EquityDesarrolloImport
@@ -47,7 +47,11 @@ final class EquityDesarrolloImport
             return ['ok' => false, 'error' => 'Usa .xlsx o .csv (Excel 97 .xls no soportado).'];
         }
         if ($ext === 'pdf' || str_contains($mime, 'pdf')) {
-            return self::parsePdf($binary);
+            return self::parsePdf($binary, $filename);
+        }
+        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'gif'], true)
+            || str_starts_with($mime, 'image/')) {
+            return self::parseImagen($binary, $filename, $mime);
         }
 
         // Heurística por contenido
@@ -55,10 +59,30 @@ final class EquityDesarrolloImport
             return self::parseXlsx($binary);
         }
         if (str_starts_with($binary, '%PDF')) {
-            return self::parsePdf($binary);
+            return self::parsePdf($binary, $filename);
+        }
+        if (str_starts_with($binary, "\xFF\xD8\xFF") || str_starts_with($binary, "\x89PNG")) {
+            return self::parseImagen($binary, $filename !== '' ? $filename : 'scan.jpg', $mime);
         }
 
         return self::parseDelimited($binary);
+    }
+
+    /**
+     * @return array{ok: bool, error?: string, filas?: list<array<string, mixed>>, columnas?: list<string>, detalle?: string}
+     */
+    private static function parseImagen(string $binary, string $filename, string $mime = ''): array
+    {
+        $ocr = EquityOcr::textoDesdeBinary($binary, $filename !== '' ? $filename : 'scan.jpg', $mime);
+        if (! ($ocr['ok'] ?? false)) {
+            return [
+                'ok'      => false,
+                'error'   => $ocr['error'] ?? 'No se pudo leer la imagen con OCR.',
+                'detalle' => 'El archivo se puede guardar igual como respaldo del desarrollo.',
+            ];
+        }
+
+        return self::parseTextoOcr((string) ($ocr['text'] ?? ''), 'imagen/' . ($ocr['motor'] ?? 'ocr'));
     }
 
     /**
@@ -196,18 +220,34 @@ final class EquityDesarrolloImport
      *
      * @return array{ok: bool, error?: string, filas?: list<array<string, mixed>>, columnas?: list<string>, detalle?: string}
      */
-    private static function parsePdf(string $binary): array
+    private static function parsePdf(string $binary, string $filename = 'desarrollo.pdf'): array
     {
-        $text = self::extractPdfText($binary);
-        if (trim($text) === '') {
+        $ocr = EquityOcr::textoDesdeBinary($binary, $filename !== '' ? $filename : 'desarrollo.pdf', 'application/pdf');
+        if (! ($ocr['ok'] ?? false)) {
             return [
                 'ok'      => false,
-                'error'   => 'No se pudo leer texto del PDF. Guárdalo como Excel/CSV o adjunta el PDF como respaldo y edita las cuotas a mano.',
+                'error'   => $ocr['error'] ?? 'No se pudo leer el PDF.',
                 'detalle' => 'El archivo se puede guardar igual como respaldo del desarrollo.',
             ];
         }
 
-        // Intentar CSV embebido / líneas tabuladas
+        return self::parseTextoOcr((string) ($ocr['text'] ?? ''), 'pdf/' . ($ocr['motor'] ?? 'text'));
+    }
+
+    /**
+     * @return array{ok: bool, error?: string, filas?: list<array<string, mixed>>, columnas?: list<string>, detalle?: string}
+     */
+    private static function parseTextoOcr(string $text, string $origen): array
+    {
+        $text = self::toUtf8($text);
+        if (trim($text) === '') {
+            return [
+                'ok'      => false,
+                'error'   => 'Sin texto para importar.',
+                'detalle' => 'El archivo se puede guardar como respaldo.',
+            ];
+        }
+
         $lines = preg_split('/\R/u', $text) ?: [];
         $matrix = [];
         foreach ($lines as $line) {
@@ -215,7 +255,6 @@ final class EquityDesarrolloImport
             if ($line === '') {
                 continue;
             }
-            // Separar por 2+ espacios o tabs
             $parts = preg_split('/\s{2,}|\t+/u', $line) ?: [$line];
             if (count($parts) === 1) {
                 $parts = preg_split('/\s+/u', $line) ?: [$line];
@@ -225,12 +264,11 @@ final class EquityDesarrolloImport
 
         $parsed = self::rowsToFilas($matrix);
         if (($parsed['ok'] ?? false) && ! empty($parsed['filas'])) {
-            $parsed['detalle'] = 'Importado desde texto del PDF (best-effort). Revisa y ajusta.';
+            $parsed['detalle'] = 'Importado desde ' . $origen . ' (best-effort). Revisa y ajusta.';
 
             return $parsed;
         }
 
-        // Filas sueltas: fecha + números
         $filas = [];
         foreach ($lines as $line) {
             if (! preg_match('/(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}-\d{2}-\d{2})/', $line, $fm)) {
@@ -249,7 +287,6 @@ final class EquityDesarrolloImport
                 continue;
             }
             $fila = ['fecha' => $fm[1]];
-            // Heurística: primer entero pequeño = dividendo; resto montos CLP si > 100
             if (isset($nums[0]) && $nums[0] < 1000 && abs($nums[0] - (int) $nums[0]) < 0.001) {
                 $fila['dividendo_n'] = (int) $nums[0];
                 array_shift($nums);
@@ -272,49 +309,17 @@ final class EquityDesarrolloImport
         if ($filas === []) {
             return [
                 'ok'      => false,
-                'error'   => 'No se detectaron filas de desarrollo en el PDF. Edita manualmente o sube Excel/CSV.',
-                'detalle' => 'El PDF igual se puede guardar como respaldo.',
+                'error'   => 'No se detectaron filas de desarrollo en el documento. Edita manualmente o sube Excel/CSV.',
+                'detalle' => 'El archivo igual se puede guardar como respaldo. Origen: ' . $origen,
             ];
         }
 
         return [
-            'ok'        => true,
-            'filas'     => $filas,
-            'columnas'  => array_values(array_unique(array_merge(...array_map('array_keys', $filas)))),
-            'detalle'   => 'Importado desde PDF (best-effort). Revisa montos.',
+            'ok'       => true,
+            'filas'    => $filas,
+            'columnas' => array_values(array_unique(array_merge(...array_map('array_keys', $filas)))),
+            'detalle'  => 'Importado desde ' . $origen . ' (best-effort). Revisa montos.',
         ];
-    }
-
-    private static function extractPdfText(string $binary): string
-    {
-        // Prefer pdftotext si existe en el host.
-        $tmp = tempnam(sys_get_temp_dir(), 'eqp');
-        if ($tmp !== false) {
-            file_put_contents($tmp, $binary);
-            $out = $tmp . '.txt';
-            $cmd = 'pdftotext -layout ' . escapeshellarg($tmp) . ' ' . escapeshellarg($out) . ' 2>/dev/null';
-            @exec($cmd, $_, $code);
-            $text = ($code === 0 && is_file($out)) ? (string) file_get_contents($out) : '';
-            @unlink($tmp);
-            @unlink($out);
-            if (trim($text) !== '') {
-                return self::toUtf8($text);
-            }
-        }
-
-        // Fallback: strings literales entre paréntesis en streams (muy limitado).
-        $chunks = [];
-        if (preg_match_all('/\((?:\\\\.|[^\\\\)]){2,}\)/s', $binary, $m)) {
-            foreach ($m[0] as $tok) {
-                $s = substr($tok, 1, -1);
-                $s = str_replace(['\\n', '\\r', '\\t', '\\(', '\\)'], ["\n", "\r", "\t", '(', ')'], $s);
-                if (preg_match('/[A-Za-zÁÉÍÓÚáéíóúñÑ0-9]/u', $s) === 1) {
-                    $chunks[] = $s;
-                }
-            }
-        }
-
-        return self::toUtf8(implode("\n", $chunks));
     }
 
     /**
