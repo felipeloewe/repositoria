@@ -353,16 +353,77 @@ foreach ($personas as $p) {
                 </div>
             </div>
         <?php elseif ($clave === 'fondos-pension'): ?>
+            <?php
+            $afpActual = (string) ($edit['afp'] ?? '');
+            $afpMatch = EquityCatalogo::afpPorValor($afpActual);
+            $afpActualLabel = $afpMatch['label'] ?? $afpActual;
+            ?>
+            <p style="margin:0 0 .5rem;font-weight:600">Administradora de fondos *</p>
+            <p class="muted" style="margin:0 0 .75rem;font-size:.9rem">
+                Selecciona la AFP que administra tus fondos (comisiones de referencia).
+            </p>
+            <div class="table-wrap" style="margin-bottom:1rem">
+                <table class="table js-afp-pick" id="tabla-afp">
+                    <thead>
+                        <tr>
+                            <th style="width:2rem"></th>
+                            <th>Administradora</th>
+                            <th>Comisión mensual obligatoria</th>
+                            <th>Comisión anual APV (Afiliados)</th>
+                            <th>Grupo controlador principal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach (EquityCatalogo::catalogoAfp() as $i => $afpRow): ?>
+                        <?php $checked = $afpActualLabel === $afpRow['label']; ?>
+                        <tr class="<?= $checked ? 'is-selected' : '' ?>" style="cursor:pointer">
+                            <td>
+                                <input
+                                    type="radio"
+                                    name="afp"
+                                    id="afp_<?= esc($afpRow['clave']) ?>"
+                                    value="<?= esc($afpRow['label']) ?>"
+                                    <?= $checked ? 'checked' : '' ?>
+                                    <?= $i === 0 && $afpActualLabel === '' ? 'required' : '' ?>
+                                >
+                            </td>
+                            <td>
+                                <label for="afp_<?= esc($afpRow['clave']) ?>" style="color:var(--accent,#2563eb);font-weight:600;cursor:pointer;text-decoration:underline">
+                                    <?= esc($afpRow['label']) ?>
+                                </label>
+                            </td>
+                            <td><strong><?= esc($afpRow['comision_mensual']) ?></strong></td>
+                            <td><?= esc($afpRow['comision_apv']) ?></td>
+                            <td><?= esc($afpRow['grupo']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <script>
+            (function () {
+              var table = document.getElementById('tabla-afp');
+              if (!table) return;
+              table.querySelectorAll('tbody tr').forEach(function (tr) {
+                tr.addEventListener('click', function (e) {
+                  if (e.target && e.target.tagName === 'INPUT') return;
+                  var radio = tr.querySelector('input[type=radio]');
+                  if (!radio) return;
+                  radio.checked = true;
+                  table.querySelectorAll('tbody tr').forEach(function (r) { r.classList.remove('is-selected'); });
+                  tr.classList.add('is-selected');
+                });
+                var radio = tr.querySelector('input[type=radio]');
+                if (radio) {
+                  radio.addEventListener('change', function () {
+                    table.querySelectorAll('tbody tr').forEach(function (r) { r.classList.remove('is-selected'); });
+                    if (radio.checked) tr.classList.add('is-selected');
+                  });
+                }
+              });
+            })();
+            </script>
             <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
-                <div>
-                    <label for="afp">AFP / administradora *</label>
-                    <select id="afp" name="afp" required>
-                        <option value="">—</option>
-                        <?php foreach (EquityCatalogo::opcionesAfp() as $lab): ?>
-                            <option value="<?= esc($lab) ?>" <?= $sel('afp', $lab) ?>><?= esc($lab) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
                 <div>
                     <label for="tipo_fondo">Fondo (multifondo)</label>
                     <select id="tipo_fondo" name="tipo_fondo">

@@ -648,20 +648,95 @@ final class EquityCatalogo
         ];
     }
 
-    /** AFP / administradoras (Chile). */
+    /**
+     * AFP / administradoras (Chile) con comisiones de referencia.
+     *
+     * @return list<array{clave: string, label: string, comision_mensual: string, comision_apv: string, grupo: string}>
+     */
+    public static function catalogoAfp(): array
+    {
+        return [
+            [
+                'clave'             => 'Uno',
+                'label'             => 'AFP Uno',
+                'comision_mensual'  => '0,46%',
+                'comision_apv'      => '0,50%',
+                'grupo'             => 'T inversores / Ejecutivos locales',
+            ],
+            [
+                'clave'             => 'Modelo',
+                'label'             => 'AFP Modelo',
+                'comision_mensual'  => '0,58%',
+                'comision_apv'      => '0,50%',
+                'grupo'             => 'Inversiones Atlántico',
+            ],
+            [
+                'clave'             => 'PlanVital',
+                'label'             => 'AFP PlanVital',
+                'comision_mensual'  => '1,16%',
+                'comision_apv'      => '0,16%',
+                'grupo'             => 'Assicurazioni Generali',
+            ],
+            [
+                'clave'             => 'Habitat',
+                'label'             => 'AFP Habitat',
+                'comision_mensual'  => '1,27%',
+                'comision_apv'      => '0,55%',
+                'grupo'             => 'Prudential Financial y CChC',
+            ],
+            [
+                'clave'             => 'Capital',
+                'label'             => 'AFP Capital',
+                'comision_mensual'  => '1,44%',
+                'comision_apv'      => '0,51%',
+                'grupo'             => 'Grupo Sura',
+            ],
+            [
+                'clave'             => 'Cuprum',
+                'label'             => 'AFP Cuprum',
+                'comision_mensual'  => '1,44%',
+                'comision_apv'      => '0,60%',
+                'grupo'             => 'Principal Financial Group',
+            ],
+            [
+                'clave'             => 'ProVida',
+                'label'             => 'AFP ProVida',
+                'comision_mensual'  => '1,45%',
+                'comision_apv'      => '0,20%',
+                'grupo'             => 'MetLife',
+            ],
+        ];
+    }
+
+    /** Labels AFP (para validación / listados). */
     /** @return list<string> */
     public static function opcionesAfp(): array
     {
-        return [
-            'Capital',
-            'Cuprum',
-            'Habitat',
-            'Modelo',
-            'PlanVital',
-            'Provida',
-            'Uno',
-            'Otra',
-        ];
+        return array_map(static fn (array $r): string => $r['label'], self::catalogoAfp());
+    }
+
+    /** Resuelve fila AFP por label o clave corta. */
+    /** @return array{clave: string, label: string, comision_mensual: string, comision_apv: string, grupo: string}|null */
+    public static function afpPorValor(string $valor): ?array
+    {
+        $v = trim($valor);
+        if ($v === '') {
+            return null;
+        }
+        foreach (self::catalogoAfp() as $row) {
+            if ($row['label'] === $v || $row['clave'] === $v) {
+                return $row;
+            }
+            // Compat: "Provida" / "ProVida" / sin prefijo AFP
+            if (strcasecmp($row['clave'], $v) === 0
+                || strcasecmp($row['label'], $v) === 0
+                || strcasecmp('AFP ' . $row['clave'], $v) === 0
+            ) {
+                return $row;
+            }
+        }
+
+        return null;
     }
 
     /** Multifondos A–E. */

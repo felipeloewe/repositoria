@@ -2806,9 +2806,10 @@ class EquityPatrimonio extends BaseController
                 'notas'       => trim((string) $this->request->getPost('notas')) ?: null,
             ];
         } elseif ($clave === 'fondos-pension') {
-            $afp = trim((string) $this->request->getPost('afp'));
-            if ($afp === '') {
-                return redirect()->to($redirectPath)->with('error', 'La AFP / administradora es obligatoria.');
+            $afpRaw = trim((string) $this->request->getPost('afp'));
+            $afpRow = EquityCatalogo::afpPorValor($afpRaw);
+            if ($afpRow === null) {
+                return redirect()->to($redirectPath)->with('error', 'Selecciona una administradora de la tabla.');
             }
             $tipoFondo = strtoupper(trim((string) $this->request->getPost('tipo_fondo')));
             if ($tipoFondo !== '' && ! in_array($tipoFondo, EquityCatalogo::opcionesTipoFondoPension(), true)) {
@@ -2818,7 +2819,7 @@ class EquityPatrimonio extends BaseController
             $model = model(EquityFondoPensionModel::class);
             $data  = [
                 'persona_id'    => $personaId,
-                'afp'           => $afp,
+                'afp'           => $afpRow['label'],
                 'tipo_fondo'    => $tipoFondo !== '' ? $tipoFondo : null,
                 'tipo_cuenta'   => $tipoCuenta,
                 'numero_cuenta' => trim((string) $this->request->getPost('numero_cuenta')) ?: null,
