@@ -100,6 +100,11 @@ class CreateEquityAntecedentesBancarios extends Migration
                     'constraint' => 1,
                     'default'    => 0,
                 ],
+                'en_link' => [
+                    'type'       => 'TINYINT',
+                    'constraint' => 1,
+                    'default'    => 0,
+                ],
                 'notas' => [
                     'type'       => 'VARCHAR',
                     'constraint' => 255,
@@ -173,6 +178,11 @@ class CreateEquityAntecedentesBancarios extends Migration
                     'default'    => 0,
                 ],
                 'en_gpay' => [
+                    'type'       => 'TINYINT',
+                    'constraint' => 1,
+                    'default'    => 0,
+                ],
+                'en_link' => [
                     'type'       => 'TINYINT',
                     'constraint' => 1,
                     'default'    => 0,

@@ -41,6 +41,10 @@ final class EquityBancarios
             'label' => 'G-Pay',
             'url'   => 'https://pay.google.com/',
         ],
+        'link' => [
+            'label' => 'LINK',
+            'url'   => 'https://link.com/',
+        ],
     ];
 
     public static function appUrl(string $key): ?string

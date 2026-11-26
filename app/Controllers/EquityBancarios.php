@@ -212,6 +212,7 @@ class EquityBancarios extends BaseController
             'ultimos_digitos'  => $ultimos,
             'en_google_wallet' => $this->request->getPost('en_google_wallet') ? 1 : 0,
             'en_gpay'          => $this->request->getPost('en_gpay') ? 1 : 0,
+            'en_link'          => $this->request->getPost('en_link') ? 1 : 0,
             'notas'            => $this->nullableStr('notas', 255),
         ]);
 
@@ -287,6 +288,7 @@ class EquityBancarios extends BaseController
             'ultimos_4'          => $ult4,
             'en_google_wallet'   => $this->request->getPost('en_google_wallet') ? 1 : 0,
             'en_gpay'            => $this->request->getPost('en_gpay') ? 1 : 0,
+            'en_link'            => $this->request->getPost('en_link') ? 1 : 0,
             'notas'              => $this->nullableStr('notas', 255),
         ]);
 

@@ -17,6 +17,6 @@ class EquityPersonaTarjetaModel extends Model
     protected $allowedFields    = [
         'id', 'banco_id', 'empresa_id', 'persona_id', 'marca', 'tipo_producto',
         'monto_aprobado_clp', 'monto_aprobado_usd', 'fecha_vencimiento', 'ultimos_4',
-        'en_google_wallet', 'en_gpay', 'notas',
+        'en_google_wallet', 'en_gpay', 'en_link', 'notas',
     ];
 }

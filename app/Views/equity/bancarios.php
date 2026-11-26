@@ -33,6 +33,9 @@ $appsHtml = static function (array $row) use ($appLink): string {
     if (! empty($row['en_gpay'])) {
         $bits[] = $appLink('gpay');
     }
+    if (! empty($row['en_link'])) {
+        $bits[] = $appLink('link');
+    }
 
     return $bits === [] ? '—' : implode(' · ', $bits);
 };
@@ -81,7 +84,9 @@ $checkboxApp = static function (string $name, string $key): string {
         Si están referenciadas a una app:
         <a href="<?= esc(Bancarios::appUrl('google_wallet') ?? '#') ?>" target="_blank" rel="noopener noreferrer">Google Wallet</a>
         ·
-        <a href="<?= esc(Bancarios::appUrl('gpay') ?? '#') ?>" target="_blank" rel="noopener noreferrer">G-Pay</a>.
+        <a href="<?= esc(Bancarios::appUrl('gpay') ?? '#') ?>" target="_blank" rel="noopener noreferrer">G-Pay</a>
+        ·
+        <a href="<?= esc(Bancarios::appUrl('link') ?? '#') ?>" target="_blank" rel="noopener noreferrer">LINK</a> (pasarela).
     </p>
     <form method="post" action="<?= site_url($base . '/banco') ?>">
         <?= csrf_field() ?>
@@ -195,6 +200,7 @@ $checkboxApp = static function (string $name, string $key): string {
                     <div>
                         <?= $checkboxApp('en_google_wallet', 'google_wallet') ?>
                         <div style="margin-top:.35rem"><?= $checkboxApp('en_gpay', 'gpay') ?></div>
+                        <div style="margin-top:.35rem"><?= $checkboxApp('en_link', 'link') ?></div>
                     </div>
                     <div>
                         <button class="btn btn-primary btn-sm" type="submit">Agregar cuenta</button>
@@ -285,6 +291,7 @@ $checkboxApp = static function (string $name, string $key): string {
                     <div>
                         <?= $checkboxApp('en_google_wallet', 'google_wallet') ?>
                         <div style="margin-top:.35rem"><?= $checkboxApp('en_gpay', 'gpay') ?></div>
+                        <div style="margin-top:.35rem"><?= $checkboxApp('en_link', 'link') ?></div>
                     </div>
                     <div>
                         <button class="btn btn-primary btn-sm" type="submit">Agregar tarjeta</button>

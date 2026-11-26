@@ -50,7 +50,9 @@ final class EquityBancariosTest extends CIUnitTestCase
     {
         $this->assertSame('https://wallet.google/', EquityBancarios::appUrl('google_wallet'));
         $this->assertSame('https://pay.google.com/', EquityBancarios::appUrl('gpay'));
+        $this->assertSame('https://link.com/', EquityBancarios::appUrl('link'));
         $this->assertSame('Google Wallet', EquityBancarios::appLabel('google_wallet'));
+        $this->assertSame('LINK', EquityBancarios::appLabel('link'));
         $this->assertNull(EquityBancarios::appUrl('unknown'));
     }
 }
