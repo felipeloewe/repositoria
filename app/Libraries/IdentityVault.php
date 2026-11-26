@@ -164,6 +164,8 @@ final class IdentityVault
         }
         model(EquityPersonaModel::class)->update($personaId, $patch);
 
+        EquityBancarios::scrubPersona($personaId);
+
         $uid = (string) ($persona['usuario_id'] ?? '');
         if ($uid !== '') {
             self::scrubUsuario($uid);

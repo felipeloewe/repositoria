@@ -77,6 +77,7 @@ $row = static function (string $label, string $value): void {
             <a href="<?= site_url('equity/' . $persona['id'] . '/editar?vista=laboral') ?>">Editar laborales</a>
         <?php endif; ?>
     <?php endif; ?>
+    <a href="<?= site_url('equity/' . $persona['id'] . '/bancarios') ?>">Antecedentes bancarios</a>
 </div>
 
 <?php if ($tipo === EquityAcl::TIPO_SOCIO || $tipo === EquityAcl::TIPO_GERENTE): ?>
@@ -104,6 +105,9 @@ $row = static function (string $label, string $value): void {
             $row('E-mail', esc($persona['email'] ?? '—'));
         ?>
     </div>
+    <p class="no-print" style="margin-top:1rem">
+        <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/' . $persona['id'] . '/bancarios') ?>">Antecedentes bancarios</a>
+    </p>
 </div>
 <?php endif; ?>
 <div class="card section-card">

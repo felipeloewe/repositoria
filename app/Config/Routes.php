@@ -198,6 +198,14 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
     $routes->get('equity/(:segment)', 'Equity::show/$1');
     $routes->get('equity/(:segment)/editar', 'Equity::editForm/$1');
     $routes->post('equity/(:segment)', 'Equity::update/$1');
+    $routes->get('equity/(:segment)/bancarios', 'EquityBancarios::index/$1');
+    $routes->post('equity/(:segment)/bancarios/banco', 'EquityBancarios::storeBanco/$1');
+    $routes->post('equity/(:segment)/bancarios/banco/(:segment)/eliminar', 'EquityBancarios::deleteBanco/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/banco/(:segment)/cuenta', 'EquityBancarios::storeCuenta/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/banco/(:segment)/tarjeta', 'EquityBancarios::storeTarjeta/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/banco/(:segment)', 'EquityBancarios::updateBanco/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/cuenta/(:segment)/eliminar', 'EquityBancarios::deleteCuenta/$1/$2');
+    $routes->post('equity/(:segment)/bancarios/tarjeta/(:segment)/eliminar', 'EquityBancarios::deleteTarjeta/$1/$2');
     $routes->get('equity/(:segment)/fichas/nueva', 'Equity::fichaForm/$1');
     $routes->post('equity/(:segment)/fichas', 'Equity::storeFicha/$1');
     $routes->get('equity/(:segment)/fichas/(:segment)/editar', 'Equity::editFichaForm/$1/$2');

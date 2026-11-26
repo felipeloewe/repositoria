@@ -51,6 +51,9 @@ $sel = static function (string $key, $opt) use ($p): string {
 
 <div class="admin-subnav">
     <a href="<?= $isEdit ? site_url('equity/' . $persona['id']) : site_url('equity') ?>">← Volver</a>
+    <?php if ($isEdit && ! $vistaLaboral): ?>
+        <a href="<?= site_url('equity/' . $persona['id'] . '/bancarios') ?>">Antecedentes bancarios</a>
+    <?php endif; ?>
 </div>
 
 <div class="card section-card">
@@ -220,6 +223,13 @@ $sel = static function (string $key, $opt) use ($p): string {
                     <input id="email" type="email" name="email" value="<?= esc($val('email')) ?>">
                 </div>
             </div>
+            <?php if ($isEdit): ?>
+                <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border, #ddd)">
+                    <h4 style="margin:0 0 .35rem">Antecedentes bancarios</h4>
+                    <p class="muted" style="margin:0 0 .5rem">Cuentas corrientes y tarjetas de crédito por banco (Google Wallet / G-Pay).</p>
+                    <a class="btn btn-ghost btn-sm" href="<?= site_url('equity/' . $persona['id'] . '/bancarios') ?>">Abrir antecedentes bancarios</a>
+                </div>
+            <?php endif; ?>
             <?php endif; ?>
         </div>
 
