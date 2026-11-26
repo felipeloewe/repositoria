@@ -15,16 +15,36 @@ $fmtMoney = static function ($v, string $suf = ''): string {
 
     return number_format((float) $v, 0, ',', '.') . ($suf !== '' ? ' ' . $suf : '');
 };
-$apps = static function (array $row): string {
+$appLink = static function (string $key, string $extraClass = ''): string {
+    $url = Bancarios::appUrl($key);
+    $lab = Bancarios::appLabel($key);
+    if ($url === null) {
+        return esc($lab);
+    }
+    $cls = trim('app-ref-link ' . $extraClass);
+
+    return '<a class="' . esc($cls) . '" href="' . esc($url) . '" target="_blank" rel="noopener noreferrer">' . esc($lab) . '</a>';
+};
+$appsHtml = static function (array $row) use ($appLink): string {
     $bits = [];
     if (! empty($row['en_google_wallet'])) {
-        $bits[] = 'Google Wallet';
+        $bits[] = $appLink('google_wallet');
     }
     if (! empty($row['en_gpay'])) {
-        $bits[] = 'G-Pay';
+        $bits[] = $appLink('gpay');
     }
 
     return $bits === [] ? '—' : implode(' · ', $bits);
+};
+$checkboxApp = static function (string $name, string $key): string {
+    $url = Bancarios::appUrl($key);
+    $lab = Bancarios::appLabel($key);
+    $link = $url !== null
+        ? ' <a href="' . esc($url) . '" target="_blank" rel="noopener noreferrer" title="Abrir ' . esc($lab) . '">(abrir)</a>'
+        : '';
+
+    return '<label class="checkbox-inline"><input type="checkbox" name="' . esc($name) . '" value="1"> '
+        . esc($lab) . $link . '</label>';
 };
 ?>
 
@@ -56,7 +76,13 @@ $apps = static function (array $row): string {
 <?php if (! empty($canManage) && ! empty($tablasOk)): ?>
 <div class="card section-card">
     <h3>Agregar banco</h3>
-    <p class="muted" style="margin-top:0">Por cada banco podrás registrar cuentas corrientes y tarjetas de crédito.</p>
+    <p class="muted" style="margin-top:0">
+        Por cada banco podrás registrar cuentas corrientes y tarjetas de crédito.
+        Si están referenciadas a una app:
+        <a href="<?= esc(Bancarios::appUrl('google_wallet') ?? '#') ?>" target="_blank" rel="noopener noreferrer">Google Wallet</a>
+        ·
+        <a href="<?= esc(Bancarios::appUrl('gpay') ?? '#') ?>" target="_blank" rel="noopener noreferrer">G-Pay</a>.
+    </p>
     <form method="post" action="<?= site_url($base . '/banco') ?>">
         <?= csrf_field() ?>
         <div class="form-row" style="grid-template-columns:2fr 2fr auto;align-items:end;gap:1rem">
@@ -125,7 +151,7 @@ $apps = static function (array $row): string {
                             <td><?= esc(Bancarios::labelTipoCuenta($c['tipo'] ?? null)) ?></td>
                             <td><?= esc($c['moneda'] ?? '—') ?></td>
                             <td><?= esc($c['ultimos_digitos'] ? ('…' . $c['ultimos_digitos']) : '—') ?></td>
-                            <td><?= esc($apps($c)) ?></td>
+                            <td><?= $appsHtml($c) ?></td>
                             <td style="white-space:nowrap">
                                 <?php if (! empty($canManage)): ?>
                                     <form method="post" action="<?= site_url($base . '/cuenta/' . $c['id'] . '/eliminar') ?>" style="display:inline"
@@ -167,8 +193,8 @@ $apps = static function (array $row): string {
                         <input name="ultimos_digitos" type="text" inputmode="numeric" maxlength="8" placeholder="1234">
                     </div>
                     <div>
-                        <label class="checkbox-inline"><input type="checkbox" name="en_google_wallet" value="1"> Google Wallet</label>
-                        <label class="checkbox-inline" style="display:block;margin-top:.35rem"><input type="checkbox" name="en_gpay" value="1"> G-Pay</label>
+                        <?= $checkboxApp('en_google_wallet', 'google_wallet') ?>
+                        <div style="margin-top:.35rem"><?= $checkboxApp('en_gpay', 'gpay') ?></div>
                     </div>
                     <div>
                         <button class="btn btn-primary btn-sm" type="submit">Agregar cuenta</button>
@@ -206,7 +232,7 @@ $apps = static function (array $row): string {
                                 : '—' ?></td>
                             <td><?= esc($t['fecha_vencimiento'] ?? '—') ?></td>
                             <td><?= esc($t['ultimos_4'] ? ('…' . $t['ultimos_4']) : '—') ?></td>
-                            <td><?= esc($apps($t)) ?></td>
+                            <td><?= $appsHtml($t) ?></td>
                             <td style="white-space:nowrap">
                                 <?php if (! empty($canManage)): ?>
                                     <form method="post" action="<?= site_url($base . '/tarjeta/' . $t['id'] . '/eliminar') ?>" style="display:inline"
@@ -257,8 +283,8 @@ $apps = static function (array $row): string {
                         <input name="ultimos_4" type="text" inputmode="numeric" maxlength="4" placeholder="1234">
                     </div>
                     <div>
-                        <label class="checkbox-inline"><input type="checkbox" name="en_google_wallet" value="1"> Google Wallet</label>
-                        <label class="checkbox-inline" style="display:block;margin-top:.35rem"><input type="checkbox" name="en_gpay" value="1"> G-Pay</label>
+                        <?= $checkboxApp('en_google_wallet', 'google_wallet') ?>
+                        <div style="margin-top:.35rem"><?= $checkboxApp('en_gpay', 'gpay') ?></div>
                     </div>
                     <div>
                         <button class="btn btn-primary btn-sm" type="submit">Agregar tarjeta</button>

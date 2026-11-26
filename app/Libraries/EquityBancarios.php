@@ -31,6 +31,28 @@ final class EquityBancarios
 
     public const MONEDAS = ['CLP', 'USD', 'UF', 'EUR'];
 
+    /** Enlaces oficiales a las apps de referencia (abrir / instalar). */
+    public const APP_LINKS = [
+        'google_wallet' => [
+            'label' => 'Google Wallet',
+            'url'   => 'https://wallet.google/',
+        ],
+        'gpay' => [
+            'label' => 'G-Pay',
+            'url'   => 'https://pay.google.com/',
+        ],
+    ];
+
+    public static function appUrl(string $key): ?string
+    {
+        return self::APP_LINKS[$key]['url'] ?? null;
+    }
+
+    public static function appLabel(string $key): string
+    {
+        return self::APP_LINKS[$key]['label'] ?? $key;
+    }
+
     public static function tablasListas(): bool
     {
         $db = db_connect();
